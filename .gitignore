@@ -1,0 +1,12 @@
+node_modules/
+dist/
+coverage/
+.npm-cache/
+data/
+*.db
+*.log
+haru_ja/
+.env
+.idea/
+.vscode/
+.DS_Store

@@ -1,0 +1,9 @@
+{
+  "name": "@l2dp/l2dp",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "src/index.ts",
+  "exports": { ".": "./src/index.ts" },
+  "dependencies": { "fflate": "^0.8.2" },
+  "scripts": { "test": "node --test test/" }
+}

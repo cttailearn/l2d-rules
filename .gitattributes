@@ -1,0 +1,12 @@
+# 统一 LF 行尾（跨平台协作/CI 一致性）
+* text=auto eol=lf
+
+# 二进制
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.moc3 binary
+*.z binary
+*.zip binary

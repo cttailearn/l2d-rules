@@ -1,0 +1,9 @@
+{
+  "name": "@l2dp/renderer",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "src/index.ts",
+  "exports": { ".": "./src/index.ts" },
+  "dependencies": { "@l2dp/l2dp": "*" },
+  "scripts": { "test": "node --test test/" }
+}

@@ -1,0 +1,24 @@
+{
+  "purpose": "语义→部件命名单一来源：入库/装配/导出三处共用（v2.0 10.1/C3）",
+  "prefixRule": "PARTS_<工程号>_<部件名>_<服装组号>（工程号默认 01；服装层部件带组号，身体层不带）",
+  "categories": { "body": "生物器官，不可脱换", "clothing": "可脱换外观" },
+  "assetTypes": {
+    "body": ["hair","eye","brow","mouth","nose","ear","face_skin","breast","genital","limb"],
+    "clothing": ["hairstyle","underwear","top","bottom","dress","shoes","socks","accessory"]
+  },
+  "bodyParts": {
+    "face": "脸", "hoho": "颊", "ear": "耳", "nose": "鼻", "eye": "目", "eyeball": "目玉",
+    "brow": "眉", "mouth": "口", "neck": "首",
+    "hair_back": "后发", "hair_side": "侧发", "hair_front": "前发",
+    "body_upper": "上半身", "body_lower": "下半身",
+    "arm_a": "臂A", "arm_b": "臂B", "leg": "腿", "feet": "足",
+    "adult_breast": "胸（成人器官）", "adult_genital": "阴部（成人器官）"
+  },
+  "clothingPartTemplates": {
+    "outfit_top": "上衣", "outfit_bottom": "下身", "outfit_dress": "连衣裙",
+    "outfit_underwear_bra": "胸衣", "outfit_underwear_panties": "内裤",
+    "outfit_shoes": "鞋", "outfit_socks": "袜", "outfit_accessory": "饰品",
+    "hairstyle": "发型配件（可换造型）"
+  },
+  "engineeringParts": { "sketch": "[下絵]底稿", "background": "背景" }
+}
