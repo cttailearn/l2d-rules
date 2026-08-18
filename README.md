@@ -38,7 +38,7 @@ l2d-rules/
 ~~~bash
 npm install
 npm run typecheck   # 3 包类型检查
-npm test            # l2dp 4 + dsl 43 + renderer 7（Haru 对照 2 例需自备 fixture，缺失自动跳过）
+npm test            # 5 包全量 117：l2dp 4 + dsl 46 + engine 45 + driver 15 + renderer 7（Haru 对照 2 例需自备 fixture，缺失自动跳过）
 ~~~
 
 > Haru 对照测试需要官方示例 `haru_ja/runtime/motion/haru_idle_01.motion3.json`（gitignore，仅限非公开测试用途），缺失时自动 skip 不阻塞。
@@ -54,8 +54,10 @@ npm test            # l2dp 4 + dsl 43 + renderer 7（Haru 对照 2 例需自备 
 | M1 | .l2dm 格式 schema + validator + loader | ✅ `packages/engine/src/format`（14 用例） |
 | M2 | 形变核心：ParameterStore + Hierarchy + Warp 网格形变 | ✅ `packages/engine/src/runtime`（10 用例） |
 | M3 | 渲染双后端：软件光栅 + WebGL2（RenderSink 三阶段） | ✅ `packages/engine/src/render`（7 用例） |
-| P3 | 扁平 IR（v2）+ 环境层控制器 + 分层求值/优先级 | ⬜ |
-| P3b | **JSONL 流式驱动**（StreamIngestor）+ 双模式校验 | ⬜ 本次定案核心 |
+| M4 | Player + compat：加载→逐帧；l2dp/motion3/exp3 → 引擎资产 | ✅ `packages/engine/player` + `compat`（含 golden 参考） |
+| M5 | **LLM 驱动核心**：扁平 IR + StreamIngestor + LayerStack + EnvironmentLayer + Evaluator | ✅ `packages/driver`（14 用例） |
+| P3 | 扁平 IR（v2）+ 环境层控制器 + 分层求值/优先级 | ✅ `packages/driver`（M5 落地） |
+| P3b | **JSONL 流式驱动**（StreamIngestor）+ 双模式校验 | 🚧 StreamIngestor 完成（M5）；双模式规则库 M6 |
 | P5 | LLM 驱动通道：两跳 + Provider 分级（native/grammar/text）+ 评估集 | ⬜ |
 | P4 | LLM 创作通道（few-shot + 自修复 + 干跑），**后置为高级可选** | ⬜ |
 | P6 | 核心词表 manifest 生成器 + library 索引 + scene 舞台 + TTS 可选 | ⬜ |
