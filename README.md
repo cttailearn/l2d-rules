@@ -18,7 +18,9 @@ l2d-rules/
 ├─ packages/
 │  ├─ l2dp/        官方 JSON 类型 + 标准参数白名单 + 命名规则 + .l2dp 校验/组装（含 fflate 打包）
 │  ├─ dsl/         语言 A 解析器 + 编译器（.ldsl → motion3/exp3/manifest 缓存）★ P0/P1 已完成
-│  └─ renderer/    求值管线（动作→表情→物理→override）+ 曲线采样 + 形变 + 软件光栅化（干跑/无头 sink）
+│  ├─ engine/      自研 Live2D 类引擎（路线 C）：.l2dm 格式/形变/物理/双渲染（软件+WebGL2）★ M0 骨架
+│  ├─ driver/      LLM 驱动核心：扁平 IR + JSONL 流式 + 分层求值 + 环境层 + 双模式校验 + Provider/两跳 ★ M0 骨架
+│  └─ renderer/    求值管线（动作→表情→物理→override）+ 曲线采样 + 形变 + 软件光栅化（旧预览器，待 engine 接管后退役）
 ├─ specs/          机器可读词表：standard-params.json（32 官方参数基线）、parts-naming.json（部件命名单一来源）
 ├─ docs/
 │  ├─ SPEC-DSL-v1.0.md   唯一权威规范（确认版）：融合分工 + JSONL 流式驱动 + 扁平 IR + 环境层 + 决策记录 ★ 开发以此为准
@@ -47,7 +49,9 @@ npm test            # l2dp 4 + dsl 43 + renderer 7（Haru 对照 2 例需自备 
 |---|---|---|
 | P0 | 解析器 + AST + 语法校验（character/motion/expression/scene） | ✅ `packages/dsl` |
 | P1 | 编译器：motion→motion3、expression→exp3、character→manifest 缓存 | ✅ `packages/dsl` |
+| M0 | 自研引擎 + LLM 驱动包骨架（engine/driver）+ typecheck 5 包 + 冒烟测试 | ✅ `packages/engine` + `packages/driver` |
 | P2 | 校验器全套（7 类 + IR/流专属）+ 干跑求值 | ⬜ 下一站（双模式共享规则库） |
+| M1 | .l2dm 格式 schema + validator + loader | ⬜ |
 | P3 | 扁平 IR（v2）+ 环境层控制器 + 分层求值/优先级 | ⬜ |
 | P3b | **JSONL 流式驱动**（StreamIngestor）+ 双模式校验 | ⬜ 本次定案核心 |
 | P5 | LLM 驱动通道：两跳 + Provider 分级（native/grammar/text）+ 评估集 | ⬜ |
