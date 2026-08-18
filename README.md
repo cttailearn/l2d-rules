@@ -22,6 +22,7 @@ l2d-rules/
 ├─ specs/          机器可读词表：standard-params.json（32 官方参数基线）、parts-naming.json（部件命名单一来源）
 ├─ docs/
 │  ├─ SPEC-DSL-v1.0.md   唯一权威规范（确认版）：融合分工 + JSONL 流式驱动 + 扁平 IR + 环境层 + 决策记录 ★ 开发以此为准
+│  ├─ DEVELOPMENT-SPEC.md 完整开发文档（智能体可执行）：自研引擎(.l2dm/变形/双渲染) + LLM 驱动核心 + M0-M7 里程碑 ★ 开发以此执行
 │  ├─ SPEC-v2.0.md       平台主规格（参考：10.3 求值管线、6.2 字段规格）
 │  ├─ haru模型对照分析.md 编译对齐基准（官方 Haru 结构）
 │  └─ ARCHITECTURE.md    本 SDK 边界定义 + 宿主接口 + 迁移说明
