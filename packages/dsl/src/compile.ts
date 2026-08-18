@@ -110,7 +110,7 @@ export function buildSegments(points: SegPoint[], easing?: Easing): number[] {
 
 /**
  * 从 motion3 Segments 统计段数与点数（口径 = Haru 官方：每「类型标记+点组」为一段；
- * Linear 段 n 个点、Bezier 段 3 个点、Stepped 段 1 个点），见 docs/SPEC-DSL-v0.1.md 6 章。
+ * Linear 段 n 个点、Bezier 段 3 个点、Stepped 段 1 个点），见 docs/SPEC-DSL-v1.0.md 3 章。
  */
 export function countSegmentsPoints(segments: number[]): { segments: number; points: number } {
   if (segments.length === 0) return { segments: 0, points: 0 };

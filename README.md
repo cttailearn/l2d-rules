@@ -5,8 +5,11 @@
 
 - **模型无关**：正文只说语义名（sem/layer/outfit/资产名），官方 `PARAM_*`/`PARTS_*` 只允许出现在 manifest 映射区（硬约束）
 - **渲染器无关**：SDK 通过 `ParameterSink`（只写不回读）把每帧参数交给宿主——自研渲染器 / Cubism SDK / VTube / 无头录像器皆可
-- **LLM 双通道**：创作模式（few-shot 生成语言 A + 校验回传自修复）+ 驱动模式（function calling 输出 Directive IR）
+- **融合分工**：LLM 决策（选行为/表情）+ author 资产表达 + 程序化环境层（呼吸/眨眼/视线/重心 + 1/f 噪声）——角色“一直被驱动且一直活着”
+- **JSONL 流式驱动**：交互侧逐行摄取即生效（行级原子、坏行隔离不阻塞），离线侧整批原子校验——同一规则库双模式
 - **确定性**：时钟/随机种子可注入，同输入同输出，可无浏览器 CI 测试
+
+> 唯一权威规范：[docs/SPEC-DSL-v1.0.md](docs/SPEC-DSL-v1.0.md)（确认版，取代 SPEC-DSL-v0.1 / DESIGN-v0.2 / DESIGN-v3.0）
 
 ## 目录结构
 
@@ -18,7 +21,7 @@ l2d-rules/
 │  └─ renderer/    求值管线（动作→表情→物理→override）+ 曲线采样 + 形变 + 软件光栅化（干跑/无头 sink）
 ├─ specs/          机器可读词表：standard-params.json（32 官方参数基线）、parts-naming.json（部件命名单一来源）
 ├─ docs/
-│  ├─ SPEC-DSL-v0.1.md   主规格（两层语言/语义层/IR/运行时/LLM 通道/校验器/路线图）★ 开发以此为准
+│  ├─ SPEC-DSL-v1.0.md   唯一权威规范（确认版）：融合分工 + JSONL 流式驱动 + 扁平 IR + 环境层 + 决策记录 ★ 开发以此为准
 │  ├─ SPEC-v2.0.md       平台主规格（参考：10.3 求值管线、6.2 字段规格）
 │  ├─ haru模型对照分析.md 编译对齐基准（官方 Haru 结构）
 │  └─ ARCHITECTURE.md    本 SDK 边界定义 + 宿主接口 + 迁移说明
@@ -37,16 +40,17 @@ npm test            # l2dp 4 + dsl 43 + renderer 7（Haru 对照 2 例需自备 
 
 > Haru 对照测试需要官方示例 `haru_ja/runtime/motion/haru_idle_01.motion3.json`（gitignore，仅限非公开测试用途），缺失时自动 skip 不阻塞。
 
-## 现状（对齐 SPEC-DSL-v0.1 第 13 章路线图）
+## 现状（对齐 SPEC-DSL-v1.0 第 13 章路线图）
 
 | 阶段 | 内容 | 状态 |
 |---|---|---|
 | P0 | 解析器 + AST + 语法校验（character/motion/expression/scene） | ✅ `packages/dsl` |
 | P1 | 编译器：motion→motion3、expression→exp3、character→manifest 缓存 | ✅ `packages/dsl` |
-| P2 | 校验器全套（10 章 7 类规则）+ 干跑求值 | ⬜ 下一站（含 LLM 批量错误收集模式） |
-| P3 | 语言 B：behavior 解析 → Directive IR + 时间轴调度器（覆盖最小集） | ⬜ |
-| P4 | LLM 创作通道：few-shot 模板 + 自修复循环 | ⬜ |
-| P5 | LLM 驱动通道：function schema + provider 抽象（云/Ollama）+ 两跳 | ⬜ |
+| P2 | 校验器全套（7 类 + IR/流专属）+ 干跑求值 | ⬜ 下一站（双模式共享规则库） |
+| P3 | 扁平 IR（v2）+ 环境层控制器 + 分层求值/优先级 | ⬜ |
+| P3b | **JSONL 流式驱动**（StreamIngestor）+ 双模式校验 | ⬜ 本次定案核心 |
+| P5 | LLM 驱动通道：两跳 + Provider 分级（native/grammar/text）+ 评估集 | ⬜ |
+| P4 | LLM 创作通道（few-shot + 自修复 + 干跑），**后置为高级可选** | ⬜ |
 | P6 | 核心词表 manifest 生成器 + library 索引 + scene 舞台 + TTS 可选 | ⬜ |
 
 ## 与 live2d-forge 的关系

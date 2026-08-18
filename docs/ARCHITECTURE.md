@@ -1,6 +1,6 @@
 # l2d-rules 架构与边界
 
-> 本文定义 SDK 与宿主的分界、宿主接口与迁移说明。开发时以 `SPEC-DSL-v0.1.md` 为功能规格、本文为边界规格，冲突时以硬约束（0 章）为准。
+> 本文定义 SDK 与宿主的分界、宿主接口与迁移说明。开发时以 `SPEC-DSL-v1.0.md`（确认版）为功能规格、本文为边界规格，冲突时以硬约束（1 章）为准。
 
 ## 1. 边界原则
 
@@ -86,4 +86,4 @@ engine.onFrame(dtMs: number);          // 帧驱动：宿主 rAF / 定时器调�
 
 | 日期 | 变更 |
 |---|---|
-| 2026-08-18 | 自 live2d-forge 抽取建立仓库：l2dp/dsl/renderer 三包 + specs 词表 + SPEC-DSL-v0.1 主规格；dsl 的 Haru 对照测试改为 fixture 缺失自动跳过 |
+| 2026-08-18 | 自 live2d-forge 抽取建立仓库；同日整合为唯一权威规范 SPEC-DSL-v1.0（融合分工架构 + JSONL 流式驱动），删除 SPEC-DSL-v0.1 / DESIGN-v0.2 / DESIGN-v3.0 |
