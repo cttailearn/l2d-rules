@@ -45,6 +45,12 @@ export class ParameterStore {
     return (this.get(id) - def.min) / (def.max - def.min);
   }
 
+  /** 参数声明范围；未知 id 返回 null。 */
+  range(id: string): { min: number; max: number } | null {
+    const d = this.defs.get(id);
+    return d !== undefined ? { min: d.min, max: d.max } : null;
+  }
+
   /** 全部重置为声明默认值（或 0）。 */
   reset(): void {
     for (const def of this.defs.values()) {

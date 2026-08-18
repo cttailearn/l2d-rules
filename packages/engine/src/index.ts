@@ -8,9 +8,14 @@ export * from "./format/loader.ts";
 export * from "./runtime/parameter-store.ts";
 export * from "./runtime/hierarchy.ts";
 export * from "./runtime/deform.ts";
+export * from "./runtime/random.ts";
+export * from "./runtime/physics.ts";
 export * from "./render/sink.ts";
 export * from "./render/software.ts";
 export * from "./render/webgl2.ts";
+export * from "./player/motion.ts";
+export * from "./player/player.ts";
+export * from "./compat/l2dp-import.ts";
 
 /** 引擎包版本（与 spec 硬约束：版本三件套之一，写进产物） */
 export const ENGINE_VERSION = "0.1.0";

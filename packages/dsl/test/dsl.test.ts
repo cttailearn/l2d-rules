@@ -4,22 +4,52 @@ import assert from "node:assert/strict";
 import { readFileSync, existsSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { DSL_SYNTAX_VERSION, parseDsl, buildSegments, compileDoc, countSegmentsPoints, expandCurve } from "../src/index.ts";
-import type { CharacterBlock, DslError, Doc, ExpressionBlock, MotionBlock, SceneBlock } from "../src/index.ts";
+import {
+  DSL_SYNTAX_VERSION,
+  parseDsl,
+  buildSegments,
+  compileDoc,
+  countSegmentsPoints,
+  expandCurve,
+} from "../src/index.ts";
+import type {
+  CharacterBlock,
+  DslError,
+  Doc,
+  ExpressionBlock,
+  MotionBlock,
+  SceneBlock,
+} from "../src/index.ts";
 
 const here = dirname(fileURLToPath(import.meta.url));
 // Haru 官方示例 fixture（gitignore，仅限非公开测试用途）：缺失时相关对照测试自动跳过
-const HARU_MOTION3 = join(here, "../../../haru_ja/runtime/motion/haru_idle_01.motion3.json");
+const HARU_MOTION3 = join(
+  here,
+  "../../../haru_ja/runtime/motion/haru_idle_01.motion3.json",
+);
 const HARU_AVAILABLE = existsSync(HARU_MOTION3);
-const haruSkip = HARU_AVAILABLE ? false : "需 haru_ja 官方示例 fixture（gitignore，未提供）";
+const haruSkip = HARU_AVAILABLE
+  ? false
+  : "需 haru_ja 官方示例 fixture（gitignore，未提供）";
 
 function okDoc(src: string): Doc {
   const r = parseDsl(src, "test.ldsl");
-  assert.equal(r.ok, true, r.ok ? "" : `unexpected err ${r.error.code}@${r.error.line}:${r.error.col}: ${r.error.message}`);
+  assert.equal(
+    r.ok,
+    true,
+    r.ok
+      ? ""
+      : `unexpected err ${r.error.code}@${r.error.line}:${r.error.col}: ${r.error.message}`,
+  );
   return (r as { ok: true; doc: Doc }).doc;
 }
 
-function err(src: string): { code: string; line: number; col: number; message: string } {
+function err(src: string): {
+  code: string;
+  line: number;
+  col: number;
+  message: string;
+} {
   const r = parseDsl(src, "test.ldsl");
   assert.equal(r.ok, false, "应解析失败");
   const e = (r as { ok: false; error: DslError }).error;
@@ -63,14 +93,18 @@ motion 挥手 {
 });
 
 test("duration 支持秒单位（归一化毫秒）", () => {
-  const doc = okDoc(`motion a { duration: 1.8s; loop: true; track x { 0: 0; 100: 1 } }`);
+  const doc = okDoc(
+    `motion a { duration: 1.8s; loop: true; track x { 0: 0; 100: 1 } }`,
+  );
   const m = doc.blocks[0] as MotionBlock;
   assert.equal(m.durationMs, 1800);
   assert.equal(m.loop, true);
 });
 
 test("track 支持 curve 函数曲线（与关键帧互斥）", () => {
-  const doc = okDoc(`motion 待机 { loop: true; duration: 4000; track 嘴开合 { curve: breath } }`);
+  const doc = okDoc(
+    `motion 待机 { loop: true; duration: 4000; track 嘴开合 { curve: breath } }`,
+  );
   const m = doc.blocks[0] as MotionBlock;
   assert.equal(m.tracks[0].curve, "breath");
   assert.equal(m.tracks[0].frames.length, 0);
@@ -171,10 +205,19 @@ scene 书房 {
 test("scene cast 缺失 source/anchor：CONSTRAINT；编译出布局", () => {
   const e = err(`scene s { cast x { scale: 2 } }`);
   assert.equal(e.code, "CONSTRAINT");
-  const doc = okDoc(`scene 书房 { camera { zoom: 2 } cast 小夏 { source: "c.ldsl"; anchor: [0 0] } }`);
+  const doc = okDoc(
+    `scene 书房 { camera { zoom: 2 } cast 小夏 { source: "c.ldsl"; anchor: [0 0] } }`,
+  );
   const r = compileDoc(doc);
   assert.equal(r.ok, true);
-  const scenes = (r as { ok: true; output: { scenes: { camera?: { zoom?: number }; casts: { name: string }[] }[] } }).output.scenes;
+  const scenes = (
+    r as {
+      ok: true;
+      output: {
+        scenes: { camera?: { zoom?: number }; casts: { name: string }[] }[];
+      };
+    }
+  ).output.scenes;
   assert.equal(scenes.length, 1);
   assert.equal(scenes[0].camera?.zoom, 2);
   assert.equal(scenes[0].casts[0].name, "小夏");
@@ -220,13 +263,17 @@ test("非法单位：BAD_UNIT", () => {
 });
 
 test("关键帧时间须严格递增：CONSTRAINT", () => {
-  const e = err(`motion m { duration: 500; track 头转向 { 300: 20deg; 150: 0deg } }`);
+  const e = err(
+    `motion m { duration: 500; track 头转向 { 300: 20deg; 150: 0deg } }`,
+  );
   assert.equal(e.code, "CONSTRAINT");
   assert.match(e.message, /递增/);
 });
 
 test("easing 之后不得再有关键帧：CONSTRAINT", () => {
-  const e = err(`motion m { duration: 500; track x { 0: 0; easing: linear; 100: 0.5 } }`);
+  const e = err(
+    `motion m { duration: 500; track x { 0: 0; easing: linear; 100: 0.5 } }`,
+  );
   assert.equal(e.code, "CONSTRAINT");
   assert.match(e.message, /easing/);
 });
@@ -251,7 +298,9 @@ test("非法字符：LEX 错误带行列号", () => {
 });
 
 test("字符串与标识符均可作 group 值；缺失块名报错", () => {
-  const doc = okDoc(`motion m { group: "IdleA"; duration: 100; track x { 0: 0; 10: 1 } }`);
+  const doc = okDoc(
+    `motion m { group: "IdleA"; duration: 100; track x { 0: 0; 10: 1 } }`,
+  );
   assert.equal((doc.blocks[0] as MotionBlock).group, "IdleA");
   const e = err(`motion { duration: 100 }`);
   assert.equal(e.code, "SYNTAX");
@@ -313,8 +362,12 @@ character 小夏 {
 
 test("layer parts 支持单个部件名；层名重复报错", () => {
   const doc = okDoc(`character c { layer 前发 { parts: hair_front } }`);
-  assert.deepEqual((doc.blocks[0] as CharacterBlock).layers[0].parts, ["hair_front"]);
-  const e = err(`character c { layer 前发 { parts: hair_front } layer 前发 { parts: hair_back } }`);
+  assert.deepEqual((doc.blocks[0] as CharacterBlock).layers[0].parts, [
+    "hair_front",
+  ]);
+  const e = err(
+    `character c { layer 前发 { parts: hair_front } layer 前发 { parts: hair_back } }`,
+  );
   assert.equal(e.code, "CONSTRAINT");
   assert.match(e.message, /重复/);
 });
@@ -342,15 +395,28 @@ test("character 空块：CONSTRAINT", () => {
 // ============================================================ P1 编译器
 
 test("buildSegments：linear 多点折线与单点", () => {
-  assert.deepEqual(buildSegments([{ t: 0, v: 0 }, { t: 0.3, v: 10 }, { t: 0.9, v: 8 }]),
-    [0, 0, 0, 0.3, 10, 0.9, 8]);
-  assert.deepEqual(buildSegments([{ t: 0.5, v: 1 }]), [0, 0.5, 1]);
+  assert.deepEqual(
+    buildSegments([
+      { t: 0, v: 0 },
+      { t: 0.3, v: 10 },
+      { t: 0.9, v: 8 },
+    ]),
+    [0, 0, 0, 0.3, 10, 0, 0.9, 8], // 官方布局：初始点 + [0, 点] 段
+  );
+  assert.deepEqual(buildSegments([{ t: 0.5, v: 1 }]), [0.5, 1]); // 单点：仅初始点
 });
 
 test("buildSegments：easeOut 首段 Linear 后续 Bezier（控制点换算）", () => {
-  const pts = [{ t: 0, v: 0 }, { t: 0.3, v: 10 }, { t: 0.9, v: 8 }];
+  const pts = [
+    { t: 0, v: 0 },
+    { t: 0.3, v: 10 },
+    { t: 0.9, v: 8 },
+  ];
   // [0, p0, p1], 然后 Bezier: 隐式起点(0.3,10)，easeOut bezier=[0,0,0.58,1]
-  assert.deepEqual(buildSegments(pts, "easeOut"), [0, 0, 0, 0.3, 10, 1, 0.3, 10, 0.648, 8, 0.9, 8]);
+  assert.deepEqual(
+    buildSegments(pts, "easeOut"),
+    [0, 0, 0, 0.3, 10, 1, 0.3, 10, 0.648, 8, 0.9, 8],
+  );
 });
 
 test("compileDoc：character + motion + expression 全链路", () => {
@@ -369,15 +435,38 @@ motion 挥手 {
 expression 开心 { blend: Add; set 眼开合 = 0.9 }
 `);
   const r = compileDoc(doc);
-  assert.equal(r.ok, true, r.ok ? "" : `${r.error.code}@${r.error.line}:${r.error.col}`);
-  const out = (r as { ok: true; output: { manifests: unknown[]; motions: unknown[]; expressions: unknown[] } }).output;
+  assert.equal(
+    r.ok,
+    true,
+    r.ok ? "" : `${r.error.code}@${r.error.line}:${r.error.col}`,
+  );
+  const out = (
+    r as {
+      ok: true;
+      output: {
+        manifests: unknown[];
+        motions: unknown[];
+        expressions: unknown[];
+      };
+    }
+  ).output;
   assert.equal(out.manifests.length, 1);
-  const mf = out.manifests[0] as { syntaxVersion: string; sems: { name: string; params: string[] }[]; assetIndex: { motions: { name: string }[]; expressions: { name: string }[] } };
+  const mf = out.manifests[0] as {
+    syntaxVersion: string;
+    sems: { name: string; params: string[] }[];
+    assetIndex: {
+      motions: { name: string }[];
+      expressions: { name: string }[];
+    };
+  };
   assert.equal(mf.syntaxVersion, DSL_SYNTAX_VERSION);
   assert.equal(mf.sems.length, 2);
   assert.deepEqual(mf.sems[1].params, ["PARAM_EYE_L_OPEN", "PARAM_EYE_R_OPEN"]);
 
-  const motions = out.motions as { meta: { duration: number; loop: boolean; curveCount: number }; curves: { target: string; id: string; segments: number[] }[] }[];
+  const motions = out.motions as {
+    meta: { duration: number; loop: boolean; curveCount: number };
+    curves: { target: string; id: string; segments: number[] }[];
+  }[];
   assert.equal(motions.length, 1);
   const m = motions[0];
   assert.equal(m.meta.duration, 1.8); // 毫秒→秒
@@ -388,13 +477,20 @@ expression 开心 { blend: Add; set 眼开合 = 0.9 }
   assert.equal(m.curves[0].segments.length, 19); // 4 帧 easeOut：线性段 + 2 Bezier 段
   assert.equal(m.curves[1].id, "PARAM_EYE_L_OPEN");
   assert.equal(m.curves[2].id, "PARAM_EYE_R_OPEN");
-  assert.deepEqual(m.curves[1].segments, [0, 0, 1, 0.12, 0.2, 0.26, 1]); // 眼开合 linear
+  assert.deepEqual(m.curves[1].segments, [0, 1, 0, 0.12, 0.2, 0, 0.26, 1]); // 眼开合 linear（官方布局：初始点 + 交织段标识符）
 
-  const expressions = out.expressions as { type: string; parameters: { id: string; value: number; blend: string }[] }[];
+  const expressions = out.expressions as {
+    type: string;
+    parameters: { id: string; value: number; blend: string }[];
+  }[];
   assert.equal(expressions.length, 1);
   assert.equal(expressions[0].type, "Live2D Expression");
   assert.equal(expressions[0].parameters.length, 2);
-  assert.deepEqual(expressions[0].parameters[0], { id: "PARAM_EYE_L_OPEN", value: 0.9, blend: "Add" });
+  assert.deepEqual(expressions[0].parameters[0], {
+    id: "PARAM_EYE_L_OPEN",
+    value: 0.9,
+    blend: "Add",
+  });
 
   assert.equal(mf.assetIndex.motions.length, 1);
   assert.equal(mf.assetIndex.motions[0].name, "挥手");
@@ -402,7 +498,9 @@ expression 开心 { blend: Add; set 眼开合 = 0.9 }
 });
 
 test("compileDoc：motion 引用不存在的 sem：REF", () => {
-  const doc = okDoc(`character c { sem 头转向 [0 1] -> { PARAM_ANGLE_X } } motion m { duration: 100; track 尾巴 { 0: 0; 10: 1 } }`);
+  const doc = okDoc(
+    `character c { sem 头转向 [0 1] -> { PARAM_ANGLE_X } } motion m { duration: 100; track 尾巴 { 0: 0; 10: 1 } }`,
+  );
   const r = compileDoc(doc);
   assert.equal(r.ok, false);
   assert.equal((r as { error: DslError }).error.code, "REF");
@@ -410,7 +508,9 @@ test("compileDoc：motion 引用不存在的 sem：REF", () => {
 });
 
 test("compileDoc：缺少 character 块但含 motion：REF", () => {
-  const doc = okDoc(`motion m { duration: 100; track 头转向 { 0: 0deg; 10: 20deg } }`);
+  const doc = okDoc(
+    `motion m { duration: 100; track 头转向 { 0: 0deg; 10: 20deg } }`,
+  );
   const r = compileDoc(doc);
   assert.equal(r.ok, false);
   assert.equal((r as { error: DslError }).error.code, "REF");
@@ -424,7 +524,9 @@ test("compileDoc：sem 映射非白名单官方参数：BAD_PARAM", () => {
   assert.match((r as { error: DslError }).error.message, /PARAM_FAKE/);
 });
 
-test("Haru 官方 motion3 Segments 布局与编译器输出同构", { skip: haruSkip }, () => {
+test("Haru 官方 motion3 Segments 布局与编译器输出同构", {
+  skip: haruSkip,
+}, () => {
   const haru = JSON.parse(readFileSync(HARU_MOTION3, "utf8"));
   const first = haru.Curves[0];
   assert.equal(first.Id, "PARAM_ANGLE_X");
@@ -432,23 +534,45 @@ test("Haru 官方 motion3 Segments 布局与编译器输出同构", { skip: haru
   // 官方 ARM 曲线 = buildSegments 两帧 linear 的完全同构
   const arm = haru.Curves.find((c: { Id: string }) => c.Id === "PARAM_ARM_L_A");
   assert.deepEqual(arm.Segments, [0, 0.5, 0, 10, 0.5]);
-  assert.deepEqual(buildSegments([{ t: 0.5, v: 0 }, { t: 10, v: 0.5 }]), [0, 0.5, 0, 10, 0.5]);
+  assert.deepEqual(
+    buildSegments([
+      { t: 0.5, v: 0 },
+      { t: 10, v: 0.5 },
+    ]),
+    [0, 0.5, 0, 10, 0.5],
+  );
 });
 
 test("motion 显式 duration 缺省时由最大关键帧时间推导", () => {
-  const doc = okDoc(`character c { sem 头转向 [0 1] -> { PARAM_ANGLE_X } } motion m { track 头转向 { 0: 0deg; 500: 20deg; 1200: 0deg } }`);
+  const doc = okDoc(
+    `character c { sem 头转向 [0 1] -> { PARAM_ANGLE_X } } motion m { track 头转向 { 0: 0deg; 500: 20deg; 1200: 0deg } }`,
+  );
   const r = compileDoc(doc);
   assert.equal(r.ok, true);
-  const motions = (r as { ok: true; output: { motions: { meta: { duration: number } }[] } }).output.motions;
+  const motions = (
+    r as { ok: true; output: { motions: { meta: { duration: number } }[] } }
+  ).output.motions;
   assert.equal(motions[0].meta.duration, 1.2);
 });
 
 // ============================================================ P1 补强：统计 / curve 参数化 / scene
 
 test("countSegmentsPoints：linear 单段多点 / mixed 段计数口径", () => {
-  assert.deepEqual(countSegmentsPoints([0, 0, 0, 0.3, 10, 0.9, 8]), { segments: 1, points: 3 });
-  assert.deepEqual(countSegmentsPoints([0, 0, 1, 0.3, 10, 1, 0.3, 10, 0.648, 8, 0.9, 8]), { segments: 2, points: 5 });
-  assert.deepEqual(countSegmentsPoints([0, 0.5, 1]), { segments: 1, points: 1 });
+  // 官方布局：初始点 + [标识符, 点...]；init(0,0) + 两段 linear
+  assert.deepEqual(countSegmentsPoints([0, 0, 0, 0.3, 10, 0, 0.9, 8]), {
+    segments: 2,
+    points: 3,
+  });
+  // init(0,0) + linear(0.3,10) + bezier(c1(0.3,10), c2(0.648,8), p3(0.9,8))
+  assert.deepEqual(
+    countSegmentsPoints([0, 0, 0, 0.3, 10, 1, 0.3, 10, 0.648, 8, 0.9, 8]),
+    { segments: 2, points: 5 },
+  );
+  // 单点曲线：仅初始点无段
+  assert.deepEqual(countSegmentsPoints([0.5, 1]), {
+    segments: 0,
+    points: 1,
+  });
 });
 
 test("motion3 meta 统计 totalSegmentCount/totalPointCount 累加", () => {
@@ -458,13 +582,28 @@ motion m { duration: 300; track 眼开合 { 0: 1; 120: 0.2; 260: 1 } }
 `);
   const r = compileDoc(doc);
   assert.equal(r.ok, true);
-  const m = (r as { ok: true; output: { motions: { meta: { curveCount: number; totalSegmentCount: number; totalPointCount: number } }[] } }).output.motions[0];
+  const m = (
+    r as {
+      ok: true;
+      output: {
+        motions: {
+          meta: {
+            curveCount: number;
+            totalSegmentCount: number;
+            totalPointCount: number;
+          };
+        }[];
+      };
+    }
+  ).output.motions[0];
   assert.equal(m.meta.curveCount, 2); // 眼开合→2 官方参数
-  assert.equal(m.meta.totalSegmentCount, 2); // 每曲线 1 段线性
-  assert.equal(m.meta.totalPointCount, 6); // 每曲线 3 点
+  assert.equal(m.meta.totalSegmentCount, 4); // 每曲线 2 段线性 × 2 条
+  assert.equal(m.meta.totalPointCount, 6); // 每曲线 3 点 × 2 条
 });
 
-test("countSegmentsPoints 对 Haru 官方全文件统计 ≈ Editor 元数据", { skip: haruSkip }, () => {
+test("countSegmentsPoints 对 Haru 官方全文件统计 ≈ Editor 元数据", {
+  skip: haruSkip,
+}, () => {
   const haru = JSON.parse(readFileSync(HARU_MOTION3, "utf8"));
   let seg = 0;
   let pts = 0;
@@ -473,38 +612,97 @@ test("countSegmentsPoints 对 Haru 官方全文件统计 ≈ Editor 元数据", 
     seg += s.segments;
     pts += s.points;
   }
-  assert.ok(Math.abs(seg - haru.Meta.TotalSegmentCount) <= 8, `segment 差过大: ${seg} vs ${haru.Meta.TotalSegmentCount}`);
-  assert.ok(Math.abs(pts - haru.Meta.TotalPointCount) <= 8, `point 差过大: ${pts} vs ${haru.Meta.TotalPointCount}`);
+  assert.ok(
+    Math.abs(seg - haru.Meta.TotalSegmentCount) <= 8,
+    `segment 差过大: ${seg} vs ${haru.Meta.TotalSegmentCount}`,
+  );
+  assert.ok(
+    Math.abs(pts - haru.Meta.TotalPointCount) <= 8,
+    `point 差过大: ${pts} vs ${haru.Meta.TotalPointCount}`,
+  );
 });
 
 test("curve 参数化：curve: breath { period/amplitude/bias }", () => {
-  const doc = okDoc(`motion m { duration: 2000; track 嘴开合 { curve: breath { period: 2s; amplitude: 0.4; bias: 0.8 } } }`);
+  const doc = okDoc(
+    `motion m { duration: 2000; track 嘴开合 { curve: breath { period: 2s; amplitude: 0.4; bias: 0.8 } } }`,
+  );
   const m = (doc.blocks[0] as MotionBlock).tracks[0];
   assert.equal(m.curve, "breath");
   assert.deepEqual(m.curveOpts, { periodMs: 2000, amplitude: 0.4, bias: 0.8 });
   // 编译冒烟：首帧值 = bias（sin 相位 0 处）；linear 多点段
-  const cd = okDoc(`character c { sem 嘴开合 [0 1] -> { PARAM_MOUTH_OPEN_Y } } motion m { duration: 2000; track 嘴开合 { curve: breath { period: 2s; amplitude: 0.4; bias: 0.8 } } }`);
+  const cd = okDoc(
+    `character c { sem 嘴开合 [0 1] -> { PARAM_MOUTH_OPEN_Y } } motion m { duration: 2000; track 嘴开合 { curve: breath { period: 2s; amplitude: 0.4; bias: 0.8 } } }`,
+  );
   const r = compileDoc(cd);
   assert.equal(r.ok, true);
   if (r.ok) {
     const seg = r.output.motions[0].curves[0].segments;
-    assert.equal(seg[0], 0);
-    assert.equal(seg[1], 0);
-    assert.equal(seg[2], 0.8); // t=0 → bias
+    assert.equal(seg[0], 0); // 初始点 t=0
+    assert.equal(seg[1], 0.8); // 初始点 v = bias（sin 相位 0 处）
+    assert.equal(seg[2], 0); // 首段 Linear 标识符
   }
 });
 
 test("expandCurve 参数化直接调用的周期/幅度生效", () => {
   const pos = { line: 0, col: 0 };
-  const breath = expandCurve("breath", 2000, 30, pos, { periodMs: 1000, amplitude: 0.5, bias: 0.5 });
+  const breath = expandCurve("breath", 2000, 30, pos, {
+    periodMs: 1000,
+    amplitude: 0.5,
+    bias: 0.5,
+  });
   // 1s 周期 → 2s 内 2 个完整周期；首帧 = bias；峰值≈1/谷值≈0
   assert.equal(breath[0].value.num, 0.5);
   const vals = breath.map((f) => f.value.num);
-  assert.ok(Math.max(...vals) > 0.99, `应达到峰值≈1，实际 ${Math.max(...vals)}`);
-  assert.ok(Math.min(...vals) < 0.01, `应达到谷值≈0，实际 ${Math.min(...vals)}`);
+  assert.ok(
+    Math.max(...vals) > 0.99,
+    `应达到峰值≈1，实际 ${Math.max(...vals)}`,
+  );
+  assert.ok(
+    Math.min(...vals) < 0.01,
+    `应达到谷值≈0，实际 ${Math.min(...vals)}`,
+  );
 });
 
 test("curve 参数块未知键报错", () => {
-  const e = err(`motion m { duration: 1000; track x { curve: breath { foo: 1 } } }`);
+  const e = err(
+    `motion m { duration: 1000; track x { curve: breath { foo: 1 } } }`,
+  );
   assert.equal(e.code, "UNKNOWN_KEY");
+});
+
+test("C11: semantic 模式——曲线 id 直写语义名 + 跳过白名单", () => {
+  // TAIL_WAG 非官方白名单参数；非语义模式应 BAD_PARAM，语义模式放行
+  const text = `character c { sem 尾巴摆 [0 1] -> { TAIL_WAG } }
+    motion 摇尾 { duration: 1000; track 尾巴摆 { 0: 0; 500: 1 } }`;
+  const nonSem = compileDoc(okDoc(text));
+  assert.equal(nonSem.ok, false);
+  if (!nonSem.ok) assert.equal(nonSem.error.code, "BAD_PARAM");
+
+  const sem = compileDoc(okDoc(text), { semantic: true });
+  assert.equal(sem.ok, true, JSON.stringify(sem.ok ? "" : sem.error));
+  if (sem.ok) {
+    assert.equal(sem.output.motions[0].curves.length, 1);
+    assert.equal(sem.output.motions[0].curves[0].id, "尾巴摆"); // id=语义名，不展开 TAIL_WAG
+  }
+});
+
+test("C11: semantic 模式——expression 参数 id 语义名", () => {
+  const text = `character c { sem 微笑 [0 1] -> { TAIL_WAG } }
+    expression 开心 { blend: Add; set 微笑 = 0.8 }`;
+  const r = compileDoc(okDoc(text), { semantic: true });
+  assert.equal(r.ok, true);
+  if (r.ok) {
+    assert.deepEqual(r.output.expressions[0].parameters, [
+      { id: "微笑", value: 0.8, blend: "Add" },
+    ]);
+  }
+});
+
+test("C11: semantic 模式——非语义默认保持现状（展开 PARAM_*）", () => {
+  const text = `character c { sem 微笑 [0 1] -> { PARAM_MOUTH_OPEN_Y } }
+    motion m { duration: 100; track 微笑 { 0: 0; 100: 1 } }`;
+  const r = compileDoc(okDoc(text));
+  assert.equal(r.ok, true);
+  if (r.ok)
+    assert.equal(r.output.motions[0].curves[0].id, "PARAM_MOUTH_OPEN_Y");
 });
