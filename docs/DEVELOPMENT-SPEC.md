@@ -345,6 +345,10 @@ export class L2dmPlayer {
 
 ### 5.9 compat（导入兼容层，M4/M7 可选）
 - `l2dp-import.ts`：DSL 编译产物（motion3/exp3/manifest）→ 引擎可用资产。**入参必须是 `semantic:true` 编译产物**（曲线 id 已是语义名，与 `.l2dm.parameters` 直接对应，无需二次映射）；若收到非语义产物（PARAM id 轨道），**拒绝并报错**，提示改用语义编译模式重生成——**不做隐式反向映射**（避免运行时猜谜与不确定性）。
+  - `importMotion3`：motion3 → `EngineMotion`（非语义轨道拒绝）
+  - `importExpression3`：exp3 → 引擎表情（非语义参数拒绝）；`applyExpression` 按 blend 应用
+  - `importManifest`：manifest → `L2dmModel` **骨架**（边界见下）
+- **manifest 导入的诚实边界**：DSL character manifest 不携带网格/画布/部件层级，故 `importManifest` 只产出**可驱动、可校验的骨架**——sems→参数、layers→部件（order=层 z）、bones→deformer id；几何/uv/纹理/层级绑定不在 manifest 内，由宿主或 M7+ 的 cdi-import 补齐；画布尺寸经 `opts.canvas` 注入（缺省 1000×1000 占位）；outfits 在 .l2dm 无对应概念，不映射。
 - 说明：`.l2dm` 模型是「语义参数 + 任意部件」；现有 Live2D 模型若要接入 → `cdi-import` 自动生成 .l2dm 骨架（PARAM→sem 尽力映射 + 部件→parts），**M7 后可选项**。
 
 ---

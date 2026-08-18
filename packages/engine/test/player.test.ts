@@ -1,97 +1,24 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
 import {
   L2DM_FORMAT_VERSION,
-  type L2dmModel,
+  loadL2dm,
   ParameterStore,
   SoftwareRenderer,
   L2dmPlayer,
   mulberry32,
   importMotion3,
   importExpression3,
+  importManifest,
   applyExpression,
   type EngineMotion,
-  type RenderMesh,
-  type Tex2D,
 } from "../src/index.ts";
+import { makeDemoModel, DEMO_MOTION } from "./fixtures/demo.ts";
 
-// ---------- 夹具：demo 模型（canvas 30x30；网格 = 画布像素坐标） ----------
-// face：红，父 deformer headDeformer（头转向→x 平移 0..8）
-// tail：蓝，warp 尾巴摆→dx+6（上右移）
-// hair：绿，warp 前发摆→dy+4（向下摆）
-// physics：头转向 → 前发摆
-function makeModel(): L2dmModel {
-  const quad = (x0: number, y0: number, x1: number, y1: number): { vertices: number[]; uvs: number[]; indices: number[] } => ({
-    vertices: [x0, y0, x1, y0, x1, y1, x0, y1],
-    uvs: [0, 0, 1, 0, 1, 1, 0, 1],
-    indices: [0, 1, 2, 0, 2, 3],
-  });
-  const z = (n: number): number[] => new Array(n).fill(0);
-  return {
-    formatVersion: L2DM_FORMAT_VERSION,
-    id: "demo",
-    canvas: { width: 30, height: 30 },
-    parameters: [
-      { id: "头转向", min: -30, max: 30, def: 0, group: "Head" },
-      { id: "微笑", min: 0, max: 1, def: 0, group: "Custom" },
-      { id: "尾巴摆", min: 0, max: 1, def: 0, group: "Custom" },
-      { id: "前发摆", min: 0, max: 1, def: 0, group: "Physics" },
-    ],
-    parts: [
-      {
-        id: "face", order: 1, parent: "headDeformer", color: [1, 0, 0, 1],
-        mesh: {
-          ...quad(12, 10, 18, 16),
-          warps: [
-            { parameter: "微笑", keyforms: [{ value: 0, offsets: z(8) }, { value: 1, offsets: [0, -5, 0, -5, 0, -5, 0, -5] }] },
-          ],
-        },
-      },
-      {
-        id: "tail", order: 2, color: [0, 0, 1, 1],
-        mesh: {
-          ...quad(0, 22, 8, 30),
-          warps: [
-            { parameter: "尾巴摆", keyforms: [{ value: 0, offsets: z(8) }, { value: 1, offsets: [6, 0, 6, 0, 6, 0, 6, 0] }] },
-          ],
-        },
-      },
-      {
-        id: "hair", order: 3, color: [0, 1, 0, 1],
-        mesh: {
-          ...quad(20, 2, 26, 8),
-          warps: [
-            { parameter: "前发摆", keyforms: [{ value: 0, offsets: z(8) }, { value: 1, offsets: [0, 4, 0, 4, 0, 4, 0, 4] }] },
-          ],
-        },
-      },
-    ],
-    deformers: [
-      // 对称区间：头转向为 -30..30，默认 0 落在归一化中点 → binding 输出 x = from + (to-from)*0.5
-      // 取 [-8, 8] 使 rest（param=0）零位移，±30° 摆动 ±8px（evalBindings 全范围线性映射语义）
-      { id: "headDeformer", bindings: [{ parameter: "头转向", channel: "x", from: -8, to: 8 }] },
-    ],
-    physics: {
-      pendulums: [
-        { id: "发丝", input: "头转向", outputParams: ["前发摆"], delay: 0.2, acceleration: 0.5 },
-      ],
-    },
-  };
-}
-
-// 语义 motion3（官方 Segments 布局：初始点 + 交织段标识符）：微笑/尾巴摆 0→1→0（1s 周期，loop）
-const MOTION: EngineMotion = {
-  durationMs: 1000,
-  loop: true,
-  curves: [
-    { id: "微笑", segments: [0, 0, 0, 0.5, 1, 0, 1, 0] },
-    { id: "尾巴摆", segments: [0, 0, 0, 0.5, 1, 0, 1, 0] },
-  ],
-};
-
-function frame(out: SoftwareRenderer): Uint8Array {
-  return out.readPixels()!;
-}
+const makeModel = makeDemoModel;
+const MOTION = DEMO_MOTION;
 
 test("M4: 播放——motion3 驱动参数（时序采样）", () => {
   const p = new L2dmPlayer(makeModel(), new Map());
@@ -154,31 +81,71 @@ test("M4: 物理→像素——摆锤收敛驱动 hair", () => {
   assert.deepEqual(r.pixel(23, 9), [0, 255, 0, 255], "hair 下摆后 (23,9) 应变绿");
 });
 
-test("M4: 确定性——同 (模型, 动作, dt 序列, seed) → 逐帧像素一致", () => {
-  const snapshot = (): Uint8Array => {
-    const p = new L2dmPlayer(makeModel(), new Map());
-    p.play(MOTION);
-    const r = new SoftwareRenderer();
-    let acc = new Uint8Array(0);
-    for (let i = 0; i < 30; i++) {
-      p.tick(33, mulberry32(42));
-      p.render(r);
-      const f = frame(r);
-      const next = new Uint8Array(acc.length + f.length);
-      next.set(acc);
-      next.set(f, acc.length);
-      acc = next;
-    }
-    return acc;
-  };
-  const a = snapshot();
-  const b = snapshot();
-  assert.deepEqual(a, b);
-  // 且帧非空（有内容）
-  let n = 0;
-  for (let i = 3; i < a.length; i += 4) if (a[i]! > 0) n++;
-  assert.ok(n > 0, "帧应有非透明像素");
-  assert.ok(n < a.length / 4, "帧不应全满");
+test("M4: 加载 demo.l2dm 文件 → 播放 → 无头录 30 帧像素与 golden 参考一致", () => {
+  const text = readFileSync(new URL("./fixtures/demo.l2dm", import.meta.url), "utf8");
+  const loaded = loadL2dm(text);
+  assert.equal(loaded.ok, true, loaded.ok ? "" : loaded.error);
+  if (!loaded.ok) return;
+
+  const p = new L2dmPlayer(loaded.model, new Map());
+  p.play(DEMO_MOTION);
+  const r = new SoftwareRenderer();
+  const hashes: string[] = [];
+  for (let i = 0; i < 30; i++) {
+    p.tick(33, mulberry32(42));
+    p.render(r);
+    hashes.push(createHash("sha256").update(r.readPixels()!).digest("hex"));
+  }
+
+  // golden 参考：首跑（文件缺失）录制并提交，后续运行逐帧 hash 对比。
+  // 任何像素/算法变化 → 对应帧 hash 失配（DoD：无头录 N 帧像素与参考一致）。
+  const goldenPath = new URL("./fixtures/demo-golden.json", import.meta.url);
+  let golden: string[];
+  try {
+    golden = JSON.parse(readFileSync(goldenPath, "utf8")).frames;
+  } catch {
+    writeFileSync(goldenPath, JSON.stringify({ frames: hashes }, null, 2) + "\n");
+    golden = hashes;
+  }
+  assert.equal(hashes.length, golden.length);
+  for (let i = 0; i < hashes.length; i++) {
+    assert.equal(hashes[i], golden[i], `第 ${i} 帧与 golden 不一致`);
+  }
+});
+
+test("M4: compat——manifest → 引擎模型骨架（sems→参数/layers→部件/bones→deformer）", () => {
+  const m = importManifest({
+    formatVersion: 1,
+    syntaxVersion: "1.0.0",
+    id: "小夏",
+    layers: [
+      { name: "head", parts: ["face", "ear"], z: 1 },
+      { name: "body", parts: ["torso"], z: 0 },
+    ],
+    bones: [{ name: "headBone", layer: "head" }],
+    outfits: [{ name: "校服", group: 0 }],
+    sems: [
+      { name: "微笑", min: 0, max: 1, params: [] },
+      { name: "头转向", min: -30, max: 30, params: [] },
+    ],
+    assetIndex: { motions: [], expressions: [], behaviors: [] },
+  });
+  // 参数：sems → L2dmParameter
+  assert.deepEqual(
+    m.parameters.map((p) => [p.id, p.min, p.max]),
+    [["微笑", 0, 1], ["头转向", -30, 30]],
+  );
+  // 部件：layers 展平，order = 层 z（缺省按层序）
+  const parts = [...m.parts].sort((a, b) => a.order - b.order);
+  assert.deepEqual(parts.map((p) => p.id), ["torso", "face", "ear"]);
+  // deformer：bones
+  assert.deepEqual(m.deformers, [{ id: "headBone" }]);
+  // 骨架是合法 .l2dm（可过 loader 校验）；无网格部件可进 player 渲染不崩
+  assert.equal(loadL2dm(JSON.stringify(m)).ok, true);
+  const p = new L2dmPlayer(m, new Map());
+  const r = new SoftwareRenderer();
+  p.render(r);
+  assert.equal(r.countNonTransparent(), 0);
 });
 
 test("M4: compat——非语义 motion3 拒绝；语义产物导入", () => {

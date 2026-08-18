@@ -1,5 +1,5 @@
 // @l2dp/engine —— 自研 Live2D 类引擎（DEVELOPMENT-SPEC §5）
-// M1(format) + M2(runtime) + M3(render) 完成。后续：player+compat/（M4）
+// M1(format) + M2(runtime) + M3(render) + M4(player/compat) 完成。
 // 目标：不依赖 Live2D Cubism Core、多部位无白名单上限、原生大模型驱动、可无头渲染。
 
 export * from "./format/types.ts";
