@@ -46,7 +46,7 @@ npm test            # l2dp 4 + dsl 43 + renderer 7（Haru 对照 2 例需自备 
 ## 现状（对齐 SPEC-DSL-v1.0 第 13 章路线图）
 
 | 阶段 | 内容 | 状态 |
-|---|---|---|
+| --- | --- | --- |
 | P0 | 解析器 + AST + 语法校验（character/motion/expression/scene） | ✅ `packages/dsl` |
 | P1 | 编译器：motion→motion3、expression→exp3、character→manifest 缓存 | ✅ `packages/dsl` |
 | M0 | 自研引擎 + LLM 驱动包骨架（engine/driver）+ typecheck 5 包 + 冒烟测试 | ✅ `packages/engine` + `packages/driver` |

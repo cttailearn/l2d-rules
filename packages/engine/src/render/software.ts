@@ -5,7 +5,14 @@
 
 import type { RenderMesh, RenderSink, Tex2D } from "./sink.ts";
 
-function edge(x0: number, y0: number, x1: number, y1: number, x: number, y: number): number {
+function edge(
+  x0: number,
+  y0: number,
+  x1: number,
+  y1: number,
+  x: number,
+  y: number,
+): number {
   return (x1 - x0) * (y - y0) - (y1 - y0) * (x - x0);
 }
 
@@ -31,7 +38,8 @@ export class SoftwareRenderer implements RenderSink {
   draw(mesh: RenderMesh): void {
     if (!this.inFrame) throw new Error("draw 必须在 begin 之后调用");
     if (mesh.indices.length % 3 !== 0) return;
-    const tex = mesh.texId !== null ? this.textures.get(mesh.texId) ?? null : null;
+    const tex =
+      mesh.texId === null ? null : (this.textures.get(mesh.texId) ?? null);
     const { verts, uvs } = mesh;
     for (let t = 0; t < mesh.indices.length; t += 3) {
       const i0 = mesh.indices[t] * 2;
@@ -41,9 +49,12 @@ export class SoftwareRenderer implements RenderSink {
         [verts[i0], verts[i0 + 1]],
         [verts[i1], verts[i1 + 1]],
         [verts[i2], verts[i2 + 1]],
-        uvs[i0], uvs[i0 + 1],
-        uvs[i1], uvs[i1 + 1],
-        uvs[i2], uvs[i2 + 1],
+        uvs[i0],
+        uvs[i0 + 1],
+        uvs[i1],
+        uvs[i1 + 1],
+        uvs[i2],
+        uvs[i2 + 1],
         tex,
         mesh.color,
       );
@@ -81,13 +92,18 @@ export class SoftwareRenderer implements RenderSink {
     a: [number, number],
     b: [number, number],
     c: [number, number],
-    u0: number, v0: number,
-    u1: number, v1: number,
-    u2: number, v2: number,
+    u0: number,
+    v0: number,
+    u1: number,
+    v1: number,
+    u2: number,
+    v2: number,
     tex: Tex2D | null,
     color: [number, number, number, number],
   ): void {
-    const [ax, ay] = a; const [bx, by] = b; const [cx, cy] = c;
+    const [ax, ay] = a;
+    const [bx, by] = b;
+    const [cx, cy] = c;
     const minX = Math.max(0, Math.floor(Math.min(ax, bx, cx)));
     const maxX = Math.min(this.width - 1, Math.ceil(Math.max(ax, bx, cx)));
     const minY = Math.max(0, Math.floor(Math.min(ay, by, cy)));
@@ -101,21 +117,40 @@ export class SoftwareRenderer implements RenderSink {
         const w2 = edge(ax, ay, bx, by, x + 0.5, y + 0.5);
         if (w0 >= 0 && w1 >= 0 && w2 >= 0) {
           const area = area2;
-          const u = w0 / area; const v = w1 / area; const w = w2 / area;
+          const u = w0 / area;
+          const v = w1 / area;
+          const w = w2 / area;
           const o = (y * this.width + x) * 4;
           if (tex) {
             const tu = u0 * u + u1 * v + u2 * w;
             const tv = v0 * u + v1 * v + v2 * w;
-            const px = Math.min(tex.width - 1, Math.max(0, Math.floor(tu * tex.width)));
-            const py = Math.min(tex.height - 1, Math.max(0, Math.floor(tv * tex.height)));
+            const px = Math.min(
+              tex.width - 1,
+              Math.max(0, Math.floor(tu * tex.width)),
+            );
+            const py = Math.min(
+              tex.height - 1,
+              Math.max(0, Math.floor(tv * tex.height)),
+            );
             const to = (py * tex.width + px) * 4;
             // 覆盖系数 = 纹素 alpha × tint alpha；tint RGB 逐通道乘（与 WebGL2 shader tex.rgb*uTint.rgb 一致）
             const a = (tex.data[to + 3] / 255) * (color[3] / 255);
             const ia = 1 - a;
-            this.data[o] = Math.round(tex.data[to] * (color[0] / 255) * a + this.data[o] * ia);
-            this.data[o + 1] = Math.round(tex.data[to + 1] * (color[1] / 255) * a + this.data[o + 1] * ia);
-            this.data[o + 2] = Math.round(tex.data[to + 2] * (color[2] / 255) * a + this.data[o + 2] * ia);
-            this.data[o + 3] = Math.min(255, Math.round(tex.data[to + 3] * (color[3] / 255) + this.data[o + 3] * ia));
+            this.data[o] = Math.round(
+              tex.data[to] * (color[0] / 255) * a + this.data[o] * ia,
+            );
+            this.data[o + 1] = Math.round(
+              tex.data[to + 1] * (color[1] / 255) * a + this.data[o + 1] * ia,
+            );
+            this.data[o + 2] = Math.round(
+              tex.data[to + 2] * (color[2] / 255) * a + this.data[o + 2] * ia,
+            );
+            this.data[o + 3] = Math.min(
+              255,
+              Math.round(
+                tex.data[to + 3] * (color[3] / 255) + this.data[o + 3] * ia,
+              ),
+            );
           } else {
             this.data[o] = color[0];
             this.data[o + 1] = color[1];
