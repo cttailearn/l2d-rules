@@ -154,7 +154,7 @@ packages/
 | **M0** | 环境：engine/driver 包骨架 + tsconfig + 测试挂入 | packages/{engine,driver} | `npm run typecheck` 全绿（5 包）；空测试跑通 |
 | **M1** | **.l2dm 格式** schema + validator + loader | engine/format | format.test 全绿：合法模型通过、坏模型（悬空引用/顶点越界/无索引）拒绝 |
 | **M2** | **形变核心**：ParameterStore + Hierarchy + Warp 网格形变 | engine/runtime | deform.test 全绿：单 keyform/双 keyform/2D 网格/层级变换数值断言；确定性（同参同结果） |
-| **M3** | **渲染双后端**：SoftwareCanvas 迁移 + WebGL2 | engine/render | player.test：软件渲染一帧输出像素；WebGL2 在浏览器 demo 出图 |
+| **M3** | **渲染双后端**：SoftwareCanvas 迁移 + WebGL2（RenderSink 三阶段：uploadTexture/begin+draw/end） | engine/render | 软件渲染：已知网格输入 → 期望像素断言；WebGL2：同输入 → `readPixels` 与软件结果**逐像素一致（容差 ±1）**（自动测试，非手动看 demo） |
 | **M4** | **Player + compat**：加载→逐帧；l2dp/motion3/exp3 → 引擎资产 | engine/player, compat | player.test：加载 demo.l2dm + motion3 播一段 → 逐帧参数→像素；无头录 N 帧像素与参考一致 |
 | **M5** | **LLM 驱动核心**：扁平 IR + JSONL StreamIngestor + LayerStack + EnvironmentLayer + Evaluator | driver | driver.test 全绿：JSONL 逐行生效、坏行隔离、分层合成分量正确、override 最高、环境层恒动、确定性（同流同种子同轨迹） |
 | **M6** | **验证与整合**：双模式校验规则库 + renderer 退役 + demo-web 端到端 | driver/validate, examples/demo-web | batch 拒绝坏批、inline 隔离坏行；demo：输入 JSONL → 引擎模型实时动作 |
@@ -171,7 +171,7 @@ packages/
 > 设计参照 Iki `.iki`（开放、AI 可生成）融合我们语义层需求。核心：**参数即引擎参数（语义名）**，**部件可任意多**。
 
 ```ts
-// format/types.ts —— .l2dm v1（节选，完整以实现为准）
+// format/types.ts —— .l2dm v1（完整类型以本文件为准，下面是确定性的合同）
 export const L2DM_FORMAT_VERSION = 1;
 
 export interface L2dmModel {
@@ -188,11 +188,22 @@ export interface L2dmModel {
   pose?: L2dmPose;               // 部件联动（如手臂 A/B）
 }
 
+export const L2DM_PARAM_GROUPS = [
+  "LipSync", "EyeBlink", "Head", "Body", "Physics",  // 引擎内置：环境层/口型/物理路由
+  "Ambient", "Custom",                                 // Ambient=环境层轣辖；Custom=模型作者扩展
+] as const;
+export type L2dmParamGroup = (typeof L2DM_PARAM_GROUPS)[number];
+
 export interface L2dmParameter {
   id: string;                    // 语义名（如 "微笑" / "头转向" / "尾巴摆" / "耳朵动"）
   min: number; max: number; def?: number;
-  group?: string;                // 事件组（LipSync/EyeBlink…，供环境层/口型路由）
+  group?: L2dmParamGroup;        // 事件组（LipSync/EyeBlink/…）；缺省 = "Custom"
 }
+
+// 引擎内置组别规范（P1-2 定案，单一来源）：
+//   LipSync → 口型/音频脊梁     EyeBlink → 眨眼环境层     Head/Body → 朝向/体态
+//   Physics → 物理输出终点       Ambient → 环境层自动化轣辖（呼吸/视线微动/重心）
+//   Custom  → 模型作者自定义（显式动作/表情/override 写入，环境层不碰）
 
 export interface L2dmPart {
   id: string;
@@ -299,16 +310,27 @@ export function applyWarps(rest, warps, params, out): void
 - 测试：摆锤收敛到输入、无振荡发散。
 
 ### 5.7 渲染双后端
-**清软件光栅**（从 renderer/software.ts 迁移）：
+**清软件光栅**（从 renderer/software.ts 迁移）——`RenderSink` 按 **三阶段定案（P2-2 修复）**声明，令软件与 WebGL2 两实现都完整可表达：
 ```ts
+export interface RenderMesh {
+  verts: Float32Array; uvs: Float32Array; indices: number[];
+  texId: string | null;                // 引用 uploadTexture 注册的纹理；null = 纯色
+  color: [number, number, number, number];
+}
 export interface RenderSink {
-  draw(meshes: { verts: Float32Array; uvs: Float32Array; indices: number[];
-                 tex: Tex2D | null; color: [number,number,number,number] }[],
-       canvas: { width: number; height: number }): void;
+  // 阶段 1：上传/注册纹理（软件=存储引用；WebGL2=创建纹理对象；幂等覆盖）
+  uploadTexture(id: string, img: Tex2D): void;
+  // 阶段 2：清屏 + 逐 mesh 绘制（按 z-order 调用；软件=三角形填充，WebGL2=提交绘制）
+  begin(width: number, height: number): void;
+  draw(mesh: RenderMesh): void;
+  // 阶段 3：结束帧（软件=完成 buffer；WebGL2=flush/present）
+  end(): void;
+  // 测试面：读回当前帧像素（软件=直接返回 data；WebGL2=readPixels→Uint8Array）
+  readPixels(): Uint8Array | null;
 }
 export class SoftwareRenderer implements RenderSink { /* 三角形填充+UV 采样 */ }
 ```
-**WebGL2**：同一 RenderSink 语义的 WebGL2 实现（顶点缓冲 + 纹理 + 深度/混合），浏览器渲染。`render/webgl2.ts` 仅在浏览器 import（避免核心 Node 依赖 WebGL）。
+**WebGL2**：实现同一 `RenderSink`（uploadTexture/begin/draw/end + readPixels），浏览器渲染；`render/webgl2.ts` 仅在浏览器 import（避免核心 Node 依赖 WebGL）。**验收锚点**：同一 mesh/纹理输入，WebGL2.readPixels 与软件渲染逐像素一致（容差 ±1）。
 
 ### 5.8 Player（加载→逐帧）
 ```ts
@@ -322,7 +344,7 @@ export class L2dmPlayer {
 ```
 
 ### 5.9 compat（导入兼容层，M4/M7 可选）
-- `l2dp-import.ts`：DSL 编译产物（motion3/exp3/manifest）→ 引擎可用资产（参数轨道直接是语义名——**因为引擎参数 = 语义参数，无需 PARAM 映射**）。
+- `l2dp-import.ts`：DSL 编译产物（motion3/exp3/manifest）→ 引擎可用资产。**入参必须是 `semantic:true` 编译产物**（曲线 id 已是语义名，与 `.l2dm.parameters` 直接对应，无需二次映射）；若收到非语义产物（PARAM id 轨道），**拒绝并报错**，提示改用语义编译模式重生成——**不做隐式反向映射**（避免运行时猜谜与不确定性）。
 - 说明：`.l2dm` 模型是「语义参数 + 任意部件」；现有 Live2D 模型若要接入 → `cdi-import` 自动生成 .l2dm 骨架（PARAM→sem 尽力映射 + 部件→parts），**M7 后可选项**。
 
 ---
@@ -361,7 +383,29 @@ export interface DirectiveStream {
 }
 ```
 - **schema.ts**：由 types 生成 JSON Schema（server 端 TS 编译期生成），供 OpenAI native 与 MCP 同源。
-- **流式限制**：`at:"+<id>"`（跨行依赖）仅离线批量模式允许；流式模式出现即快校验拒绝。
+- **流式限制 / at 时序（P2-1 定案）**：
+  - 在线流式：`at` 缺省或 `"+N"`（相对）→ **基准 = 该行的接收时刻**（`feedLine` 传入的 `tMs`），不引用历史行；绝对数字 `at` 按模型时间轴解释（通常仅离线用）。
+  - 离线批量：`at` 为绝对 ms（相对流起点）；`"+<id>"`（跨行依赖：依赖指定行**开始**，`dur` 指定则依赖其**结束**）仅此模式允许。
+  - 在线流式出现 `"+<id>"` → 快校验拒绝（`skipped{reason:"STREAM_DEP"}`）。
+
+**op 字段约束（P1-1 定案；`validate/rules.ts` 与 `ir/schema.ts` 同源实现，required/forbidden 均为硬校验）**：
+
+| op | required | forbidden | 说明 |
+|---|---|---|---|
+| `play` | `asset` | `value`,`sem`,`text`,`ms` | `cover/speed/strength/mix` 可选覆盖 |
+| `face` | `expression` | `value`,`sem`,`asset`,`text` | `weight/blend` 可选 |
+| `set` | `sem`,`value` | `asset`,`expression`,`text` | 写 override 层（唯一参数写入原语） |
+| `outfit` | `outfit` | 其余载荷字段 | 换装；`at/dur` 允许 |
+| `speak` | `text` | `asset`,`expression`,`value`,`sem` | `voice` 可选 |
+| `blink` | — | `value`,`sem`,`text` | 临时覆盖环境层眨眼；`interval` 可选 |
+| `drift` | `sem`,`amplitude`,`period` | `asset`,`expression`,`text` | 环境层持续漂移 |
+| `look` | `gaze` | 其余载荷字段 | 视线目标 `[x,y]` |
+| `camera` | — | `asset`,`text`,`sem` | `zoom/pan` 载荷（宿主）；`at/dur` 允许 |
+| `action` | `asset` | `value`,`sem`,`text` | 嵌套调用入库行为 |
+| `emote` | `emote` | `value`,`sem`,`text`,其余载荷 | 环境层调制 |
+| `wait` | `ms` | `asset`,`sem`,`text`,`value` | 时间轴等待 |
+
+> **同源约束**：表格与 `schema.ts`（逐 op 的 `anyOf`/`required`）必须一致；单测断言二者等价，改一处须同步另一处。
 
 ### 6.2 JSONL StreamIngestor（在线，行级原子）
 ```ts
@@ -418,7 +462,8 @@ export class EnvironmentLayer {
   tick(tMs: number): Record<string, number>   // 增量（仅写入自己管轄的参数）
 }
 ```
-- 参数命中规则：仅调制 `group ∈ {LipSync, EyeBlink, Head, Body, Physics}` 或 manifest 声明的 ambient 名。
+- 参数命中规则：`EnvironmentLayer` **只写 `group:"Ambient"` 或显式声明为环境轣辖的参数**，且每个控制器有固定管辖参数（呼吸→Breath 组；眨眼→EyeBlink 组；视线微动→Head 组；重心→Body 组）。
+- **`blink` 指令 vs Blink 控制器机制（P1-2 定案）**：`blink` op 是对环境层 Blink 控制器的**临时覆盖**（用 `interval` 覆盖默认间隔；结束后交还控制器）；无 `blink` 指令时，Blink 控制器按种子自动运行。环境层**不写** `Custom` 组参数（防与显式动作/表情冲突）。
 - 幅度上限（防"多动症"）：各控制器 maxAmp；`α_ambient` 默认 0.3。
 - **眼睛不许静止**：GazeDrift 恒有微动（固视微动生理原理）。
 
@@ -503,7 +548,12 @@ export interface TtsProvider {
 ## 8. 语义层与资产工具链（复用）
 
 - **引擎参数 = 语义参数**：`.l2dm.parameters` 直接是语义名（`微笑/头转向/尾巴摆/耳朵动`——**任意多，无官方白名单**）。这是"更多部位 + 原生 LLM 驱动"的根本承载（G2/G3）。
-- **DSL（packages/dsl）**：语言 A 创作 motion/expression —— 编译为**语义名轨道的 motion3/exp3**（现有 P1 已做到 sem → 官方 ID；**注意**：自研引擎下不要做 PARAM 映射，直接保留语义名作为轨道 id）。
+- **DSL（packages/dsl）**：语言 A 创作 motion/expression —— 编译为**语义名轨道的 motion3/exp3**。
+  **定案（P0-1 修复｜DSL 语义编译模式）**：`packages/dsl` 编译入口新增选项 `semantic: boolean`（默认 `false` 保持现状兼容官方格式导出）：
+  - `semantic: true`：`compileMotion/compileExpression` 的曲线/参数 `id` **直接写语义名 `sem.name`**（不再展开为官方 `PARAM_*`），并**跳过 `isStandardParam()` 白名单校验**（`BAD_PARAM` 不触发）；解锁任意自定义语义名（`尾巴摆/耳朵动`）。
+  - `semantic: false`（默认/现状）：维持 `compile.ts` 现有行为（`id: p` 展开 + 白名单硬校验），用于兼容官方格式导出（.l2dp 补丁、VTube 等宿主）。
+  - **引擎资产一律消费 `semantic: true` 产物**；两模式输出结构相同（都是 motion3/exp3 形状），仅 `id` 值域与校验不同。
+  - 落点：`compile.ts` 的 `curves.push({ id: ... })` / `parameters.push({ id: ... })` 与 `compileCharacter` 的白名单检查均受该开关控制。
 - **导入现有 Live2D 模型**：cdi-import（M7+ 可选）把 model3/cdi3 → .l2dm 骨架（PARAM→sem 尽力映射），不保证全部落地（D1 跳过而非报错）。
 - **词表**：`specs/standard-params.json` 保留作"兼容参考词表"（导入映射用）；不再作为自研引擎运行时硬约束。
 
@@ -517,11 +567,39 @@ export interface TtsProvider {
 
 ## 10. 评估集与测试（scripts/eval-drive.mjs）
 ```
-specs/evals/drive-cases.json   # {scenario, expectedSemEffect[]}（语义效果断言，非字节 IR）
-scripts/eval-drive.mjs         # 批量：mock provider → 确定性求值 → 断言语义效果
+# 黄金用例文件结构（P2-3 定案，字段为合同）：
+specs/evals/drive-cases.json
+```
+```json
+{
+  "version": 1,
+  "clock": "fixed",          // "fixed"=固定时间轴（确定性） / "seeded"=种子时序
+  "cases": [
+    {
+      "id": "greet-request",
+      "scenario": {
+        "event": "user_text",              // 触发事件（两跳 dispatch 输入）；或省略 = 直接 feedLine
+        "userText": "你好呀！",            // 用户文本（喂给 provider 决策上下文）
+        "context": { "mood": { "valence": 0.4, "arousal": 0.3 }, "recent": [] },
+        "seed": 42
+      },
+      "expectedSemEffect": [
+        { "windowMs": [0, 5000], "sem": "微笑", "min": 0.3 },          // 5s 窗口内微笑 ≥0.3
+        { "windowMs": [-1, 5000], "op": "play", "kinds": ["greeting"] }  // 出现 greeting 类 play
+      ]
+    }
+  ],
+  "metrics": ["pass", "syntax_fail", "semantic_fail", "refuse", "timeout"]
+}
+```
+- `expectedSemEffect[]` 断言语义效果而非字节 IR：`windowMs[0]=-1` 表示从流开始；`sem+min/max` 为参数值断言；`op+kinds` 为行为断言（匹配库索引 kinds）。
+
+```
+scripts/eval-drive.mjs      # 批量：对每个 case → mock provider 决策（或注入 text）→ 确定性求值（固定 clock/seed）→ 逐断言评分
+                            # 输出 JSON 报告至 specs/evals/report.json：通过率 + 按 metrics 分类的失败模式分布
 ```
 - 度量：通过率 + 失败模式分布（语法/语义/拒绝/超时），按 provider 记录。
-- 门禁：改提示词/schema 必过评估集。
+- 门禁：改提示词/schema 必过评估集（CI 或手动 `node scripts/eval-drive.mjs`）。
 - **语义抽查**：高风险输出（新资产/自定义覆盖）走慢路径二次复核（M7 内含占位）。
 
 ---
@@ -557,6 +635,12 @@ scripts/eval-drive.mjs         # 批量：mock provider → 确定性求值 → 
 | C8 | MCP/创作模式(P4)/grammar 约束/完整物理为 M7+ 可选 |
 | C9 | 确定性：全链路注入 clock+seed；软渲染像素级回归 | 
 | C10 | 接口照 ARCHITECTURE：ParameterSink/AssetSource/ManifestSource/TtsProvider/Clock/SeededRandom/AuditSink/ContentPolicy + 新增 StreamIngestor/AffectSignalSource |
+| C11 | **DSL 语义编译模式（P0-1 修复）**：编译入口 `semantic:true` → 曲线/参数 id 直接写语义名 + 跳过白名单；引擎资产一律用语义产物（§8） |
+| C12 | **op 字段约束表（P1-1 修复）**：§6.1 逐 op required/forbidden 为硬校验，与 schema.ts 同源（单测断言等价） |
+| C13 | **ParameterGroup 枚举（P1-2 修复）**：7 个内置组；环境层只写 Ambient/轣辖参数；`blink` op = 环境层 Blink 临时覆盖（§5.1/§6.4） |
+| C14 | **at 时序（P2-1 修复）**：流式相对基准 = 接收时刻，`+<id>` 仅离线；离线绝对 ms 从流起点（§6.1） |
+| C15 | **RenderSink 三阶段（P2-2 修复）**：uploadTexture/begin+draw/end + readPixels；WebGL2 与软件逐像素一致验收（§5.7/M3） |
+| C16 | **评估集 schema（P2-3 修复）**：drive-cases.json 结构定案（scenario/expectedSemEffect/metrics），断言语义效果（§10） |
 
 ---
 
