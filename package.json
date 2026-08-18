@@ -10,7 +10,8 @@
   ],
   "scripts": {
     "typecheck": "node scripts/typecheck.mjs",
-    "test": "node --test \"packages/**/test/*.test.ts\" \"examples/**/test/*.test.ts\""
+    "test": "node --test \"packages/**/test/*.test.ts\" \"examples/**/test/*.test.ts\"",
+    "eval": "node scripts/eval-drive.mjs"
   },
   "engines": {
     "node": ">=23.6"

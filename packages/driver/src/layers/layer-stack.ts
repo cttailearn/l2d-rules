@@ -1,5 +1,5 @@
 // LayerStack —— 分层求值（每帧合成）—— DEVELOPMENT-SPEC §6.3
-// L1 行为层：play（动作曲线；interrupt: target|supersede|queue）
+// L1 行为层：play（动作曲线，并行叠放；同 sem 最近层胜出；interrupt: target|supersede|queue）
 // L2 表达层：face（表情 Add/Mult/Overwrite，weight 混合）——单前层（新 face 覆盖旧）
 // L3 override 层：set（恒定目标，最高优先；同 sem 后者胜）
 // L0 环境层由 EnvironmentLayer 提供贡献，经 tick(env) 注入（规格 §6.3 合成顺序）。
@@ -11,11 +11,11 @@
 //        —— override 层：命中 sem → val = override 值（最高）
 //   最终 = clamp(val, param.min, param.max)
 //
-// 确定性：不持有 Date.now；全部时间来自注入 tMs。同 (指令序列, tMs 序列) 同输出。
-//
-// 实现注：每个 target 至多一个活动 play（interrupt 语义天然单前层），
-// 故"同层同 sem 冲突"只发生在 play vs 后续层（face/set/env），由合成顺序保证。
+// 播放层栈（§5）：并行指令依次建层（缺省叠放，多 play 共存）；interrupt:target 立即替换、
+// supersede 替换且记录现场（结束后恢复）、queue 排队（当前全部播完启动队首）。
 // loop 动作永不结束——其后的 queue/supersede 恢复不会触发（文档化）。
+//
+// 确定性：不持有 Date.now；全部时间来自注入 tMs。同 (指令序列, tMs 序列) 同输出。
 
 import { sampleSegments } from "@l2dp/engine";
 import type { Directive, ExpressionLike, MotionLike, ResolvedDirective } from "../ir/types.ts";
@@ -39,15 +39,16 @@ interface FaceLayer {
 }
 
 interface TargetState {
-  active: PlayLayer | null;
+  /** 并行叠放的活动层（push 序 = seq 序；同 sem 后 push 者胜出） */
+  plays: PlayLayer[];
   queue: PlayLayer[];
-  suspended: PlayLayer | null;
+  suspended: PlayLayer[];
 }
 
 function targetState(states: Map<string, TargetState>, target: string): TargetState {
   let s = states.get(target);
   if (!s) {
-    s = { active: null, queue: [], suspended: null };
+    s = { plays: [], queue: [], suspended: [] };
     states.set(target, s);
   }
   return s;
@@ -75,23 +76,31 @@ export class LayerStack {
           startMs,
           speed: d.speed ?? 1,
         };
-        const mode = d.interrupt ?? "target";
-        if (mode === "queue") {
-          if (st.active) {
-            st.queue.push(layer);
+        // 缺省 = 叠放（并行指令依次建层，§5）；interrupt 显式控制与当前层的关系
+        switch (d.interrupt ?? "stack") {
+          case "queue":
+            if (st.plays.length > 0) {
+              st.queue.push(layer);
+              return;
+            }
+            st.plays = [layer];
             return;
-          }
-          st.active = layer;
-          return;
+          case "supersede":
+            if (st.plays.length > 0) {
+              st.suspended = st.plays.map((l) => ({
+                ...l,
+                suspendedElapsed: (startMs - l.startMs) / l.speed,
+              }));
+            }
+            st.plays = [layer];
+            return;
+          case "target":
+            st.plays = [layer]; // 立即替换（丢弃当前全部）
+            return;
+          default:
+            st.plays.push(layer); // 叠放（并行）
+            return;
         }
-        if (mode === "supersede" && st.active) {
-          st.suspended = {
-            ...st.active,
-            suspendedElapsed: (startMs - st.active.startMs) / st.active.speed,
-          };
-        }
-        st.active = layer;
-        return;
       }
       case "face":
         this.faces.set(target, {
@@ -113,33 +122,33 @@ export class LayerStack {
   tick(env: Record<string, number>, tMs: number): Record<string, number> {
     const base: Record<string, number> = {};
 
-    // ---- L1 动作层（含结束→接替：恢复 supersede 现场 / 启动队首）----
+    // ---- L1 动作层（并行叠放；结束→接替：恢复 supersede 现场 / 启动队首）----
     for (const st of this.states.values()) {
-      for (;;) {
-        const l = st.active;
-        if (!l) break;
+      const remaining: PlayLayer[] = [];
+      for (const l of st.plays) {
         const elapsed = (tMs - l.startMs) / l.speed;
         if (l.motion.loop || elapsed < l.motion.durationMs) {
           const durMs = l.motion.durationMs;
           // loop：在时长内取模（与 engine Player 一致）；否则钳到曲线尾
           const tS = (l.motion.loop && durMs > 0 ? elapsed % durMs : elapsed) / 1000;
           for (const c of l.motion.curves) {
+            // 最近层胜出：push 序靠后者赋值覆盖
             base[c.id] = sampleSegments(c.segments, tS);
           }
-          break;
+          remaining.push(l);
         }
-        // 动作播完（非 loop）→ 移除并接替
-        st.active = null;
-        if (st.suspended) {
-          st.active = st.suspended;
-          st.suspended = null;
-          const sp = st.active.speed;
-          st.active.startMs = tMs - st.active.suspendedElapsed! * sp;
+        // 动作播完（非 loop）→ 移除（参数释放回默认）
+      }
+      st.plays = remaining;
+      // 全部播完 → 接替：恢复被 supersede 的现场，否则启动队首
+      if (st.plays.length === 0) {
+        if (st.suspended.length > 0) {
+          st.plays = st.suspended;
+          st.suspended = [];
+          for (const l of st.plays) l.startMs = tMs - l.suspendedElapsed! * l.speed;
         } else if (st.queue.length > 0) {
-          st.active = st.queue.shift()!;
-          st.active.startMs = tMs;
-        } else {
-          break;
+          st.plays = [st.queue.shift()!];
+          st.plays[0]!.startMs = tMs;
         }
       }
     }

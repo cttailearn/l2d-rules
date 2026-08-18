@@ -37,8 +37,9 @@ l2d-rules/
 
 ~~~bash
 npm install
-npm run typecheck   # 3 包类型检查
-npm test            # 4 包全量：l2dp 4 + dsl 46 + engine 45 + driver 27（Haru 对照 2 例需自备 fixture，缺失自动跳过）
+npm run typecheck   # 4 包类型检查
+npm test            # 4 包全量：l2dp 4 + dsl 46 + engine 45 + driver 37 + demo 5（Haru 对照 2 例需自备 fixture，缺失自动跳过）
+npm run eval        # 评估集门禁：specs/evals/drive-cases.json → 报告（任一 case 失败退出码 1）
 ~~~
 
 > Haru 对照测试需要官方示例 `haru_ja/runtime/motion/haru_idle_01.motion3.json`（gitignore，仅限非公开测试用途），缺失时自动 skip 不阻塞。
@@ -67,10 +68,11 @@ npm run dev        # 浏览器打开 http://localhost:5173：粘贴 JSONL（Ente
 | M4 | Player + compat：加载→逐帧；l2dp/motion3/exp3 → 引擎资产 | ✅ `packages/engine/player` + `compat`（含 golden 参考） |
 | M5 | **LLM 驱动核心**：扁平 IR + StreamIngestor + LayerStack + EnvironmentLayer + Evaluator | ✅ `packages/driver`（14 用例） |
 | M6 | **验证与整合**：双模式校验规则库 + renderer 退役 + demo-web 端到端 | ✅ `packages/driver/validate`（12 用例）+ `examples/demo-web`（5 用例） |
+| M7 | **LLM 通道**：Provider(native/text/mock) + 两跳(<50ms) + 语音接口 + 评估集 | ✅ `packages/driver/provider`+`twohop`+`tts`（10 用例）+ `scripts/eval-drive`（6/6） |
+| P5 | LLM 驱动通道：两跳 + Provider 分级（native/grammar/text）+ 评估集 | ✅ `packages/driver`（M7 落地；grammar 档 M7+ 可选） |
 | P2 | 校验器全套（7 类 + IR/流专属）+ 干跑求值 | ✅ `packages/driver/validate`（M6 落地，双模式共享规则库） |
 | P3 | 扁平 IR（v2）+ 环境层控制器 + 分层求值/优先级 | ✅ `packages/driver`（M5 落地） |
 | P3b | **JSONL 流式驱动**（StreamIngestor）+ 双模式校验 | ✅ `packages/driver`（M5 StreamIngestor + M6 双模式规则库） |
-| P5 | LLM 驱动通道：两跳 + Provider 分级（native/grammar/text）+ 评估集 | ⬜ |
 | P4 | LLM 创作通道（few-shot + 自修复 + 干跑），**后置为高级可选** | ⬜ |
 | P6 | 核心词表 manifest 生成器 + library 索引 + scene 舞台 + TTS 可选 | ⬜ |
 

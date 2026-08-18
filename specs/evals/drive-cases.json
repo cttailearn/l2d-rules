@@ -1,0 +1,57 @@
+{
+  "version": 1,
+  "clock": "fixed",
+  "cases": [
+    {
+      "id": "greet-request",
+      "scenario": {
+        "event": "user_text",
+        "userText": "你好呀！",
+        "context": { "mood": { "valence": 0.4, "arousal": 0.3 }, "recent": [] },
+        "seed": 42
+      },
+      "expectedSemEffect": [
+        { "windowMs": [0, 5000], "sem": "微笑", "min": 0.3 },
+        { "windowMs": [0, 5000], "sem": "尾巴摆", "min": 0.3 },
+        { "windowMs": [-1, 5000], "op": "play", "kinds": ["greeting"] }
+      ]
+    },
+    {
+      "id": "nod-request",
+      "scenario": { "event": "user_text", "userText": "嗯嗯，明白了", "seed": 7 },
+      "expectedSemEffect": [
+        { "windowMs": [0, 5000], "sem": "微笑", "min": 0.3 },
+        { "windowMs": [-1, 5000], "op": "play", "kinds": ["ack"] }
+      ]
+    },
+    {
+      "id": "shy-request",
+      "scenario": { "event": "user_text", "userText": "我有点害羞", "seed": 3 },
+      "expectedSemEffect": [
+        { "windowMs": [0, 900], "sem": "头转向", "min": -15 },
+        { "windowMs": [-1, 5000], "op": "play", "kinds": ["shy"] }
+      ]
+    },
+    {
+      "id": "emote-drive",
+      "scenario": { "event": "emote", "mood": { "valence": -0.5, "arousal": 0.8 }, "seed": 11 },
+      "expectedSemEffect": [
+        { "windowMs": [0, 5000], "sem": "微笑", "min": 0.2 },
+        { "windowMs": [-1, 5000], "op": "play", "kinds": ["affirm"] }
+      ]
+    },
+    {
+      "id": "voice-listen",
+      "scenario": { "event": "user_voice", "userText": "（用户在说话）", "seed": 5 },
+      "expectedSemEffect": []
+    },
+    {
+      "id": "llm-fallback",
+      "scenario": { "event": "user_text", "userText": "随便聊聊今天天气怎么样", "seed": 42 },
+      "expectedSemEffect": [
+        { "windowMs": [0, 5000], "sem": "微笑", "min": 0.3 },
+        { "windowMs": [-1, 5000], "op": "play", "kinds": ["greeting"] }
+      ]
+    }
+  ]
+}

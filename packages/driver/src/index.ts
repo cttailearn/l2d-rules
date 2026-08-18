@@ -15,6 +15,17 @@ export * from "./layers/route.ts";
 export * from "./validate/rules.ts";
 export * from "./validate/inline.ts";
 export * from "./validate/batch.ts";
+// ---- LLM 通道（§6.7）----
+export * from "./provider/types.ts";
+export * from "./provider/mock.ts";
+export * from "./provider/fallback.ts";
+export * from "./provider/openai.ts";
+// ---- 两跳（§6.8）----
+export * from "./twohop/types.ts";
+export * from "./twohop/engine.ts";
+// ---- 语音与口型（§7）----
+export * from "./tts/types.ts";
+export * from "./tts/estimate.ts";
 // ---- 流式（§6.2）----
 export * from "./stream/ingestor.ts";
 // ---- 求值（§6.5）----

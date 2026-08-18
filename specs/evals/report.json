@@ -1,0 +1,50 @@
+{
+  "version": 1,
+  "clock": "fixed",
+  "total": 6,
+  "passed": 6,
+  "failed": 0,
+  "results": [
+    {
+      "id": "greet-request",
+      "pass": true,
+      "failures": [],
+      "hop": 1,
+      "behaviorId": "greeting"
+    },
+    {
+      "id": "nod-request",
+      "pass": true,
+      "failures": [],
+      "hop": 1,
+      "behaviorId": "nod"
+    },
+    {
+      "id": "shy-request",
+      "pass": true,
+      "failures": [],
+      "hop": 1,
+      "behaviorId": "shy"
+    },
+    {
+      "id": "emote-drive",
+      "pass": true,
+      "failures": [],
+      "hop": 1,
+      "behaviorId": "emote_follow"
+    },
+    {
+      "id": "voice-listen",
+      "pass": true,
+      "failures": [],
+      "hop": 1,
+      "behaviorId": "listen"
+    },
+    {
+      "id": "llm-fallback",
+      "pass": true,
+      "failures": [],
+      "hop": 2
+    }
+  ]
+}
