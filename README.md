@@ -51,7 +51,7 @@ npm test            # l2dp 4 + dsl 43 + renderer 7（Haru 对照 2 例需自备 
 | P1 | 编译器：motion→motion3、expression→exp3、character→manifest 缓存 | ✅ `packages/dsl` |
 | M0 | 自研引擎 + LLM 驱动包骨架（engine/driver）+ typecheck 5 包 + 冒烟测试 | ✅ `packages/engine` + `packages/driver` |
 | P2 | 校验器全套（7 类 + IR/流专属）+ 干跑求值 | ⬜ 下一站（双模式共享规则库） |
-| M1 | .l2dm 格式 schema + validator + loader | ⬜ |
+| M1 | .l2dm 格式 schema + validator + loader | ✅ `packages/engine/src/format`（14 用例） |
 | P3 | 扁平 IR（v2）+ 环境层控制器 + 分层求值/优先级 | ⬜ |
 | P3b | **JSONL 流式驱动**（StreamIngestor）+ 双模式校验 | ⬜ 本次定案核心 |
 | P5 | LLM 驱动通道：两跳 + Provider 分级（native/grammar/text）+ 评估集 | ⬜ |
