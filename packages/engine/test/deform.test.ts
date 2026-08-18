@@ -34,10 +34,21 @@ const Z8 = (): number[] => [0, 0, 0, 0, 0, 0, 0, 0];
 const ONE_OFFSET = (): number[] => [0, 0, 0, 0, 0, 0.2, 0, 0.2];
 
 /** Float32 精度容差比较（例：0.2 → 0.20000000298...） */
-function assertArrClose(actual: Float32Array, expected: number[], eps = 1e-6): void {
-  assert.equal(actual.length, expected.length, `长度 ${actual.length} != ${expected.length}`);
+function assertArrClose(
+  actual: Float32Array,
+  expected: number[],
+  eps = 1e-6,
+): void {
+  assert.equal(
+    actual.length,
+    expected.length,
+    `长度 ${actual.length} != ${expected.length}`,
+  );
   for (let i = 0; i < actual.length; i++) {
-    assert.ok(Math.abs(actual[i] - expected[i]) < eps, `[${i}]: ${actual[i]} 不≈ ${expected[i]}`);
+    assert.ok(
+      Math.abs(actual[i] - expected[i]) < eps,
+      `[${i}]: ${actual[i]} 不≈ ${expected[i]}`,
+    );
   }
 }
 
@@ -45,8 +56,8 @@ function assertArrClose(actual: Float32Array, expected: number[], eps = 1e-6): v
 
 test("M2: ParameterStore set 钳制 / get / 未知忽略 / reset / normalized", () => {
   const ps = paramStore();
-  assert.equal(ps.get("微笑"), 0);       // def 0
-  assert.equal(ps.get("尾巴摆"), 0.5);   // def 0.5
+  assert.equal(ps.get("微笑"), 0); // def 0
+  assert.equal(ps.get("尾巴摆"), 0.5); // def 0.5
   // set 钳制
   ps.set("微笑", 5);
   assert.equal(ps.get("微笑"), 1);
@@ -109,8 +120,20 @@ test("M2: accumulateKeyforms 单 keyform 钳制 + 双 keyform 线性插值", () 
 
 test("M2: applyWarps rest 拷贝 + 多 warp 累加 + 无 warp 恒等", () => {
   const warps: L2dmWarp[] = [
-    { parameter: "微笑", keyforms: [{ value: 0, offsets: Z8() }, { value: 1, offsets: ONE_OFFSET() }] },
-    { parameter: "尾巴摆", keyforms: [{ value: 0, offsets: Z8() }, { value: 1, offsets: [0, 0, 0, 0, 0, 0.1, 0, 0] }] },
+    {
+      parameter: "微笑",
+      keyforms: [
+        { value: 0, offsets: Z8() },
+        { value: 1, offsets: ONE_OFFSET() },
+      ],
+    },
+    {
+      parameter: "尾巴摆",
+      keyforms: [
+        { value: 0, offsets: Z8() },
+        { value: 1, offsets: [0, 0, 0, 0, 0, 0.1, 0, 0] },
+      ],
+    },
   ];
   const ps = paramStore();
   ps.set("微笑", 1);
@@ -162,10 +185,10 @@ test("M2: applyWarp2D 整体（rest + 双线性）", () => {
     valuesX: [-30, 30],
     valuesY: [0, 1],
     keyforms: [
-      { offsets: Z8() },                             // (x0,y0)
-      { offsets: [0, 1, 0, 1, 0, 1, 0, 1] },          // (x1,y0)
-      { offsets: Z8() },                             // (x0,y1)
-      { offsets: [0, 1, 0, 1, 0, 1, 0, 1] },          // (x1,y1)
+      { offsets: Z8() }, // (x0,y0)
+      { offsets: [0, 1, 0, 1, 0, 1, 0, 1] }, // (x1,y0)
+      { offsets: Z8() }, // (x0,y1)
+      { offsets: [0, 1, 0, 1, 0, 1, 0, 1] }, // (x1,y1)
     ],
   };
   const out = new Float32Array(8);
@@ -176,7 +199,13 @@ test("M2: applyWarp2D 整体（rest + 双线性）", () => {
 
 test("M2: 确定性——同参多次结果一致", () => {
   const warps: L2dmWarp[] = [
-    { parameter: "微笑", keyforms: [{ value: 0, offsets: Z8() }, { value: 1, offsets: ONE_OFFSET() }] },
+    {
+      parameter: "微笑",
+      keyforms: [
+        { value: 0, offsets: Z8() },
+        { value: 1, offsets: ONE_OFFSET() },
+      ],
+    },
   ];
   const ps = paramStore();
   ps.set("微笑", 0.37);
@@ -193,7 +222,9 @@ test("M2: bindingToMatrix——平移/旋转/缩放通道按归一化位置累�
   const ps = paramStore();
   const base = { x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1 };
   // rotation: 头转向(normalized) → -30..30
-  const bindings = [{ parameter: "头转向", channel: "rotation" as const, from: -30, to: 30 }];
+  const bindings = [
+    { parameter: "头转向", channel: "rotation" as const, from: -30, to: 30 },
+  ];
   ps.set("头转向", 15); // normalized 0.75 → rotation = -30 + 60*0.75 = 15
   const m = bindingToMatrix(base, bindings, ps);
   const [tx, ty] = applyAffine(m, 1, 0);
@@ -202,13 +233,17 @@ test("M2: bindingToMatrix——平移/旋转/缩放通道按归一化位置累�
   assert.ok(Math.abs(ty - Math.sin(r15)) < 1e-9);
 
   // 平移 x：from=0 to=100
-  const bind2 = [{ parameter: "微笑", channel: "x" as const, from: 0, to: 100 }];
+  const bind2 = [
+    { parameter: "微笑", channel: "x" as const, from: 0, to: 100 },
+  ];
   ps.set("微笑", 0.5); // normalized 0.5 → x=50
   const m2 = bindingToMatrix({ ...base }, bind2, ps);
   const [px] = applyAffine(m2, 0, 0);
   assert.equal(px, 50);
   // 缩放 scaleY：from=1 to=2，基础 scaleY=1 → 结果 1+2=3
-  const bind3 = [{ parameter: "微笑", channel: "scaleY" as const, from: 1, to: 2 }];
+  const bind3 = [
+    { parameter: "微笑", channel: "scaleY" as const, from: 1, to: 2 },
+  ];
   ps.set("微笑", 1);
   const m3 = bindingToMatrix({ ...base }, bind3, ps);
   const [, py] = applyAffine(m3, 0, 1);
@@ -220,7 +255,9 @@ test("M2: deformerLocalMatrix 绕枢轴旋转", () => {
   const d = {
     id: "d0",
     pivot: { x: 5, y: 0 },
-    bindings: [{ parameter: "头转向", channel: "rotation" as const, from: -90, to: 90 }],
+    bindings: [
+      { parameter: "头转向", channel: "rotation" as const, from: -90, to: 90 },
+    ],
   };
   ps.set("头转向", 30); // normalized 1 → rotation 90
   const m = deformerLocalMatrix(d, ps);
@@ -235,8 +272,17 @@ test("M2: deformerLocalMatrix 绕枢轴旋转", () => {
 test("M2: resolveDeformerMatrices 父链连乘（任意顺序）+ 缺失父抛错", () => {
   const ps = paramStore();
   const defers: L2dmDeformer[] = [
-    { id: "B", parent: "A", bindings: [{ parameter: "微笑", channel: "x", from: 0, to: 10 }] },
-    { id: "A", bindings: [{ parameter: "头转向", channel: "rotation", from: -90, to: 90 }] },
+    {
+      id: "B",
+      parent: "A",
+      bindings: [{ parameter: "微笑", channel: "x", from: 0, to: 10 }],
+    },
+    {
+      id: "A",
+      bindings: [
+        { parameter: "头转向", channel: "rotation", from: -90, to: 90 },
+      ],
+    },
   ];
   ps.set("头转向", 30); // rotation 90
   ps.set("微笑", 1); // x +10
@@ -247,12 +293,18 @@ test("M2: resolveDeformerMatrices 父链连乘（任意顺序）+ 缺失父抛�
   // 点 (1,0)：A → (0,1)；B → 先 rotate(0,1)... 连乘语义：multiply(localB, worldA)
   //   worldB 应用 (1,0) = worldA 应用 → (0,1)；再 localB 平移 x+10 → (10,1)
   const [bxp, byp] = applyAffine(worlds.get("B")!, 1, 0);
-  assert.ok(Math.abs(bxp - 10) < 1e-9 && Math.abs(byp - 1) < 1e-9, `B(${bxp},${byp})`);
+  assert.ok(
+    Math.abs(bxp - 10) < 1e-9 && Math.abs(byp - 1) < 1e-9,
+    `B(${bxp},${byp})`,
+  );
   const [axp, ayp] = applyAffine(worlds.get("A")!, 1, 0);
   assert.ok(Math.abs(axp - 0) < 1e-9 && Math.abs(ayp - 1) < 1e-9);
 
   // 缺失父 → 抛错
   assert.throws(() => {
-    resolveDeformerMatrices([{ id: "X", parent: "缺失" }] satisfies L2dmDeformer[], ps);
+    resolveDeformerMatrices(
+      [{ id: "X", parent: "缺失" }] satisfies L2dmDeformer[],
+      ps,
+    );
   }, /不存在/);
 });
