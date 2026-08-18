@@ -80,3 +80,21 @@ export interface MotionLike {
 export interface ExpressionLike {
   parameters: { id: string; value: number; blend: "Add" | "Multiply" | "Overwrite" }[];
 }
+
+// ---- 校验/路由上下文（ingestor 与 validate 共享；结构型，与 CharacterManifest 兼容）----
+
+export interface ManifestLike {
+  sems: { name: string; min: number; max: number; group?: string; def?: number }[];
+}
+
+export interface AssetIndex {
+  motions: { name: string; group?: string }[];
+  expressions: { name: string }[];
+  behaviors: never[];
+}
+
+/** 同步资产表（feedLine 为同步入口；异步 AssetSource 由宿主在 M7 包装） */
+export interface AssetStore {
+  motions: Map<string, MotionLike>;
+  expressions: Map<string, ExpressionLike>;
+}

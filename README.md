@@ -20,7 +20,7 @@ l2d-rules/
 │  ├─ dsl/         语言 A 解析器 + 编译器（.ldsl → motion3/exp3/manifest 缓存）★ P0/P1 已完成
 │  ├─ engine/      自研 Live2D 类引擎（路线 C）：.l2dm 格式/形变/物理/双渲染（软件+WebGL2）★ M0 骨架
 │  ├─ driver/      LLM 驱动核心：扁平 IR + JSONL 流式 + 分层求值 + 环境层 + 双模式校验 + Provider/两跳 ★ M0 骨架
-│  └─ renderer/    求值管线（动作→表情→物理→override）+ 曲线采样 + 形变 + 软件光栅化（旧预览器，待 engine 接管后退役）
+│  └─ renderer/    （已退役：M6 删除，算法迁入 engine——曲线采样→player/motion、形变→runtime、软光栅→render/software）
 ├─ specs/          机器可读词表：standard-params.json（32 官方参数基线）、parts-naming.json（部件命名单一来源）
 ├─ docs/
 │  ├─ SPEC-DSL-v1.0.md   唯一权威规范（确认版）：融合分工 + JSONL 流式驱动 + 扁平 IR + 环境层 + 决策记录 ★ 开发以此为准
@@ -38,10 +38,20 @@ l2d-rules/
 ~~~bash
 npm install
 npm run typecheck   # 3 包类型检查
-npm test            # 5 包全量 117：l2dp 4 + dsl 46 + engine 45 + driver 15 + renderer 7（Haru 对照 2 例需自备 fixture，缺失自动跳过）
+npm test            # 4 包全量：l2dp 4 + dsl 46 + engine 45 + driver 27（Haru 对照 2 例需自备 fixture，缺失自动跳过）
 ~~~
 
 > Haru 对照测试需要官方示例 `haru_ja/runtime/motion/haru_idle_01.motion3.json`（gitignore，仅限非公开测试用途），缺失时自动 skip 不阻塞。
+
+## 浏览器 demo（M6 端到端）
+
+~~~bash
+cd examples/demo-web
+npm run dev        # 浏览器打开 http://localhost:5173：粘贴 JSONL（Enter 逐行生效）→ 引擎实时动作
+~~~
+
+- 无 GPU 依赖：软件光栅 → 2D canvas（`SoftwareRenderer.readPixels → putImageData`）
+- 无头验证（CI）：`examples/demo-web/test/demo.test.ts` 走同一条链（JSONL → driver → engine → 像素）
 
 ## 现状（对齐 SPEC-DSL-v1.0 第 13 章路线图）
 
@@ -56,8 +66,10 @@ npm test            # 5 包全量 117：l2dp 4 + dsl 46 + engine 45 + driver 15 
 | M3 | 渲染双后端：软件光栅 + WebGL2（RenderSink 三阶段） | ✅ `packages/engine/src/render`（7 用例） |
 | M4 | Player + compat：加载→逐帧；l2dp/motion3/exp3 → 引擎资产 | ✅ `packages/engine/player` + `compat`（含 golden 参考） |
 | M5 | **LLM 驱动核心**：扁平 IR + StreamIngestor + LayerStack + EnvironmentLayer + Evaluator | ✅ `packages/driver`（14 用例） |
+| M6 | **验证与整合**：双模式校验规则库 + renderer 退役 + demo-web 端到端 | ✅ `packages/driver/validate`（12 用例）+ `examples/demo-web`（5 用例） |
+| P2 | 校验器全套（7 类 + IR/流专属）+ 干跑求值 | ✅ `packages/driver/validate`（M6 落地，双模式共享规则库） |
 | P3 | 扁平 IR（v2）+ 环境层控制器 + 分层求值/优先级 | ✅ `packages/driver`（M5 落地） |
-| P3b | **JSONL 流式驱动**（StreamIngestor）+ 双模式校验 | 🚧 StreamIngestor 完成（M5）；双模式规则库 M6 |
+| P3b | **JSONL 流式驱动**（StreamIngestor）+ 双模式校验 | ✅ `packages/driver`（M5 StreamIngestor + M6 双模式规则库） |
 | P5 | LLM 驱动通道：两跳 + Provider 分级（native/grammar/text）+ 评估集 | ⬜ |
 | P4 | LLM 创作通道（few-shot + 自修复 + 干跑），**后置为高级可选** | ⬜ |
 | P6 | 核心词表 manifest 生成器 + library 索引 + scene 舞台 + TTS 可选 | ⬜ |

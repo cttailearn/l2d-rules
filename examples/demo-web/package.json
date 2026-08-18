@@ -1,0 +1,15 @@
+{
+  "name": "@l2dp/demo-web",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "M6 端到端 demo：浏览器输入 JSONL → 自研引擎实时动作（Vite，零构建产物直编 TS 源码）",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "vite": "^5.4.0"
+  }
+}

@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>l2d-rules demo · JSONL 驱动 Live2D 自研引擎</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 720px; margin: 2rem auto; padding: 0 1rem; background: #14161a; color: #e8e8e8; }
+    h1 { font-size: 1.2rem; }
+    textarea { width: 100%; height: 140px; background: #1e2229; color: #c9d1d9; border: 1px solid #333; border-radius: 6px; font-family: ui-monospace, monospace; font-size: 0.85rem; padding: 8px; box-sizing: border-box; }
+    .row { display: flex; gap: 8px; margin: 8px 0; }
+    button { background: #2d6cdf; color: #fff; border: 0; border-radius: 6px; padding: 6px 14px; cursor: pointer; }
+    button.secondary { background: #3a3f4a; }
+    canvas { image-rendering: pixelated; width: 300px; height: 300px; background: #000; border-radius: 8px; }
+    #params { font-family: ui-monospace, monospace; font-size: 0.8rem; color: #9fb3c8; white-space: pre; }
+    #status { font-size: 0.8rem; color: #7ee787; min-height: 1.2em; }
+    #status.bad { color: #f85149; }
+    .muted { color: #666; font-size: 0.75rem; }
+  </style>
+</head>
+<body>
+  <h1>l2d-rules demo —— JSONL 流式驱动自研引擎（软件渲染，无 GPU 依赖）</h1>
+  <p class="muted">逐行注入：一行 = 一个层上的一个动作。坏行隔离不阻塞流（§7）。</p>
+  <textarea id="input" spellcheck="false">{"op":"play","asset":"微笑点头"}
+{"op":"play","asset":"尾巴摇"}
+{"op":"emote","emote":{"valence":-0.4,"arousal":0.6}}
+{"op":"face","expression":"开心","weight":0.5}
+{"op":"set","sem":"头转向","value":-8}
+{"op":"wait","ms":2000}
+{"op":"play","asset":"害羞低头"}</textarea>
+  <div class="row">
+    <button id="feed">逐行注入（回车即生效）</button>
+    <button id="clear" class="secondary">清空</button>
+    <button id="stop" class="secondary">暂停/继续</button>
+  </div>
+  <canvas id="canvas" width="30" height="30"></canvas>
+  <div id="status">就绪。逐行粘贴 JSONL（Enter 生效）或点击"逐行注入"。</div>
+  <div id="params"></div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

@@ -5,11 +5,12 @@
   "description": "通用 LLM 驱动 Live2D 规则 SDK：语义层 + 语言A/B DSL + 校验器 + Directive IR + 求值管线 + LLM 通道（宿主无关，零平台依赖）",
   "type": "module",
   "workspaces": [
-    "packages/*"
+    "packages/*",
+    "examples/*"
   ],
   "scripts": {
     "typecheck": "node scripts/typecheck.mjs",
-    "test": "node --test \"packages/**/test/*.test.ts\""
+    "test": "node --test \"packages/**/test/*.test.ts\" \"examples/**/test/*.test.ts\""
   },
   "engines": {
     "node": ">=23.6"
