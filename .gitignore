@@ -7,11 +7,7 @@ playwright-report/
 data/
 *.db
 *.log
-haru_ja/
 .env
 .idea/
 .vscode/
 .DS_Store
-
-# 第三方参考项目（路线 C 自研引擎的算法参考，不纳入本仓库）
-reference/

@@ -37,11 +37,9 @@ l2d-rules/
 ~~~bash
 npm install
 npm run typecheck   # 4 包类型检查
-npm test            # 3 包全量：l2dp 4 + engine 44 + driver 44 + demo 5（Haru 对照 2 例需自备 fixture，缺失自动跳过）
+npm test            # 3 包全量：l2dp 4 + engine 44 + driver 43 + demo 5，96 例全绿
 npm run eval        # 评估集门禁：specs/evals/drive-cases.json → 报告（任一 case 失败退出码 1）
 ~~~
-
-> Haru 对照测试需要官方示例 `haru_ja/runtime/motion/haru_idle_01.motion3.json`（gitignore，仅限非公开测试用途），缺失时自动 skip 不阻塞。
 
 ## 浏览器 demo（M6 端到端）
 

@@ -112,14 +112,3 @@ export function directiveStreamSchema(): JsonSchema {
   };
 }
 
-/** 供宿主/MCP 引用的工具描述：返回一批指令（上限 8 条，防超长）。 */
-export function emitDirectiveSchema(): JsonSchema {
-  return {
-    type: "object",
-    additionalProperties: false,
-    properties: {
-      directives: { type: "array", items: directiveSchema(), minItems: 0, maxItems: 8 },
-    },
-    required: ["directives"],
-  };
-}

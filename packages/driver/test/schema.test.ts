@@ -19,7 +19,6 @@ import {
   perOpSchema,
   directiveSchema,
   directiveStreamSchema,
-  emitDirectiveSchema,
   COMMON_FIELDS,
   type JsonSchema,
 } from "../src/ir/schema.ts";
@@ -84,12 +83,6 @@ test("C12: 流 Schema 的 v 常量 = IR_VERSION，required=[v,directives]", () =
   assert.deepEqual(s.properties?.v, { const: IR_VERSION });
   assert.deepEqual(s.required?.slice().sort(), ["directives", "v"]);
   assert.equal(s.additionalProperties, false);
-});
-
-test("C12: emitDirectiveSchema 包装返回 directives 数组（MCP/宿主用）", () => {
-  const s = emitDirectiveSchema();
-  assert.deepEqual(s.required, ["directives"]);
-  assert.deepEqual((s.properties?.directives as JsonSchema)?.maxItems, 8);
 });
 
 // ---- 反向契约：schema 允许的字段，校验器 opShapeIssues 也不拒绝（实际往返） ----
