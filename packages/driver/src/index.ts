@@ -1,6 +1,6 @@
 // @l2dp/driver —— LLM 驱动核心（DEVELOPMENT-SPEC §6）
 // M0 骨架 → M5 完成：扁平 IR + StreamIngestor + LayerStack + EnvironmentLayer + Evaluator。
-// 后续：validate/（M6，双模式规则库）→ provider+twohop+tts/（M7）。
+// 后续：validate/（M6，双模式规则库）→ provider+twohop+tts/（M7）→ mcp/（M7+ 表层：同源工具清单 + 薄桥）。
 // 目标：JSONL 流式驱动（在线逐行/离线整批双模式），融合分工，确定性一等公民。
 
 export const DRIVER_VERSION = "0.1.0";
@@ -27,6 +27,9 @@ export * from "./twohop/engine.ts";
 // ---- 语音与口型（§7）----
 export * from "./tts/types.ts";
 export * from "./tts/estimate.ts";
+// ---- MCP 表层（§9，M7+ 可选：同源工具清单 + 薄桥）----
+export * from "./mcp/tools.ts";
+export * from "./mcp/bridge.ts";
 // ---- 流式（§6.2）----
 export * from "./stream/ingestor.ts";
 // ---- 求值（§6.5）----
