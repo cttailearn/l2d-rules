@@ -17,9 +17,8 @@
 l2d-rules/
 ├─ packages/
 │  ├─ l2dp/        官方 JSON 类型 + 标准参数白名单 + 命名规则 + .l2dp 校验/组装（含 fflate 打包）
-│  ├─ dsl/         语言 A 解析器 + 编译器（.ldsl → motion3/exp3/manifest 缓存）★ P0/P1 已完成
 │  ├─ engine/      自研 Live2D 类引擎（路线 C）：.l2dm 格式/形变/物理/双渲染（软件+WebGL2）★ M0 骨架
-│  ├─ driver/      LLM 驱动核心：扁平 IR + JSONL 流式 + 分层求值 + 环境层 + 双模式校验 + Provider/两跳 + MCP 表层（同源工具清单/薄桥） ★ M0 骨架
+│  ├─ driver/      LLM 驱动核心：扁平 IR + JSONL 流式 + 分层求值 + 环境层 + 双模式校验 + Provider/两跳 ★ M0 骨架
 │  └─ renderer/    （已退役：M6 删除，算法迁入 engine——曲线采样→player/motion、形变→runtime、软光栅→render/software）
 ├─ specs/          机器可读词表：standard-params.json（32 官方参数基线）、parts-naming.json（部件命名单一来源）
 ├─ docs/
@@ -38,7 +37,7 @@ l2d-rules/
 ~~~bash
 npm install
 npm run typecheck   # 4 包类型检查
-npm test            # 4 包全量：l2dp 4 + dsl 46 + engine 45 + driver 57 + demo 5（Haru 对照 2 例需自备 fixture，缺失自动跳过）
+npm test            # 3 包全量：l2dp 4 + engine 44 + driver 44 + demo 5（Haru 对照 2 例需自备 fixture，缺失自动跳过）
 npm run eval        # 评估集门禁：specs/evals/drive-cases.json → 报告（任一 case 失败退出码 1）
 ~~~
 
@@ -59,10 +58,7 @@ npm run dev        # 浏览器打开 http://localhost:5173：粘贴 JSONL（Ente
 
 | 阶段 | 内容 | 状态 |
 | --- | --- | --- |
-| P0 | 解析器 + AST + 语法校验（character/motion/expression/scene） | ✅ `packages/dsl` |
-| P1 | 编译器：motion→motion3、expression→exp3、character→manifest 缓存 | ✅ `packages/dsl` |
-| M0 | 自研引擎 + LLM 驱动包骨架（engine/driver）+ typecheck 5 包 + 冒烟测试 | ✅ `packages/engine` + `packages/driver` |
-| P2 | 校验器全套（7 类 + IR/流专属）+ 干跑求值 | ⬜ 下一站（双模式共享规则库） |
+| M0 | 自研引擎 + LLM 驱动包骨架（engine/driver）+ typecheck 3 包 + 冒烟测试 | ✅ `packages/engine` + `packages/driver` |
 | M1 | .l2dm 格式 schema + validator + loader | ✅ `packages/engine/src/format`（14 用例） |
 | M2 | 形变核心：ParameterStore + Hierarchy + Warp 网格形变 | ✅ `packages/engine/src/runtime`（10 用例） |
 | M3 | 渲染双后端：软件光栅 + WebGL2（RenderSink 三阶段） | ✅ `packages/engine/src/render`（7 用例）+ 真实浏览器 e2e（`examples/demo-web` `npm run test:e2e`，软件 vs WebGL2 逐像素一致） |
@@ -71,7 +67,6 @@ npm run dev        # 浏览器打开 http://localhost:5173：粘贴 JSONL（Ente
 | M6 | **验证与整合**：双模式校验规则库 + renderer 退役 + demo-web 端到端 | ✅ `packages/driver/validate`（12 用例）+ `examples/demo-web`（5 用例） |
 | M7 | **LLM 通道**：Provider(native/text/mock) + 两跳(<50ms) + 语音接口 + 评估集 | ✅ `packages/driver/provider`+`twohop`+`tts`（10 用例）+ `scripts/eval-drive`（6/6） |
 | P5 | LLM 驱动通道：两跳 + Provider 分级（native/grammar/text）+ 评估集 | ✅ `packages/driver`（M7 落地；grammar 档 M7+ 可选） |
-| MCP 表层 | IR→工具清单同源生成（emit_directives 主 + 6 工具）+ 薄桥（工具调用→IR→同一 opShapeIssues 校验/求值） | ✅ `packages/driver/src/mcp`（13 用例） |
 | P2 | 校验器全套（7 类 + IR/流专属）+ 干跑求值 | ✅ `packages/driver/validate`（M6 落地，双模式共享规则库） |
 | P3 | 扁平 IR（v2）+ 环境层控制器 + 分层求值/优先级 | ✅ `packages/driver`（M5 落地） |
 | P3b | **JSONL 流式驱动**（StreamIngestor）+ 双模式校验 | ✅ `packages/driver`（M5 StreamIngestor + M6 双模式规则库） |
@@ -81,12 +76,12 @@ npm run dev        # 浏览器打开 http://localhost:5173：粘贴 JSONL（Ente
 ## 与 live2d-forge 的关系
 
 - live2d-forge 是本 SDK 的**第一个宿主**：实现 `ParameterSink`（WebGL/软渲染）、资产存储（SQLite/file map）、LLM provider 注入、内容策略、Fastify 端点
-- 本仓库当前是**副本过渡态**：代码从平台复制而来，平台尚未改为消费本 SDK。平台接线后（包名 `@l2dp/*` 保持不变，只需换依赖来源），平台内 `packages/dsl`、`packages/l2dp`、`packages/renderer` 即删除，消除双份源码
+- 本仓库当前是**副本过渡态**：代码从平台复制而来，平台尚未改为消费本 SDK。平台接线后（包名 `@l2dp/*` 保持不变，只需换依赖来源），平台内的同名单包副本即删除，消除双份源码
 - 包名沿用 `@l2dp/*` 以最小化宿主迁移成本；若将来独立开源，可统一改 scope
 
 ## 开发纪律
 
 - TypeScript strict + 仅可擦除语法（无 enum/namespace）
 - 零平台依赖：核心不引 fastify/react/sqlite/onnxruntime；推理与 TTS 由宿主注入
-- 版本三件套写进每个产物：manifest `formatVersion` + DSL `syntaxVersion`（semver）+ IR 版本
+- 版本三件套写进每个产物：引擎 model `formatVersion` + 语义资产 `syntaxVersion`（semver）+ IR 版本
 - 每个阶段 DoD：typecheck 全绿 + 包测试全绿 + 确定性回归（种子化时钟/随机）

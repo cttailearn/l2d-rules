@@ -1,12 +1,11 @@
-// compat —— DSL 编译产物 → 引擎资产（DEVELOPMENT-SPEC §5.9 / C11）
-// 入参必须是 semantic:true 编译产物（曲线/参数 id 已是语义名，与 .l2dm.parameters 直接对应）。
+// compat —— l2dp 标准资产（motion3/exp3）→ 引擎资产（DEVELOPMENT-SPEC §5.9 / C11）
+// 入参必须是语义产物（曲线/参数 id 已是语义名，与 .l2dm.parameters 直接对应）。
 // 若收到非语义产物（PARAM_* 官方 id 轨道）→ 拒绝并报错，**不做隐式反向映射**（运行时猜谜）。
 // 引擎 parse 语义：motion3/exp3 结构形状不变，仅 id 值域不同（§8 C11）。
+// （DSL character manifest → 引擎骨架的 importManifest 已随 packages/dsl 移除，无生产者。）
 
 import { isStandardParam } from "@l2dp/l2dp";
 import type { Expression as Expression3, Motion as Motion3 } from "@l2dp/l2dp";
-import type { CharacterManifest } from "@l2dp/dsl";
-import { L2DM_FORMAT_VERSION, type L2dmModel } from "../format/types.ts";
 import type { EngineMotion } from "../player/motion.ts";
 
 export type ImportResult<T> = { ok: true; value: T } | { ok: false; error: string };
@@ -75,32 +74,3 @@ export function applyExpression(
   }
 }
 
-/**
- * manifest（DSL 编译产物）→ 引擎模型**骨架**（§5.9）。
- *
- * 边界（诚实声明）：DSL character manifest 不携带网格/画布/部件层级，
- * 因此只能产出可驱动、可校验的骨架——sems→参数、layers→部件（order=层 z）、
- * bones→deformer id。几何/uv/纹理与层级绑定不在 manifest 内，由宿主或
- * M7+ 的 cdi-import 补齐；画布尺寸 manifest 同样没有，用 opts.canvas 注入
- * （缺省 1000×1000 占位，仅影响渲染视口大小）。outfits 在 .l2dm 无对应概念，
- * 不映射（引擎层用 params/parts 表达着装切换）。
- */
-export function importManifest(
-  m: CharacterManifest,
-  opts: { canvas?: { width: number; height: number } } = {},
-): L2dmModel {
-  const canvas = opts.canvas ?? { width: 1000, height: 1000 };
-  const parts: L2dmModel["parts"] = [];
-  m.layers.forEach((l, li) => {
-    const order = l.z ?? li;
-    for (const pid of l.parts) parts.push({ id: pid, order });
-  });
-  return {
-    formatVersion: L2DM_FORMAT_VERSION,
-    id: m.id,
-    canvas,
-    parameters: m.sems.map((s) => ({ id: s.name, min: s.min, max: s.max })),
-    parts,
-    deformers: m.bones.map((b) => ({ id: b.name })),
-  };
-}

@@ -1,9 +1,0 @@
-{
-  "name": "@l2dp/dsl",
-  "version": "0.1.0",
-  "type": "module",
-  "main": "src/index.ts",
-  "exports": { ".": "./src/index.ts" },
-  "dependencies": { "@l2dp/l2dp": "0.1.0" },
-  "scripts": { "test": "node --test test/" }
-}

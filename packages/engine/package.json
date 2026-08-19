@@ -4,6 +4,6 @@
   "type": "module",
   "main": "src/index.ts",
   "exports": { ".": "./src/index.ts" },
-  "dependencies": { "@l2dp/l2dp": "*", "@l2dp/dsl": "*" },
+  "dependencies": { "@l2dp/l2dp": "*" },
   "scripts": { "test": "node --test test/" }
 }

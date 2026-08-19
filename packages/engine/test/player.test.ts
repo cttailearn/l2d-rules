@@ -11,7 +11,6 @@ import {
   mulberry32,
   importMotion3,
   importExpression3,
-  importManifest,
   applyExpression,
   type EngineMotion,
 } from "../src/index.ts";
@@ -111,41 +110,6 @@ test("M4: 加载 demo.l2dm 文件 → 播放 → 无头录 30 帧像素与 golde
   for (let i = 0; i < hashes.length; i++) {
     assert.equal(hashes[i], golden[i], `第 ${i} 帧与 golden 不一致`);
   }
-});
-
-test("M4: compat——manifest → 引擎模型骨架（sems→参数/layers→部件/bones→deformer）", () => {
-  const m = importManifest({
-    formatVersion: 1,
-    syntaxVersion: "1.0.0",
-    id: "小夏",
-    layers: [
-      { name: "head", parts: ["face", "ear"], z: 1 },
-      { name: "body", parts: ["torso"], z: 0 },
-    ],
-    bones: [{ name: "headBone", layer: "head" }],
-    outfits: [{ name: "校服", group: 0 }],
-    sems: [
-      { name: "微笑", min: 0, max: 1, params: [] },
-      { name: "头转向", min: -30, max: 30, params: [] },
-    ],
-    assetIndex: { motions: [], expressions: [], behaviors: [] },
-  });
-  // 参数：sems → L2dmParameter
-  assert.deepEqual(
-    m.parameters.map((p) => [p.id, p.min, p.max]),
-    [["微笑", 0, 1], ["头转向", -30, 30]],
-  );
-  // 部件：layers 展平，order = 层 z（缺省按层序）
-  const parts = [...m.parts].sort((a, b) => a.order - b.order);
-  assert.deepEqual(parts.map((p) => p.id), ["torso", "face", "ear"]);
-  // deformer：bones
-  assert.deepEqual(m.deformers, [{ id: "headBone" }]);
-  // 骨架是合法 .l2dm（可过 loader 校验）；无网格部件可进 player 渲染不崩
-  assert.equal(loadL2dm(JSON.stringify(m)).ok, true);
-  const p = new L2dmPlayer(m, new Map());
-  const r = new SoftwareRenderer();
-  p.render(r);
-  assert.equal(r.countNonTransparent(), 0);
 });
 
 test("M4: compat——非语义 motion3 拒绝；语义产物导入", () => {

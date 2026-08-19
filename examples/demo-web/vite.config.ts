@@ -11,7 +11,6 @@ export default defineConfig({
       "@l2dp/engine": pkg("engine"),
       "@l2dp/driver": pkg("driver"),
       "@l2dp/l2dp": pkg("l2dp"),
-      "@l2dp/dsl": pkg("dsl"),
     },
   },
   server: {
