@@ -30,6 +30,8 @@ l2d-rules/
 └─ scripts/typecheck.mjs
 ```
 
+> 每个包自带独立 README（定位 / 依赖 / 安装 / 核心 API / 用法示例 / 边界 / 测试），见 `packages/<pkg>/README.md`，消费前先读对应包文档。
+
 ## 快速开始
 
 要求：Node ≥ 23.6（原生运行 `.ts`，零构建）。
