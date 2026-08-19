@@ -7,6 +7,7 @@ export const DRIVER_VERSION = "0.1.0";
 
 // ---- IR（§6.1）----
 export * from "./ir/types.ts";
+export * from "./ir/schema.ts";
 // ---- 分层求值（§6.3/6.4）----
 export * from "./layers/environment.ts";
 export * from "./layers/layer-stack.ts";

@@ -38,7 +38,7 @@ l2d-rules/
 ~~~bash
 npm install
 npm run typecheck   # 4 包类型检查
-npm test            # 4 包全量：l2dp 4 + dsl 46 + engine 45 + driver 37 + demo 5（Haru 对照 2 例需自备 fixture，缺失自动跳过）
+npm test            # 4 包全量：l2dp 4 + dsl 46 + engine 45 + driver 44 + demo 5（Haru 对照 2 例需自备 fixture，缺失自动跳过）
 npm run eval        # 评估集门禁：specs/evals/drive-cases.json → 报告（任一 case 失败退出码 1）
 ~~~
 

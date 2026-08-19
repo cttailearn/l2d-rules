@@ -3,6 +3,7 @@
 // 请求成形 + 响应解析为纯函数（可测）；真实调用需要宿主提供 key/端点。
 
 import type { ChatRequest, ChatResult, RuntimeProvider } from "./types.ts";
+import { directiveStreamSchema } from "../ir/schema.ts";
 
 export interface OpenAIProviderOpts {
   /** API 端点（默认 OpenAI）；可指 Ollama/vLLM 兼容层 */
@@ -52,7 +53,8 @@ export class OpenAIProvider implements RuntimeProvider {
   }
 
   async createCompletion(req: ChatRequest, opts: { schema?: object } = {}): Promise<ChatResult> {
-    const body = buildOpenAIBody(req, { model: this.model, schema: opts.schema });
+    // 缺省用由 IR 规则库同源生成的 directiveStreamSchema，保证 native 结构化输出路径有真实 schema 可用。
+    const body = buildOpenAIBody(req, { model: this.model, schema: opts.schema ?? directiveStreamSchema() });
     const res = await this.fetchImpl(`${this.baseUrl}/chat/completions`, {
       method: "POST",
       headers: {
