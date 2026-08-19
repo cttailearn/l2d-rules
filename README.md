@@ -53,6 +53,7 @@ npm run dev        # 浏览器打开 http://localhost:5173：粘贴 JSONL（Ente
 
 - 无 GPU 依赖：软件光栅 → 2D canvas（`SoftwareRenderer.readPixels → putImageData`）
 - 无头验证（CI）：`examples/demo-web/test/demo.test.ts` 走同一条链（JSONL → driver → engine → 像素）
+- M3 DoD——真实浏览器 WebGL2 逐像素一致性：`npm run test:e2e`（Playwright + Chromium，软件 vs WebGL2 `readPixels` 容差 ±1；vite dev 自动起于 :5199）
 
 ## 现状（对齐 SPEC-DSL-v1.0 第 13 章路线图）
 
@@ -64,7 +65,7 @@ npm run dev        # 浏览器打开 http://localhost:5173：粘贴 JSONL（Ente
 | P2 | 校验器全套（7 类 + IR/流专属）+ 干跑求值 | ⬜ 下一站（双模式共享规则库） |
 | M1 | .l2dm 格式 schema + validator + loader | ✅ `packages/engine/src/format`（14 用例） |
 | M2 | 形变核心：ParameterStore + Hierarchy + Warp 网格形变 | ✅ `packages/engine/src/runtime`（10 用例） |
-| M3 | 渲染双后端：软件光栅 + WebGL2（RenderSink 三阶段） | ✅ `packages/engine/src/render`（7 用例） |
+| M3 | 渲染双后端：软件光栅 + WebGL2（RenderSink 三阶段） | ✅ `packages/engine/src/render`（7 用例）+ 真实浏览器 e2e（`examples/demo-web` `npm run test:e2e`，软件 vs WebGL2 逐像素一致） |
 | M4 | Player + compat：加载→逐帧；l2dp/motion3/exp3 → 引擎资产 | ✅ `packages/engine/player` + `compat`（含 golden 参考） |
 | M5 | **LLM 驱动核心**：扁平 IR + StreamIngestor + LayerStack + EnvironmentLayer + Evaluator | ✅ `packages/driver`（14 用例） |
 | M6 | **验证与整合**：双模式校验规则库 + renderer 退役 + demo-web 端到端 | ✅ `packages/driver/validate`（12 用例）+ `examples/demo-web`（5 用例） |

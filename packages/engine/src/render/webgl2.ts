@@ -1,8 +1,10 @@
 // WebGL2 渲染器 WebGL2Renderer —— 浏览器渲染后端（DEVELOPMENT-SPEC §5.7）
 // 遵循 renderer/webgl.ts 约定：CPU 完成形变/构图，GPU 仅绘制；模块在 Node 无 GL 时不可用。
 // 通过最小 `GL2` 接口实现，便于用命令记录 stub 做确定性测试；真实浏览器传入 WebGL2 上下文。
-// 逐像素一致性：与 SoftwareRenderer 同输入同 shader 语义（NEAREST 采样 / 透明混合 / 同投影），
-//   在具备 WebGL2 的环境（浏览器/headless-gl）中自动断言，Node 无上下文时跳过（同 Haru fixture 模式）。
+// 逐像素一致性：与 SoftwareRenderer 同输入同 shader 语义（NEAREST 采样 / 透明混合 / 同投影）；
+//   真实执行路径 = examples/demo-web/e2e/parity（Playwright + 真实 Chromium WebGL2，容差 ±1），
+//   Node 单测仅以命令记录 stub 验证命令序列（无 GL 上下文）。约定差异已在实现内对齐：
+//   tint 归一化（§draw）、读回 unpremultiply（§readPixels）。
 
 import type { RenderMesh, RenderSink, Tex2D } from "./sink.ts";
 
@@ -101,6 +103,7 @@ export class WebGL2Renderer implements RenderSink {
   private readonly locs = {
     aPos: -1, aUv: -1,
     uTex: null as WebGLUniformLocation | null,
+    uHasTex: null as WebGLUniformLocation | null,
     uTint: null as WebGLUniformLocation | null,
     uSize: null as WebGLUniformLocation | null,
   };
@@ -143,6 +146,7 @@ export class WebGL2Renderer implements RenderSink {
     this.locs.aPos = gl.getAttribLocation(prog, "aPos");
     this.locs.aUv = gl.getAttribLocation(prog, "aUv");
     this.locs.uTex = gl.getUniformLocation(prog, "uTex");
+    this.locs.uHasTex = gl.getUniformLocation(prog, "uHasTex");
     this.locs.uTint = gl.getUniformLocation(prog, "uTint");
     this.locs.uSize = gl.getUniformLocation(prog, "uSize");
   }
@@ -181,7 +185,15 @@ export class WebGL2Renderer implements RenderSink {
     if (!this.program) throw new Error("程序未初始化");
     gl.useProgram(this.program);
     gl.uniform2f(this.locs.uSize, this.width, this.height);
-    gl.uniform4fv(this.locs.uTint, mesh.color);
+    gl.uniform1i(this.locs.uHasTex, mesh.texId !== null ? 1 : 0);
+    // 着色器在归一化 [0,1] 空间运算；mesh.color 是 0–255 字节值，必须先除以 255。
+    // 直接传字节会溢出钳位：纯色场景（tex=(0,0,0,1)）渲成纯黑、纹理场景（tex×128>1）渲成纯白。
+    const tint = new Float32Array(4);
+    tint[0] = mesh.color[0] / 255;
+    tint[1] = mesh.color[1] / 255;
+    tint[2] = mesh.color[2] / 255;
+    tint[3] = mesh.color[3] / 255;
+    gl.uniform4fv(this.locs.uTint, tint);
     // 纹理
     if (mesh.texId !== null) {
       gl.activeTexture(0x84c0); // TEXTURE0
@@ -228,6 +240,16 @@ export class WebGL2Renderer implements RenderSink {
     const { width: w, height: h } = this.size();
     const out = new Uint8Array(w * h * 4);
     gl.readPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, out);
+    // 默认帧缓冲存预乘 alpha（MSAA 解析的半覆盖像素亦然），而 SoftwareRenderer 存直通 alpha：
+    // 读回时还原为直通（unpremultiply；a=255 恒等，a=0 保持 0），对齐两后端的 RenderSink 约定。
+    for (let i = 0; i < out.length; i += 4) {
+      const a = out[i + 3];
+      if (a > 0 && a < 255) {
+        out[i] = Math.min(255, Math.round((out[i] * 255) / a));
+        out[i + 1] = Math.min(255, Math.round((out[i + 1] * 255) / a));
+        out[i + 2] = Math.min(255, Math.round((out[i + 2] * 255) / a));
+      }
+    }
     return out;
   }
 
@@ -252,9 +274,17 @@ const FRAGMENT_SRC = `#version 300 es
 precision mediump float;
 in vec2 vUv;
 uniform sampler2D uTex;
+uniform int uHasTex;
 uniform vec4 uTint;
 out vec4 outColor;
 void main() {
-  vec4 tex = texture(uTex, vUv);
-  outColor = vec4(tex.rgb * uTint.rgb, tex.a * uTint.a);
+  if (uHasTex > 0) {
+    // 纹理：texel × tint（纹素 alpha × tint alpha = 覆盖系数）
+    vec4 tex = texture(uTex, vUv);
+    outColor = vec4(tex.rgb * uTint.rgb, tex.a * uTint.a);
+  } else {
+    // 纯色：直接输出 tint。不能采样 null 绑定纹理——WebGL2 默认纹理返回 (0,0,0,1)，
+    // 会把纯色场景污染成不透明黑（与 SoftwareRenderer 的「无纹理 = 直写 color」语义对齐）。
+    outColor = uTint;
+  }
 }`;
