@@ -11,3 +11,16 @@ data/
 .idea/
 .vscode/
 .DS_Store
+# demo-real 生成的模型产物（自包含 .l2dm / 转换包 / 报告）
+examples/demo-real/out/
+
+# 逆向脚手架与参考源码（不入库）
+scripts/moc3-*.mjs
+.moc3-refs/
+ref/
+
+# 官方 Live2D 样例运行时 + 真实模型语料（~1GB；本机测试回归/构建期参考，不入库）
+examples/live2d/
+
+# 渲染草稿（scripts/moc3-render.mjs 输出）
+out/

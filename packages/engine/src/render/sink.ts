@@ -10,6 +10,15 @@ export interface Tex2D {
   data: Uint8Array; // RGBA，行长 width*4
 }
 
+/** 纹理采样过滤：nearest（最近邻，确定性与 WebGL2/软件两后端逐位一致的基准）｜linear（双线性，浏览器展示「官方效果」用） */
+export type TextureFilter = "nearest" | "linear";
+
+/** 渲染器构造选项（软件/WebGL2 共用） */
+export interface RendererOptions {
+  /** 纹理过滤（缺省 nearest——parity e2e 的基准；linear 供浏览器平滑展示） */
+  filter?: TextureFilter;
+}
+
 /** 一个绘制 mesh（顶点已变形为最终位置） */
 export interface RenderMesh {
   /** 顶点 [x0,y0, x1,y1, ...]（画布坐标，y 向下） */

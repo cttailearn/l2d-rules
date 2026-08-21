@@ -1,9 +1,12 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { loadL2dm } from "@l2dp/engine";
 import { createDemoScene } from "../src/scene.ts";
+import { decodeModelAtlas } from "../src/texture.ts";
 
 const modelJson = readFileSync(new URL("../public/demo.l2dm", import.meta.url), "utf8");
+const haruModelJson = readFileSync(new URL("../public/haru-full.l2dm", import.meta.url), "utf8");
 
 // 基线帧：无指令，环境层纯驱动
 function baseline(): Uint8Array {
@@ -61,4 +64,50 @@ test("M6 demo: emote 调制不崩 + 确定性——同 seed 同轨迹", () => {
     return vals;
   };
   assert.deepEqual(run(), run());
+});
+
+// ---------------- 真实纹理（自包含 .l2dm：haru-full） ----------------
+
+test("haru: 内嵌 atlas 解码成真实 Tex2D（2048×2048 RGBA）", () => {
+  const loaded = loadL2dm(haruModelJson);
+  if (!loaded.ok) throw new Error(loaded.error);
+  const atlas = decodeModelAtlas(loaded.model.atlas);
+  assert.equal(atlas.size, 2, "内嵌两张 Haru 纹理");
+  for (const t of atlas.values()) {
+    assert.equal(t.width, 2048);
+    assert.equal(t.height, 2048);
+    assert.equal(t.data.length, 2048 * 2048 * 4);
+  }
+});
+
+test("haru: 真实纹理渲染——与无纹理像素不同", () => {
+  const loaded = loadL2dm(haruModelJson);
+  if (!loaded.ok) throw new Error(loaded.error);
+  const atlas = decodeModelAtlas(loaded.model.atlas);
+  const texScene = createDemoScene(haruModelJson, { atlas });
+  texScene.onFrame(0);
+  const px = texScene.renderer.readPixels()!.slice();
+  const flatScene = createDemoScene(haruModelJson, { atlas: new Map() });
+  flatScene.onFrame(0);
+  const pxFlat = flatScene.renderer.readPixels()!.slice();
+  assert.notDeepEqual(px, pxFlat, "纹理路径应改变像素");
+});
+
+test("haru: 真实几何（moc3 解析）渲染——纹理 vs 无纹理像素不同 + 覆盖率达标", () => {
+  const loaded = loadL2dm(haruModelJson);
+  if (!loaded.ok) throw new Error(loaded.error);
+  assert.ok(loaded.model.parts.length >= 50, `真实 ArtMesh 数 ${loaded.model.parts.length}`);
+  const atlas = decodeModelAtlas(loaded.model.atlas);
+  const texScene = createDemoScene(haruModelJson, { atlas });
+  texScene.onFrame(0);
+  const px = texScene.renderer.readPixels()!.slice();
+  const texOpaque = texScene.countNonTransparent();
+
+  const flatScene = createDemoScene(haruModelJson, { atlas: new Map() });
+  flatScene.onFrame(0);
+  const pxFlat = flatScene.renderer.readPixels()!.slice();
+  assert.notDeepEqual(px, pxFlat, "纹理路径应改变像素");
+
+  // 真实几何应铺满画布（占位马赛克不会到达这里——几何来自 moc3）
+  assert.ok(texOpaque > 100_000, `真实几何覆盖率 非透明像素=${texOpaque}`);
 });

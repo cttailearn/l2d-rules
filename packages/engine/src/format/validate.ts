@@ -49,6 +49,25 @@ export function validateL2dmModel(model: L2dmModel, atlasFiles?: ReadonlySet<str
     push(issues, "canvas", "canvas 宽高必须为正数");
   }
 
+  // ---- 内嵌资源（atlas）：可用纹理 = 显式 atlasFiles ∪ 内嵌键；条目值需为 data URI/base64 ----
+  const availableAtlas = new Set<string>(atlasFiles ?? []);
+  const hasAtlasContext = (atlasFiles !== undefined && atlasFiles.size > 0) ||
+    (model.atlas !== undefined && Object.keys(model.atlas).length > 0);
+  if (model.atlas) {
+    for (const [name, v] of Object.entries(model.atlas)) {
+      if (name.length === 0) {
+        push(issues, "atlas", "atlas 文件名不能为空");
+        continue;
+      }
+      availableAtlas.add(name);
+      if (typeof v !== "string" || v.length === 0) {
+        push(issues, `atlas."${name}"`, "值必须为非空字符串");
+      } else if (!/^data:image\/[a-z0-9.+-]+;base64,/.test(v) && !/^[A-Za-z0-9+/]+={0,2}$/.test(v)) {
+        push(issues, `atlas."${name}"`, "值必须为 data URI('data:image/*;base64,') 或 base64 字符串");
+      }
+    }
+  }
+
   // ---- 规则 1：参数 ----
   const paramIds = new Set<string>();
   (model.parameters ?? []).forEach((p, i) => {
@@ -94,8 +113,8 @@ export function validateL2dmModel(model: L2dmModel, atlasFiles?: ReadonlySet<str
     if (pt.color && (pt.color.length !== 4 || !pt.color.every(isFiniteNum))) {
       push(issues, `${path}.color`, "color 必须为 4 个数字 (r,g,b,a)");
     }
-    // 规则 6 后半：atlas 引用存在（loader 阶段提供 atlasFiles）
-    if (atlasFiles && pt.texture !== undefined && !atlasFiles.has(pt.texture)) {
+    // 规则 6 后半：atlas 引用存在（显式 atlasFiles ∪ 内嵌 atlas；两者皆无则跳过检查，保持向后兼容）
+    if (pt.texture !== undefined && hasAtlasContext && !availableAtlas.has(pt.texture)) {
       push(issues, `${path}.texture`, `atlas 文件 '${pt.texture}' 在可用纹理集中不存在`);
     }
     // opacityParam 引用的参数必须存在

@@ -40,6 +40,7 @@ export function parseL2dm(raw: unknown): { ok: true; model: LdmModelRaw } | { ok
     deformers: Array.isArray(raw.deformers) ? raw.deformers : [],
     physics: isObj(raw.physics) ? (raw.physics as LdmModelRaw["physics"]) : undefined,
     pose: isObj(raw.pose) ? (raw.pose as LdmModelRaw["pose"]) : undefined,
+    atlas: isObj(raw.atlas) ? (raw.atlas as LdmModelRaw["atlas"]) : undefined,
   };
   return { ok: true, model };
 }
@@ -54,6 +55,7 @@ interface LdmModelRaw {
   deformers?: unknown[];
   physics?: unknown;
   pose?: unknown;
+  atlas?: unknown;
 }
 
 /** 从 JSON 字符串加载（parse + validate 一站式） */

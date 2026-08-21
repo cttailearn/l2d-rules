@@ -20,6 +20,12 @@ export interface L2dmModel {
   physics?: L2dmPhysics;
   /** 部件联动（如手臂 A/B） */
   pose?: L2dmPose;
+  /**
+   * 内嵌模型资源：文件名 → data URI（或裸 base64）。
+   * 让 .l2dm 成为自包含模型产物——宿主直接解码即得纹理，无需外部文件。
+   * 纯数据：本包不解释位图；解码/上传归宿主（RenderSink/ParameterSink 侧）。
+   */
+  atlas?: Record<string, string>;
 }
 
 export const L2DM_PARAM_GROUPS = [

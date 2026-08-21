@@ -87,7 +87,7 @@ function makeGlStub(): GL2 & { calls: string[]; drawCount: number } {
     isContextLost: () => false,
     getError: () => 0,
     TRIANGLES: 4, ARRAY_BUFFER: 34962, STATIC_DRAW: 35044, COLOR_BUFFER_BIT: 16384,
-    TEXTURE_2D: 3553, RGBA: 6408, UNSIGNED_BYTE: 5121, NEAREST: 9728,
+    TEXTURE_2D: 3553, RGBA: 6408, UNSIGNED_BYTE: 5121, NEAREST: 9728, LINEAR: 9729,
     TEXTURE_MIN_FILTER: 10241, TEXTURE_MAG_FILTER: 10240, TEXTURE_WRAP_S: 10242, TEXTURE_WRAP_T: 10243,
     CLAMP_TO_EDGE: 33071, BLEND: 3042, SRC_ALPHA: 770, ONE_MINUS_SRC_ALPHA: 771,
     COMPILE_STATUS: 35713, LINK_STATUS: 35714, FRAGMENT_SHADER: 35632, VERTEX_SHADER: 35633,
@@ -110,7 +110,7 @@ function makeGlStub(): GL2 & { calls: string[]; drawCount: number } {
     createTexture: () => ({} as WebGLTexture),
     bindTexture: () => {},
     texImage2D: () => {},
-    texParameteri: () => {},
+    texParameteri: (_t: number, _p: number, v: number) => { calls.push("texParam:" + v); },
     deleteTexture: () => {},
     getAttribLocation: () => 0,
     enableVertexAttribArray: () => {},
@@ -156,4 +156,81 @@ test("M3: WebGL2Renderer 无纹理 mesh 也绘制（纯色路径）", () => {
   r.draw({ verts: new Float32Array([0, 0, 8, 0, 0, 8]), uvs: new Float32Array(6), indices: [0, 1, 2], texId: null, color: [1, 1, 1, 255] });
   r.end();
   assert.equal(gl.drawCount, 1);
+});
+
+// ================= 纹理过滤（官方效果：双线性平滑） =================
+
+/** 2×1 纹理：左 RED / 右 GREEN；全画布 quad（u,v ∈ 0..1）——跨纹素处线性值可精确计算 */
+function gridTexture2x1(): Tex2D {
+  return {
+    width: 2,
+    height: 1,
+    data: new Uint8Array([
+      255, 0, 0, 255,      // 左 RED
+      0, 255, 0, 255,      // 右 GREEN
+    ]),
+  };
+}
+function draw2x1(r: SoftwareRenderer): void {
+  r.uploadTexture("grid", gridTexture2x1());
+  r.begin(8, 8);
+  r.draw({
+    verts: new Float32Array([0, 0, 8, 0, 0, 8, 8, 8]),
+    uvs: new Float32Array([0, 0, 1, 0, 0, 1, 1, 1]),
+    indices: [0, 1, 2, 2, 1, 3],
+    texId: "grid",
+    color: [255, 255, 255, 255],
+  });
+  r.end();
+}
+
+test("M3: 默认 nearest——像素取单个纹素（确定性基准不变）", () => {
+  const r = new SoftwareRenderer();
+  assert.equal(r.textureFilter, "nearest");
+  draw2x1(r);
+  // 像素(2,1) 中心 (2.5,1.5)：u=0.3125 → texel floor(0.625)=0 → RED
+  assert.deepEqual(r.pixel(2, 1), [255, 0, 0, 255]);
+  // 像素(4,2) 中心 (4.5,2.5)：u=0.5625 → texel floor(1.125)=1 → GREEN
+  assert.deepEqual(r.pixel(4, 2), [0, 255, 0, 255]);
+});
+
+test("M3: 线性采样——跨纹素处为双线性混合（官方平滑效果，精确值）", () => {
+  const r = new SoftwareRenderer({ filter: "linear" });
+  assert.equal(r.textureFilter, "linear");
+  draw2x1(r);
+  // 像素(2,1)：u=0.3125 → fx=0.125，RED×0.875 + GREEN×0.125 = (223,32,0)
+  assert.deepEqual(r.pixel(2, 1), [223, 32, 0, 255]);
+  // 像素(4,2)：u=0.5625 → fx=0.625，RED×0.375 + GREEN×0.625 = (96,159,0)
+  assert.deepEqual(r.pixel(4, 2), [96, 159, 0, 255]);
+});
+
+test("M3: 线性采样与最近邻在跨纹素处必须不同", () => {
+  const nearest = new SoftwareRenderer();
+  draw2x1(nearest);
+  const linear = new SoftwareRenderer({ filter: "linear" });
+  draw2x1(linear);
+  const n = nearest.pixel(4, 2);
+  const l = linear.pixel(4, 2);
+  assert.notDeepEqual(l, n, "跨纹素处线性采样与最近邻必须不同");
+  assert.deepEqual(l, [96, 159, 0, 255]);
+});
+
+test("M3: WebGL2 linear——texture MIN/MAG 过滤设为 LINEAR (9729)", () => {
+  const gl = makeGlStub();
+  const r = createWebGL2Renderer(gl, { filter: "linear" });
+  assert.equal(r.textureFilter, "linear");
+  r.uploadTexture("t", { width: 1, height: 1, data: new Uint8Array([255, 0, 0, 255]) });
+  const linearParams = gl.calls.filter((c) => c === "texParam:9729");
+  assert.ok(linearParams.length >= 2, "MIN/MAG 应各设 LINEAR");
+  assert.ok(!gl.calls.includes("texParam:9728"), "linear 时不应设置 NEAREST");
+});
+
+test("M3: WebGL2 默认 nearest——过滤为 NEAREST (9728)", () => {
+  const gl = makeGlStub();
+  const r = createWebGL2Renderer(gl);
+  assert.equal(r.textureFilter, "nearest");
+  r.uploadTexture("t", { width: 1, height: 1, data: new Uint8Array([255, 0, 0, 255]) });
+  const nearestParams = gl.calls.filter((c) => c === "texParam:9728");
+  assert.ok(nearestParams.length >= 2, "MIN/MAG 应各设 NEAREST");
+  assert.ok(!gl.calls.includes("texParam:9729"), "nearest 时不应设置 LINEAR");
 });

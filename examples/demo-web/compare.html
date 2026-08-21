@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>l2d-rules · 上传 Live2D 模型对比：自研引擎 vs 官方 Cubism SDK</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 1000px; margin: 2rem auto; padding: 0 1rem; background: #14161a; color: #e8e8e8; }
+    h1 { font-size: 1.15rem; }
+    .bars { display: flex; gap: 16px; flex-wrap: wrap; }
+    .side { flex: 1 1 340px; min-width: 300px; }
+    .side h2 { font-size: 0.95rem; margin: 0 0 4px; }
+    .side p { margin: 2px 0 6px; font-size: 0.78rem; color: #9fb3c8; }
+    canvas { image-rendering: pixelated; width: 100%; height: auto; background: #000; border-radius: 8px; border: 1px solid #333; }
+    #canvas-right { width: 100%; height: auto; }
+    .bad { color: #f85149 !important; }
+    select, button { background: #1e2229; color: #c9d1d9; border: 1px solid #333; border-radius: 6px; padding: 6px 10px; font-size: 0.85rem; }
+    button { background: #2d6cdf; color: #fff; cursor: pointer; }
+    .ctrl { display: flex; gap: 8px; align-items: center; margin: 12px 0; flex-wrap: wrap; }
+    .note { font-size: 0.8rem; color: #7ee787; min-height: 1.2em; margin-top: 8px; }
+    .muted { color: #666; font-size: 0.75rem; }
+    #dropZone { border: 2px dashed #3a3f4a; border-radius: 8px; padding: 18px; text-align: center; cursor: pointer; color: #9fb3c8; margin-bottom: 12px; }
+    #dropZone.over { border-color: #2d6cdf; background: #1e2229; }
+  </style>
+  <!-- 官方 Cubism 4 core + PixiJS + pixi-live2d-display（CDN 运行时；浏览器端加载，非本仓库依赖） -->
+  <script src="https://cubism.live2d.com/sdk-web/cubismcore/live2dcubismcore.min.js"></script>
+  <script src="https://pixijs.download/release/pixi.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/pixi-live2d-display@0.4.0/dist/index.min.js"></script>
+</head>
+<body>
+  <h1>l2d-rules · 上传 Live2D 模型，并排对比「自研引擎」与「官方 Cubism SDK」</h1>
+  <p class="muted">① 选择/拖入一个 Live2D 模型目录（含 .model3.json），或拖入 .zip。② 左侧用当前项目引擎把模型实时转换为 .l2dm 并渲染；右侧用官方 Cubism runtime 渲染真实 .moc3。③ 选同一官方 motion 同步播放对比。（右侧官方渲染需联网加载 CDN runtime）</p>
+
+  <div id="dropZone">
+    <strong>点击选择模型目录</strong> 或 拖入 Live2D 模型文件夹 / .zip 到这里
+    <input type="file" id="fileInput" webkitdirectory multiple style="display:none;" />
+  </div>
+
+  <div class="ctrl">
+    <select id="motionSelect" title="选择官方 motion（上传后填充）"><option>（请先上传模型）</option></select>
+    <button id="playBtn">暂停</button>
+  </div>
+
+  <div class="bars">
+    <div class="side">
+      <h2>左侧 · 自研引擎（转换 .l2dm + 软件光栅）</h2>
+      <p id="status-left" class="muted">尚未上传模型。</p>
+      <canvas id="canvas-left" width="30" height="30"></canvas>
+    </div>
+    <div class="side">
+      <h2>右侧 · 官方 Cubism SDK（.moc3 真实几何）</h2>
+      <p id="status-right" class="muted">尚未上传模型。</p>
+      <canvas id="canvas-right" width="480" height="480"></canvas>
+    </div>
+  </div>
+
+  <div id="mode-note" class="note">就绪。上传 Live2D 模型后对比。</div>
+
+  <script type="module" src="/src/compare.ts"></script>
+</body>
+</html>

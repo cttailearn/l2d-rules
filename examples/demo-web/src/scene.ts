@@ -24,7 +24,11 @@ import {
   loadL2dm,
   L2dmPlayer,
   SoftwareRenderer,
+  WebGL2Renderer,
   type L2dmModel,
+  type RenderSink,
+  type Tex2D,
+  type TextureFilter,
 } from "@l2dp/engine";
 
 export interface DemoScene {
@@ -34,8 +38,16 @@ export interface DemoScene {
   onFrame(dtMs: number): void;
   /** 当前参数快照 */
   params(): Record<string, number>;
-  /** 软件渲染器（readPixels 输出像素；浏览器端 putImageData） */
-  renderer: SoftwareRenderer;
+  /** 活动渲染器（软件光栅 或 WebGL2；readPixels 仅软件后端可用） */
+  renderer: RenderSink;
+  /** 渲染后端标识（UI 展示） */
+  rendererKind: "software" | "webgl2";
+  /** 纹理过滤（nearest=确定性基准，linear=官方平滑效果） */
+  textureFilter: TextureFilter;
+  /** 当前模型（UI：参数/部件/纹理统计） */
+  model: L2dmModel;
+  /** 非透明像素数（软件渲染器统计；WebGL2 返回 0） */
+  countNonTransparent(): number;
   /** 无头便捷：当前帧与基线是否不同（端到端断言用） */
   pixelsChanged(against: Uint8Array): boolean;
   stack: LayerStack;
@@ -61,7 +73,20 @@ export const DEMO_EXPRESSIONS = {
   开心: { parameters: [{ id: "微笑", value: 0.3, blend: "Add" as const }] },
 };
 
-export function createDemoScene(modelJson: string, seed = 42): DemoScene {
+export interface DemoSceneOptions {
+  /** 已解码的纹理表（来自 .l2dm 内嵌 atlas / 外部文件）；缺省 = 纯色路径 */
+  atlas?: Map<string, Tex2D>;
+  seed?: number;
+  /** 纹理过滤：nearest（默认，确定性/parity 基准）｜linear（浏览器展示「官方平滑效果」） */
+  filter?: TextureFilter;
+  /** 宿主传入的活动渲染器（如 WebGL2Renderer，直接渲到显示的 canvas）；缺省创建 SoftwareRenderer */
+  sink?: RenderSink;
+}
+
+/** 兼容旧调用 createDemoScene(json, seedNumber)。 */
+export function createDemoScene(modelJson: string, opts: number | DemoSceneOptions = {}): DemoScene {
+  const o: DemoSceneOptions = typeof opts === "number" ? { seed: opts } : opts;
+  const seed = o.seed ?? 42;
   const loaded = loadL2dm(modelJson);
   if (!loaded.ok) throw new Error(`demo.l2dm 加载失败: ${loaded.error}`);
   const model: L2dmModel = loaded.model;
@@ -85,8 +110,16 @@ export function createDemoScene(modelJson: string, seed = 42): DemoScene {
   const stack = new LayerStack(defs);
   const env = new EnvironmentLayer(defs, { seed });
   const ing = new StreamIngestor({ manifest, library, assets, stack, env, seed });
-  const player = new L2dmPlayer(model, new Map());
-  const renderer = new SoftwareRenderer();
+  const player = new L2dmPlayer(model, o.atlas ?? new Map());
+  const renderer: RenderSink =
+    o.sink ??
+    new SoftwareRenderer(o.filter && o.filter !== "nearest" ? { filter: o.filter } : undefined);
+  const rendererKind: "software" | "webgl2" =
+    renderer instanceof WebGL2Renderer ? "webgl2" : "software";
+  const textureFilter: TextureFilter =
+    o.filter ?? (renderer instanceof SoftwareRenderer || renderer instanceof WebGL2Renderer
+      ? renderer.textureFilter
+      : "nearest");
   const evaluator = new Evaluator(stack, env, defs, {
     apply(_character: string, params: Record<string, number>): void {
       for (const [k, v] of Object.entries(params)) player.params.set(k, v);
@@ -109,6 +142,12 @@ export function createDemoScene(modelJson: string, seed = 42): DemoScene {
       return out;
     },
     renderer,
+    rendererKind,
+    textureFilter,
+    model,
+    countNonTransparent(): number {
+      return renderer instanceof SoftwareRenderer ? renderer.countNonTransparent() : 0;
+    },
     pixelsChanged(against: Uint8Array): boolean {
       const cur = renderer.readPixels();
       if (!cur || cur.length !== against.length) return true;

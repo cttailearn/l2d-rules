@@ -3,6 +3,7 @@
 不依赖 Live2D Cubism Core 的**渲染/形变引擎**：`.l2dm` 开放格式（**语义参数名**、任意多部位、AI 可生成）、`ParameterStore` + Warp 网格形变（1D/2D）、deformer 层级变换链、摆锤物理、**双渲染后端**（软件光栅 CPU + WebGL2 浏览器）、`L2dmPlayer` 逐帧播放、motion3/exp3 → 引擎资产 compat。
 
 - **确定性一等公民**：可注入 `SeededRandom`，同 (模型, 动作, dt 序列) 同输出，可无头 CI
+- **.l2dm 内嵌资源（`atlas`）**：可选顶层 `atlas: { 文件名 → data URI/base64 }`，自包含模型产物；部件 `texture` 引用在此键或显式 `atlasFiles` 内即通过校验（值校验：data URI / base64）
 - **与软件渲染逐像素一致**：WebGL2 与 SoftwareRenderer 同输入容差 ±1（`examples/demo-web` e2e 真实验证）
 
 ## 依赖与安装

@@ -6,7 +6,7 @@
 //   Node 单测仅以命令记录 stub 验证命令序列（无 GL 上下文）。约定差异已在实现内对齐：
 //   tint 归一化（§draw）、读回 unpremultiply（§readPixels）。
 
-import type { RenderMesh, RenderSink, Tex2D } from "./sink.ts";
+import type { RenderMesh, RenderSink, RendererOptions, Tex2D, TextureFilter } from "./sink.ts";
 
 /** WebGL2 最小表面（运行期由真实上下文提供；测试用命令记录 stub） */
 export interface GL2 {
@@ -24,6 +24,7 @@ export interface GL2 {
   readonly RGBA: number;
   readonly UNSIGNED_BYTE: number;
   readonly NEAREST: number;
+  readonly LINEAR: number;
   readonly TEXTURE_MIN_FILTER: number;
   readonly TEXTURE_MAG_FILTER: number;
   readonly TEXTURE_WRAP_S: number;
@@ -86,11 +87,12 @@ export interface GL2 {
  * WebGL2 RenderSink 实现。
  * - 形变在 CPU（engine deform），此层仅做顶点缓冲 + 纹理 + drawElements。
  * - 每个 mesh 一帧一个 VBO/IBO；纹理按 id 缓存为上 GL 纹理句柄。
- * - 采样 NEAREST、透明混合 = 与 SoftwareRenderer 语义对齐（像素一致的前提）。
+ * - 采样默认 NEAREST、透明混合 = 与 SoftwareRenderer 语义对齐（像素一致的前提）；
+ *   传 { filter: "linear" } 则纹理 LINEAR（浏览器「官方效果」平滑展示，不参与 parity）。
  * 使用：const sink = createWebGL2Renderer(gl)（无浏览器时返回 null）。
  */
-export function createWebGL2Renderer(gl: GL2): WebGL2Renderer {
-  return new WebGL2Renderer(gl);
+export function createWebGL2Renderer(gl: GL2, opts: RendererOptions = {}): WebGL2Renderer {
+  return new WebGL2Renderer(gl, opts);
 }
 
 export class WebGL2Renderer implements RenderSink {
@@ -107,10 +109,16 @@ export class WebGL2Renderer implements RenderSink {
     uTint: null as WebGLUniformLocation | null,
     uSize: null as WebGLUniformLocation | null,
   };
+  private readonly filter: TextureFilter;
 
-  constructor(gl: GL2) {
+  constructor(gl: GL2, opts: RendererOptions = {}) {
     this.gl = gl;
+    this.filter = opts.filter ?? "nearest";
     this.initProgram();
+  }
+
+  get textureFilter(): TextureFilter {
+    return this.filter;
   }
 
   private initProgram(): void {
@@ -158,8 +166,8 @@ export class WebGL2Renderer implements RenderSink {
     const tex = gl.createTexture();
     gl.bindTexture(gl.TEXTURE_2D, tex);
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, img.width, img.height, 0, gl.RGBA, gl.UNSIGNED_BYTE, img.data);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, this.filter === "linear" ? gl.LINEAR : gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, this.filter === "linear" ? gl.LINEAR : gl.NEAREST);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
     gl.bindTexture(gl.TEXTURE_2D, null);
