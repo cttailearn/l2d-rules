@@ -53,7 +53,7 @@
 | M2 | 参数记录：min/max/default 注入 .l2dm（替换启发式） | ✅（`moc3ToL2dm`） |
 | M3 | ArtMesh 几何：顶点/UV/非索引三角 + 画布贴合 + y 翻转 + 绘制顺序 | ✅（真实 .l2dm 通过 engine 校验 + 浏览器真实几何渲染 e2e） |
 | M4 | deformer 树 + 部件父级接线 → `.l2dm.deformers`（rotation binding 解析工具就绪，实验性开关） | ✅ deformer 树/父级（2026-08）｜warp/rotation keyform 顶点偏移见「M4 尾随」 |
-| M5 | 整合 + 像素级 golden 对照 | ⬜（结构已客观验证；视觉 fidelity 待人工核验后实现 golden） |
+| M5 | 整合 + 像素级 golden 对照 | ✅（examples/demo-real/scripts/golden-moc3.mjs：引擎渲染（关键帧形变烘焙 .l2dm）vs 官方 CubismCore，同光栅化器逐像素对照，key/插值态 0.001%–0.145% 像素差） |
 | M6 | 多模型样本 + 回归 + 文档 | ✅（41 模型 moc3 回归 + **164 模型 .moc(Cubism2) 回归**） |
 | M7 | **Cubism 2 `.moc`（旧代）**：`readMoc()`（官方 runtime 逆向：对象流/引用缓存/字符串/网格）+ `mocToL2dm()` 基础姿态（164/164 parse→convert→validate） | ✅（2026-08；新里程碑） |
 
@@ -70,7 +70,16 @@
 
 - **rotation deformer keyform → `.l2dm.warps`**：deformer origin 坐标系（≠顶点单位，实测 `-53.72` 等）无法离线验证 → 仅以 `rotationBindings` 实验性开关输出，默认关闭避免虚假旋转。
 - **warp（curved-surface）deformer 网格形变**：需官方网格插值算法；`.l2dm.warps/warp2d` 导出待实现。
-- **M3 顶点口径 open item**：`art_mesh.vertex_counts`(≈243) vs `position_index_counts`(≈54) —— `position_index_begin_indices` 按 vertex_counts 累计（池长 14088=Σvertex_counts），但 UDPool 按 position_index_counts 累计；现行 M3 以 position_index_counts 出网格（与 UV 自洽、e2e 通过），像素级 fidelity 与官方绘制网格是否需改用 vertex_counts 待官方渲染对照。
+- **M3 顶点口径（已闭合，官方 Core 3.3 实证）**：`art_mesh.vertex_counts` = **索引数**（mesh0 243 == 官方 indexCounts），`art_mesh.position_index_counts` = **显示顶点数**（mesh0 54 == 官方 vertexCounts）；`position_index` 段即**真实索引缓冲**（值=本地显示顶点索引，与官方 indices 仅每三角形绕序相反 → 引擎空间翻转校正）。显示顶点基态：多数网格 = 自身 art_mesh rest keyform（池搜索拟合 RMSE≈0–0.003）；少数基态由父链合成（warp 位移参考待基准），像素级精确由构建期官方烘焙提供（gen-deform.mjs）。
+
+## 9. C2 收尾：keyform 形变管线（warp 动画）
+
+- convert/moc3/deform.ts：从 .moc3 还原「自身 art_mesh keyform 插值 + warp（curved-surface）位移场 + 链式合成」，烘焙为 .l2dm.mesh.warps（每 Mesh 每参数 keyform 偏移，engine accumulateKeyforms 驱动）。
+  - warp 位移场（黑盒验证）：Δ(u,v) = 双线性(当前网格,u,v) − 双线性(rest 网格,u,v)，u,v = 顶点坐标在 rest 矩形内归一化；与官方 Core 位移同向全中（mesh2 37/37）。自身 keyform 源位置与官方 rest 仿射一致（RMSE≈0–0.003）。
+  - rotation deformer 为实验性（多绑定 origin/角映射未逐模型验证 → deformRotation 显式开启，缺省关闭，同 M4 哲学）。
+- 构建期官方烘焙：examples/demo-real/scripts/gen-deform.mjs 用官方 Core 逐参数关键帧提取精确形变体积 → out/haru-anim.l2dm（引擎插值 == 官方渲染）；npm run gen:deform。
+- M5 golden：examples/demo-real/scripts/golden-moc3.mjs（同光栅化器，引擎 vs 官方逐像素，阈值 <2%，当前 0.001%–0.145%）。
+- 技能：skills/live2d-drive.md 随包交付「模型驱动 live2d」用法。
 
 ## 5. 边界与授权
 

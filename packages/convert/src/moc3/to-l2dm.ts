@@ -12,6 +12,7 @@ import type { L2dmModel } from "@l2dp/engine";
 import { mapEngineGroup } from "../map.ts";
 import { buildDeformers } from "./deformers.ts";
 import type { Moc3Data } from "./moc3.ts";
+import { analyzeMoc3Mesh, bakeMoc3Warps, computeDeformedMesh, paramDefault } from "./deform.ts";
 
 export interface Moc3ToL2dmOptions {
   id: string;
@@ -27,6 +28,13 @@ export interface Moc3ToL2dmOptions {
   targetHeight?: number;
   /** 是否输出 deformer 树 + 部件父级接线（M4；缺省 true） */
   deformers?: boolean;
+  /** 是否烘焙 keyform 形变（C2：自身 keyform + warp 链 → mesh.warps；缺省 true） */
+  deform?: boolean;
+  /**
+   * 实验性：把 rotation deformer 也烘焙进 waitps（多绑定 rotation 的 origin/角映射尚未
+   * 逐模型验证——缺省 false，避免虚假旋转；与 M4 的 rotationBindings 同哲学）。
+   */
+  deformRotation?: boolean;
 }
 
 function num(s: Moc3Data["sections"], name: string): number[] {
@@ -61,6 +69,7 @@ export function moc3ToL2dm(moc: Moc3Data, opts: Moc3ToL2dmOptions): L2dmModel {
   const amIds = str(S, "art_mesh.ids");
   const amPosBegin = num(S, "art_mesh.position_index_begin_indices");
   const amPosCount = num(S, "art_mesh.position_index_counts");
+  const vc = num(S, "art_mesh.vertex_counts");
   const amUvBegin = num(S, "art_mesh.uv_begin_indices");
   const amTex = num(S, "art_mesh.texture_indices");
   const positionPool = num(S, "keyform_position.xys");
@@ -69,17 +78,37 @@ export function moc3ToL2dm(moc: Moc3Data, opts: Moc3ToL2dmOptions): L2dmModel {
   const meshVisible = num(S, "art_mesh.visibles");
   const meshEnable = num(S, "art_mesh.enables");
 
+  // ---- C2：动画结构（自身 keyform + deformer 链）与基准顶点（canvas 空间）----
+  const defParam = (id: string): number => paramDefault(moc, id);
+  const meshAnim = amIds.map((_, mi) => analyzeMoc3Mesh(moc, mi, opts.deformRotation === true));
+  const meshCanvas: Float64Array[] = [];
+  for (let mi = 0; mi < amIds.length; mi++) {
+    const n = amPosCount[mi] ?? 0;
+    const arr = new Float64Array(n * 2);
+    const anim = meshAnim[mi];
+    if (anim && n > 0) {
+      const c = computeDeformedMesh(moc, anim, n, defParam);
+      let nonZero = 0;
+      for (let k = 0; k < c.length; k++) if (c[k] !== 0) nonZero++;
+      if (nonZero > 0) { meshCanvas.push(c); continue; }
+    }
+    // 兜底：池解析（position_index → keyform pool 的 display 顶点）
+    const bs = amPosBegin[mi] ?? 0;
+    for (let k = 0; k < n; k++) {
+      const pi = posIdx[bs + k]!;
+      if (pi >= 0) { arr[k * 2] = positionPool[pi * 2] ?? 0; arr[k * 2 + 1] = positionPool[pi * 2 + 1] ?? 0; }
+    }
+    meshCanvas.push(arr);
+  }
+
   // ---- 第一遍：基础姿态包围盒（仅统计可见 mesh，排除 下絵/背景 引导层撑宽）----
   const visibleMesh = amIds.map((_, mi) => (meshVisible[mi] ?? 1) !== 0 && (meshEnable[mi] ?? 1) !== 0);
   let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
   for (let mi = 0; mi < amIds.length; mi++) {
     if (!visibleMesh[mi]) continue;
-    const n = amPosCount[mi] ?? 0;
-    const bs = amPosBegin[mi] ?? 0;
-    for (let k = 0; k < n; k++) {
-      const pi = posIdx[bs + k]!;
-      const x = positionPool[pi * 2];
-      const y = positionPool[pi * 2 + 1];
+    const cb = meshCanvas[mi]!;
+    for (let k = 0; k < cb.length; k += 2) {
+      const x = cb[k], y = cb[k + 1];
       if (Number.isFinite(x)) { if (x < minX) minX = x; if (x > maxX) maxX = x; }
       if (Number.isFinite(y)) { if (y < minY) minY = y; if (y > maxY) maxY = y; }
     }
@@ -114,38 +143,53 @@ export function moc3ToL2dm(moc: Moc3Data, opts: Moc3ToL2dmOptions): L2dmModel {
     }
   }
 
-  // ---- 第二遍：网格 ----
+  // ---- 第二遍：网格（显示顶点数 = position_index_counts；真索引缓冲 = position_index；UV v 翻转；warp 偏移烘焙）----
+  const bakedWarps = opts.deform !== false
+    ? bakeMoc3Warps(moc, meshAnim, (dx, dy) => [dx * scale, -dy * scale], defParam)
+    : null;
   const parts: L2dmModel["parts"] = amIds.map((id, mi) => {
     const n = amPosCount[mi] ?? 0;
-    const bs = amPosBegin[mi] ?? 0;
     const order = drawOrderByMesh.get(mi) ?? mi;
     if (n <= 0) return { id, order };
+    const cb = meshCanvas[mi]!;
 
     const vertices: number[] = [];
     const uvs: number[] = [];
     const uvOff = (amUvBegin[mi] ?? 0) * 2;
-    let ok = true;
     for (let k = 0; k < n; k++) {
-      const pi = posIdx[bs + k]!;
-      if (pi < 0) { ok = false; break; }
-      const [px, py] = toPx(positionPool[pi * 2] ?? 0, positionPool[pi * 2 + 1] ?? 0);
+      const [px, py] = toPx(cb[k * 2] ?? 0, cb[k * 2 + 1] ?? 0);
       vertices.push(px, py);
-      uvs.push(uvPool[uvOff + k * 2] ?? 0, uvPool[uvOff + k * 2 + 1] ?? 0);
+      // moc3 UV 的 v=0 在底（OpenGL 约定）→ .l2dm/引擎 v=0 在顶 → 翻转
+      uvs.push(uvPool[uvOff + k * 2] ?? 0, 1 - (uvPool[uvOff + k * 2 + 1] ?? 0));
     }
-    if (!ok || vertices.length === 0) return { id, order };
 
+    // 真实索引缓冲：position_index 段（值为本地 display 顶点索引），校正为引擎 CCW（像素空间 y 向下）
+    const idxCount = (vc[mi] ?? n) - ((vc[mi] ?? n) % 3);
+    const idxStart = amPosBegin[mi] ?? 0;
     const indices: number[] = [];
-    for (let k = 0; k < n - (n % 3); k++) indices.push(k);
+    for (let k = 0; k + 2 < idxCount; k += 3) {
+      indices.push(posIdx[idxStart + k]!, posIdx[idxStart + k + 1]!, posIdx[idxStart + k + 2]!);
+    }
+    for (let t = 0; t + 2 < indices.length; t += 3) {
+      const a = indices[t]!, b = indices[t + 1]!, c = indices[t + 2]!;
+      const cross = (vertices[b * 2]! - vertices[a * 2]!) * (vertices[c * 2 + 1]! - vertices[a * 2 + 1]!)
+        - (vertices[c * 2]! - vertices[a * 2]!) * (vertices[b * 2 + 1]! - vertices[a * 2 + 1]!);
+      if (cross < 0) { indices[t + 1] = c; indices[t + 2] = b; }
+    }
 
     const visible = visibleMesh[mi];
     const texIdx = amTex[mi] ?? -1;
-    return {
+    const part: L2dmModel["parts"][number] = {
       id,
       order,
       color: visible ? [1, 1, 1, 1] : [1, 1, 1, 0],
       texture: opts.textures && texIdx >= 0 && opts.textures[texIdx] ? opts.textures[texIdx] : undefined,
       mesh: { vertices, uvs, indices },
     };
+    if (bakedWarps && bakedWarps[mi] && bakedWarps[mi]!.length > 0) {
+      part.mesh!.warps = bakedWarps[mi];
+    }
+    return part;
   });
 
   // ---- M4：deformer 树 + 部件父级接线（rotation 精确；warp 网格形变尾随）----

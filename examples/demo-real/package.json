@@ -6,7 +6,9 @@
   "description": "真实官方 Live2D 模型（Haru sample）→ 转换(@l2dp/convert) → 驱动(@l2dp/driver) 端到端 demo",
   "scripts": {
     "start": "node src/run.ts",
-    "test": "node --test --test-isolation=none test/"
+    "test": "node --test --test-isolation=none test/",
+    "gen:deform": "node scripts/gen-deform.mjs",
+    "golden": "node scripts/golden-moc3.mjs"
   },
   "dependencies": {
     "@l2dp/convert": "*",

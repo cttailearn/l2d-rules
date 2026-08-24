@@ -94,9 +94,13 @@ npm run dev         # 打开 http://localhost:5173
 | P3 | 扁平 IR（v2）+ 环境层控制器 + 分层求值/优先级 | ✅ `packages/driver`（M5 落地） |
 | P3b | **JSONL 流式驱动**（StreamIngestor）+ 双模式校验 | ✅ `packages/driver`（M5 StreamIngestor + M6 双模式规则库） |
 | C1 | **既有官方模型转换**：model3/cdi3/physics3/pose3/userdata3/motion3/exp3 → 自包含 .l2dm（内嵌纹理）+ 从零构建/二次修改工具链 | ✅ `packages/convert` + `examples/demo-real`（26 用例，真实 Haru） |
-| C2 | **.moc3 二进制导入**：真实几何/参数范围/ArtMesh 绘制顺序 → 真实 .l2dm + 浏览器真实几何渲染 | ◐ 解析与结构落地（`readMoc3`/`moc3ToL2dm`，41 模型语料回归）；**demo 真实呈现经官方 CubismCore 基准姿态烘焙**（`npm run gen:haru`）；⬜ convert 原生 keyform 形变管线（warp 动画）为下一里程碑（[docs/MOC3-PHASE2-PLAN.md](docs/MOC3-PHASE2-PLAN.md)） |
+| C2 | **.moc3 二进制导入 + keyform 形变**：真实几何/索引缓冲/绘制顺序/精确参数范围 + warp 动画（keyform 绑定 + deformer compose → .l2dm.mesh.warps） | ✅ readMoc3/moc3ToL2dm（41 模型语料回归；顶点口径官方 Core 实证闭合）；✅ C2 keyform 形变管线（convert/moc3/deform.ts，自研零依赖）；✅ 官方动画级烘焙（examples/demo-real `npm run gen:deform`）＋ M5 像素 golden（`npm run golden`，0.001%–0.145% 像素差）；rotation deformer 实验性开关 |
 | P4 | LLM 创作通道（few-shot + 自修复 + 干跑），**后置为高级可选** | ⬜ |
 | P6 | 核心词表 manifest 生成器 + library 索引 + scene 舞台 + TTS 可选 | ⬜ |
+
+## 模型驱动 live2d 技能（随包交付）
+
+skills/live2d-drive.md 是给模型/LLM 的用法卡：转换官方模型 → 加载渲染 → JSONL 语义驱动（play/face/blink/环境层）→ 官方动画级一致（golden）。跟随本仓库一起给到消费方，模型拿到包即拿到“让角色动起来”的方法。
 
 ## 与 live2d-forge 的关系
 
