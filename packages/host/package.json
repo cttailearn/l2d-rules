@@ -1,0 +1,15 @@
+{
+  "name": "@l2dp/host",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "@l2dp 宿主桥接骨架（P4c）：HttpClient + ComfyUI REST 桥 + HTTP 分割服务 Segmenter + LLM Labeler/Reviewer（provider/服务均可注入，零平台依赖）",
+  "main": "src/index.ts",
+  "exports": { ".": "./src/index.ts" },
+  "dependencies": {
+    "@l2dp/engine": "*",
+    "@l2dp/cutout": "*",
+    "@l2dp/driver": "*",
+    "@l2dp/create": "*"
+  },
+  "scripts": { "test": "node --test --test-isolation=none 'test/*.test.ts'" }
+}

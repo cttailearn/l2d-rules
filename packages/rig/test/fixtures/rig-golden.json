@@ -1,0 +1,68 @@
+{
+ "canvas": [
+  480,
+  640
+ ],
+ "frames": [
+  {
+   "note": "rest",
+   "hash": "c97e31eb0a532d60af3c4d5c4f0c5dbc1344b8107f03e8899852735f139f8297"
+  },
+  {
+   "note": "blink",
+   "hash": "a4bf0f50de599f7cc37a53ac0540ca750236c544b04189174dfd6664a6732e7b"
+  },
+  {
+   "note": "turn+20",
+   "hash": "1b061679ec5b4824bfa3ca99a17bf3cef97bbb39c2737e225eb7a5faab24aca7"
+  },
+  {
+   "note": "turn-20",
+   "hash": "77012b2ad0a8a742e5a20e1c07149027d3be1736fb8668d84b789f447358c755"
+  },
+  {
+   "note": "nod+15",
+   "hash": "7421a2908dcc9377e46edeb3b74117ef46569fd5c065982e278f3ebe0a979a82"
+  },
+  {
+   "note": "mouth-open",
+   "hash": "09ccce09a9bd405dbefe26bc8bc807a6e3b92a38d7765ecba32f8eb8b07d862a"
+  },
+  {
+   "note": "smile",
+   "hash": "cc33483cf8b1cba24f8b7137bb8c4dd02ac0b90113bbd927da8a4f88c87bfd5c"
+  },
+  {
+   "note": "brow-lift",
+   "hash": "4a2aead726d32be7ffae3aca34101aacad63f7eb1ed5cab5e1efffe3195e6506"
+  },
+  {
+   "note": "sway-right",
+   "hash": "5c1e7260876eeecd4d2097fa93fd73be881e5c3c2075a212b3bf07968ebd1496"
+  },
+  {
+   "note": "sway-left",
+   "hash": "3a37168fef85278d6bac883d2a625208775f6b0daa74901ab41a3eb3ba2ce1b5"
+  },
+  {
+   "note": "breathe",
+   "hash": "44aa8b225d51014b632bb29a1f9d4f3af1dd917330578b3d94bf40df9e5407d5"
+  },
+  {
+   "note": "physics-t5",
+   "hash": "fcb564b88d43c3e6c13720d53893feed708aaef007e288a2a3c02c36aceca77c"
+  },
+  {
+   "note": "physics-t12",
+   "hash": "2f029c3a299c2e30d58a6aa728b93f7dbd63dbbd8c8e8304842f3cbf125fb4d0"
+  },
+  {
+   "note": "physics-t24",
+   "hash": "2f029c3a299c2e30d58a6aa728b93f7dbd63dbbd8c8e8304842f3cbf125fb4d0"
+  },
+  {
+   "note": "physics-t40",
+   "hash": "2f029c3a299c2e30d58a6aa728b93f7dbd63dbbd8c8e8304842f3cbf125fb4d0"
+  }
+ ]
+}

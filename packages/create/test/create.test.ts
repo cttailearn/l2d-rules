@@ -1,0 +1,153 @@
+// @l2dp/create P4b 测试
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { ColorKeySegmenter, ColorMapLabeler, type RgbaImage, type Labeler } from "@l2dp/cutout";
+import { validateCreation } from "../src/validate.ts";
+import { executeCreation } from "../src/execute.ts";
+import { generateStarterMotions, keysToSegments } from "../src/motions.ts";
+import { RuleRepairer, createWithSelfRepair } from "../src/loop.ts";
+import { RuleReviewer } from "../src/review.ts";
+import { creationDirectiveSchema } from "../src/schema.ts";
+import type { CreationDirective } from "../src/ir.ts";
+
+function solid(w: number, h: number, r: number, g: number, b: number, a = 255): RgbaImage {
+  const data = new Uint8Array(w * h * 4);
+  for (let i = 0; i < w * h; i++) { data[i*4]=r; data[i*4+1]=g; data[i*4+2]=b; data[i*4+3]=a; }
+  return { width: w, height: h, data };
+}
+function rectIn(img: RgbaImage, x: number, y: number, w: number, h: number, r: number, g: number, b: number): void {
+  for (let yy = y; yy < Math.min(y + h, img.height); yy++) {
+    for (let xx = x; xx < Math.min(x + w, img.width); xx++) {
+      const o = (yy * img.width + xx) * 4;
+      img.data[o]=r; img.data[o+1]=g; img.data[o+2]=b; img.data[o+3]=255;
+    }
+  }
+}
+function charScene(): { img: RgbaImage; mapping: { color: [number,number,number]; semantic: string; side?: "left"|"right" }[] } {
+  const img = solid(320, 400, 0, 0, 0, 0);
+  const mapping: { color: [number,number,number]; semantic: string; side?: "left"|"right" }[] = [];
+  const R = (x: number, y: number, w: number, h: number, c: number[], sem: string, side: string) => {
+    rectIn(img, x, y, w, h, c[0], c[1], c[2]);
+    mapping.push({ color: [c[0],c[1],c[2]] as [number,number,number], semantic: sem, side: (side === "right" ? "right" : "left") as "left"|"right" });
+  };
+  R(20, 20, 280, 110, [60,55,90], "hair_back", "left" as any);
+  R(50, 70, 110, 160, [210,185,160], "face", "left" as any);
+  R(150, 90, 110, 36, [70,60,95], "hair_front", "left" as any);
+  R(78, 116, 26, 20, [250,250,255], "eyeball", "left" as any);
+  R(140, 116, 26, 55, [150,180,220], "eyeball", "right" as any);
+  R(72, 110, 40, 28, [235,200,180], "eye", "left" as any);
+  R(136, 140, 10, 10, [235,200,230], "eye", "right" as any);
+  R(66, 92, 40, 12, [70,65,90], "brow", "left" as any);
+  R(132, 162, 44, 30, [80,75,100], "brow", "right" as any);
+  R(118, 178, 30, 10, [190,60,70], "mouth", "left" as any);
+  R(92, 160, 120, 100, [130,160,210], "body_upper", "left" as any);
+  return { img, mapping };
+}
+
+test("P4b: validateCreation——合法指令零问题，非法各归其类", () => {
+  const base: CreationDirective = {
+    v: 1,
+    character: "tmp",
+    canvas: { width: 320, height: 400 },
+    parts: [{ id: "face", semantic: "face", bbox: { x: 10, y: 10, width: 40, height: 50 }, color: [1, 1, 1, 1] }],
+  };
+  assert.equal(validateCreation(base).length, 0);
+  const badPart = { id: "x", semantic: "galaxy", bbox: { x: 0, y: 0, width: 5, height: 5 } } as never;
+  assert.ok(validateCreation({ ...base, parts: [badPart] }).some((i) => i.rule === "SEM_NOT_IN_VOCAB"));
+  assert.ok(validateCreation({ ...base, parts: [base.parts[0], base.parts[0]] }).some((i) => i.rule === "PART_ID_DUP"));
+  const out: CreationDirective["parts"][number] = { id: "x", semantic: "face", bbox: { x: -5, y: 0, width: 924, height: 925 }, color: [1,1,1,1] };
+  assert.ok(validateCreation({ ...base, parts: [out] }).some((i) => i.rule === "BBOX_OUT"));
+  assert.ok(validateCreation({ ...base, parts: [{ id: "x", semantic: "face", bbox: { x: 0, y: 0, width: 10, height: 10 } }] }).some((i) => i.rule === "PART_NO_VIS"));
+  const badMotion: CreationDirective = { ...base, motions: [{ name: "m", kind: "idle", durationMs: 1000, curves: [{ param: "y", keys: [[0.1, 1], [0.05, 0], [0.2, 0.5]] }] }] };
+  assert.ok(validateCreation(badMotion).some((i) => i.rule === "CURVE_KEY_ORDER"));
+  const badDur: CreationDirective = { ...base, motions: [{ name: "m", kind: "idle", durationMs: 0, curves: [] }] };
+  assert.ok(validateCreation(badDur).some((i) => i.rule === "MOTION_DUR"));
+});
+
+async function directiveFromScene(): Promise<{ d: CreationDirective; cutoutParts: number }> {
+  const { img, mapping } = charScene();
+  const seg = new ColorKeySegmenter({ tol: 8, minArea: 40 });
+  const labeler = new ColorMapLabeler(mapping);
+  const cands = await seg.segment(img);
+  const parts = await labeler.label(cands, img);
+  const d: CreationDirective = {
+    v: 1,
+    character: "scene-chan",
+    canvas: { width: img.width, height: img.height },
+    parts: parts.map((p) => ({ id: p.id, semantic: p.semantic as any, side: p.side, bbox: p.bbox, image: { dataUri: p.image.dataUri } })),
+  };
+  return { d, cutoutParts: parts.length };
+}
+
+test("P4b: 切图→指令 → execute → rig 合法 + 基础动作集", async () => {
+  const { d, cutoutParts } = await directiveFromScene();
+  assert.ok(cutoutParts >= 6, "应有 6+ 部件，实际 " + cutoutParts);
+  assert.equal(validateCreation(d).length, 0);
+  const result = executeCreation(d);
+  assert.equal(result.rig.report.ok, true, JSON.stringify(result.rig.report.checks));
+  const names = result.motions.map((m) => m.name);
+  for (const n of ["idle", "blink", "talk", "surprise"]) assert.ok(names.includes(n), "应有 " + n);
+  for (const nm of result.motions) {
+    assert.ok(nm.motion.durationMs > 0);
+    for (const c of nm.motion.curves) assert.ok(c.segments.length >= 4);
+  }
+});
+
+test("P4b: generateStarterMotions 参数容错 + keysToSegments 递增", () => {
+  const params = [{ id: "呼吸", min: 0, max: 1, def: 0 }, { id: "头转向", min: -30, max: 30, def: 0 }];
+  const set = generateStarterMotions(params, ["idle", "blink", "talk"]);
+  const ids = set.flatMap((nm) => nm.motion.curves.map((c) => c.id));
+  assert.ok(!ids.includes("嘴开"), "未知参数不应出现");
+  assert.deepEqual(keysToSegments([[0, 0], [0.5, 1], [0.2, 0.5]]), [0, 0, 0, 0.2, 0.5, 0, 0.5, 1]);
+});
+
+test("P4b: RuleRepairer——越界/重复 id/微部件 修复后通过校验", () => {
+  const repairer = new RuleRepairer();
+  const bad: CreationDirective = {
+    v: 1,
+    character: "r",
+    canvas: { width: 100, height: 100 },
+    parts: [
+      { id: "a", semantic: "face", bbox: { x: 950, y: 10, width: 50, height: 40 }, color: [1, 1, 1, 1] },
+      { id: "a", semantic: "brow", bbox: { x: 10, y: 10, width: 5, height: 4 }, color: [0.3, 0.3, 0.3, 1] },
+      { id: "tiny", semantic: "eye", bbox: { x: 30, y: 14, width: 62, height: 61 }, color: [1, 1, 1, 1] },
+    ],
+  };
+  const r = repairer.repair(bad, []);
+  const issues = validateCreation(r.directive);
+  assert.equal(issues.length, 0, JSON.stringify(issues));
+  assert.ok(r.fixes.length > 0);
+});
+
+test("P4b: createWithSelfRepair 全链（切图→标注→校验→执行→规则审核）", async () => {
+  const { img, mapping } = charScene();
+  const labeler: Labeler = new ColorMapLabeler(mapping);
+  const outcome = await createWithSelfRepair({
+    character: "scene-chan",
+    image: img,
+    segmenter: new ColorKeySegmenter({ tol: 8, minArea: 40 }),
+    labeler,
+    reviewer: new RuleReviewer(),
+    maxRounds: 3,
+  });
+  assert.equal(outcome.ok, true, "日志:\n" + outcome.log.join("\n") + "\n问题:" + outcome.issues.join(";"));
+  assert.ok(outcome.result !== undefined);
+  assert.ok(outcome.result.rig.report.ok);
+  assert.ok(outcome.directive.parts.length >= 5);
+});
+
+test("P4b: RuleReviewer——合法模型通过，空白模型拒绝", async () => {
+  const reviewer = new RuleReviewer();
+  const { d } = await directiveFromScene();
+  const ok = executeCreation(d);
+  const verdict = await reviewer.review(ok.model);
+  assert.equal(verdict.ok, true, verdict.issues.join(";"));
+  const empty = await reviewer.review({ formatVersion: 1 as 1, id: "e", canvas: { width: 64, height: 64 }, parameters: [], parts: [] } as never);
+  assert.equal(empty.ok, false);
+});
+
+test("P4b: creationDirectiveSchema 基本形状", () => {
+  const s = creationDirectiveSchema() as { required: string[]; properties: Record<string, unknown> };
+  assert.ok(s.required.includes("parts"));
+  assert.ok(s.properties.parts !== undefined);
+});

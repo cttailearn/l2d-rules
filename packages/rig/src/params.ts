@@ -1,0 +1,60 @@
+// params.ts —— 半自动 rig 的语义参数词表 + 派生
+// 引擎参数即语义名（.l2dm 惯例）；分组对齐 L2DM_PARAM_GROUPS 与 driver 环境层（Ambient/EyeBlink/Head/Body/Physics）。
+import type { L2dmParamGroup } from "@l2dp/engine";
+import type { RigPartSpec, RigSemantic } from "./types.ts";
+
+export interface RigParamDef {
+  min: number;
+  max: number;
+  def?: number;
+  group?: L2dmParamGroup;
+}
+
+/** 词表：参数 → 范围/组。范围即引擎参数空间（env 层按 group 给信号，motion 按值驱动）。 */
+export const RIG_PARAM_DEFS: Record<string, RigParamDef> = {
+  呼吸:   { min: 0, max: 1, def: 0, group: "Ambient" },
+  身转:   { min: -10, max: 10, def: 0, group: "Body" },
+  头转向: { min: -30, max: 30, def: 0, group: "Head" },
+  头点头: { min: -30, max: 30, def: 0, group: "Custom" },
+  眼闭左: { min: 0, max: 1, def: 0, group: "EyeBlink" },
+  眼闭右: { min: 0, max: 1, def: 0, group: "EyeBlink" },
+  眉左升: { min: -1, max: 1, def: 0, group: "Custom" },
+  眉右升: { min: -1, max: 1, def: 0, group: "Custom" },
+  嘴开:   { min: 0, max: 1, def: 0, group: "LipSync" },
+  嘴笑:   { min: 0, max: 1, def: 0, group: "Custom" },
+  发摆:   { min: -1, max: 1, def: 0, group: "Physics" },
+};
+
+const BASE = ["呼吸", "身转"] as const;
+const HEAD = ["头转向", "头点头"] as const;
+const EYES = ["眼闭左", "眼闭右", "眉左升", "眉右升"] as const;
+const MOUTH = ["嘴开", "嘴笑"] as const;
+const HEAD_TRIGGER: readonly RigSemantic[] = [
+  "face", "eye", "eyeball", "brow", "mouth", "nose",
+  "hair_front", "hair_side", "hair_back", "ear", "neck",
+];
+
+export interface DerivedParam { id: string; min: number; max: number; def?: number; group?: L2dmParamGroup }
+
+/** 依据部件集合推导需要的参数（模型只含被实际绑定/被驱动者，保持最小闭合）。 */
+export function deriveParameters(
+  parts: RigPartSpec[],
+  opts: { physics: boolean },
+): DerivedParam[] {
+  const sems = new Set(parts.map((p) => p.semantic));
+  const ids: string[] = [...BASE];
+  if (sems.size > 0 && HEAD_TRIGGER.some((s) => sems.has(s))) ids.push(...HEAD);
+  if (sems.has("eye") || sems.has("eyeball") || sems.has("brow")) ids.push(...EYES);
+  if (sems.has("mouth")) ids.push(...MOUTH);
+  if (opts.physics && (sems.has("hair_front") || sems.has("hair_side") || sems.has("hair_back"))) {
+    ids.push("发摆");
+  }
+  const out = new Map<string, DerivedParam>();
+  for (const id of ids) out.set(id, { id, ...RIG_PARAM_DEFS[id] });
+  for (const p of parts) {
+    for (const [k, v] of Object.entries(p.customParams ?? {})) {
+      out.set(k, { id: k, min: v.min ?? 0, max: v.max ?? 1, def: v.def, group: v.group });
+    }
+  }
+  return [...out.values()];
+}

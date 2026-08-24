@@ -1,0 +1,10 @@
+{
+  "name": "@l2dp/cutout",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "@l2dp 半自动切图（P4b）：PNG 编解码(fflate) + 平坦色候选选区 + 按 mask 拆部件 + 覆盖/重叠质检 + Segmenter/Labeler 注入钩子（离库零平台依赖，ML 由宿主注入）",
+  "main": "src/index.ts",
+  "exports": { ".": "./src/index.ts" },
+  "dependencies": { "fflate": "^0.8.2" },
+  "scripts": { "test": "node --test --test-isolation=none 'test/*.test.ts'" }
+}

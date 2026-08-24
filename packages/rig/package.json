@@ -1,0 +1,13 @@
+{
+  "name": "@l2dp/rig",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "@l2dp 半自动 rig（P4a）：PartSpec（部件图 + 语义类）→ 参数挂接 + warp 形变合成 + 自动绘制顺序/物理 → 合法 .l2dm + RigSpec + 质检报告",
+  "main": "src/index.ts",
+  "exports": { ".": "./src/index.ts" },
+  "dependencies": {
+    "@l2dp/engine": "*",
+    "@l2dp/convert": "*"
+  },
+  "scripts": { "test": "node --test --test-isolation=none 'test/*.test.ts'", "golden": "node scripts/gen-golden.mjs" }
+}

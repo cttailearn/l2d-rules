@@ -1,0 +1,14 @@
+{
+  "name": "@l2dp/create",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "@l2dp LLM 创作编排（P4b）：创作 IR + 同源 JSON Schema + 校验 + 执行(rig+motions) + 规则/多模态审核 + 自修复循环（LLM 可注入，默认确定性兜底）",
+  "main": "src/index.ts",
+  "exports": { ".": "./src/index.ts" },
+  "dependencies": {
+    "@l2dp/engine": "*",
+    "@l2dp/rig": "*",
+    "@l2dp/cutout": "*"
+  },
+  "scripts": { "test": "node --test --test-isolation=none 'test/*.test.ts'" }
+}

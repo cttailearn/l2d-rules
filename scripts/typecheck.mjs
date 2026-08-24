@@ -5,7 +5,7 @@ import { dirname, join } from "node:path";
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const tsc = join(root, "node_modules/typescript/bin/tsc");
 const cfgs = [
-  ...["l2dp", "engine", "driver", "convert"].map(p => join(root, "packages", p, "tsconfig.json")),
+  ...["l2dp", "engine", "driver", "convert", "rig", "cutout", "create", "host"].map(p => join(root, "packages", p, "tsconfig.json")),
   join(root, "examples", "demo-web", "tsconfig.json"),
 ];
 for (const cfg of cfgs) {

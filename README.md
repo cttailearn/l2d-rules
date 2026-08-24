@@ -19,11 +19,16 @@ l2d-rules/
 │  ├─ l2dp/        官方 JSON 类型 + 标准参数白名单 + 命名规则 + .l2dp 校验/组装（含 fflate 打包）
 │  ├─ engine/      自研 Live2D 类引擎（路线 C）：.l2dm 格式/形变/物理/双渲染（软件+WebGL2）★ M0 骨架
 │  ├─ driver/      LLM 驱动核心：扁平 IR + JSONL 流式 + 分层求值 + 环境层 + 双模式校验 + Provider/两跳 ★ M0 骨架
-│  └─ convert/     ✦ 官方 Live2D 模型 → 自包含 .l2dm：model3/cdi3/physics3/pose3/userdata3/motion3/exp3 转换
+│  ├─ convert/     ✦ 官方 Live2D 模型 → 自包含 .l2dm：model3/cdi3/physics3/pose3/userdata3/motion3/exp3 转换
 │                    + 纹理内嵌(resources) + 从零构建/二次修改工具链（自研，绕开 Cubism Core）
+│  ├─ rig/          P4a 半自动绑定：PartSpec(部件图+语义类) → 参数挂接 + warp 形变合成 + 自动绘制顺序/物理 → 合法 .l2dm + RigSpec 审计 + 质检报告 + 像素 golden
+│  ├─ cutout/       P4b 半自动切图：PNG 编解码(fflate) + 平坦色候选选区 + 按 mask 拆部件 + 覆盖/重叠质检 + Segmenter/Labeler 注入钩子（零平台依赖，ML 由宿主注入）
+│  ├─ create/       P4b 创作编排：创作 IR v1 + 同源 JSON Schema + 校验 + 执行(rig+动作生成) + 规则/多模态审核 + 自修复循环
+│  └─ host/         P4c 宿主桥接骨架：HttpClient + ComfyUI REST 桥 + HTTP 分割服务 Segmenter + LLM Labeler/Reviewer（provider/服务可注入）
 ├─ examples/
 │  ├─ demo-web/    浏览器 demo（JSONL 流式 → 引擎实时动作；?model=haru-full.l2dm 真实纹理渲染；软件+WebGL2 逐像素一致 e2e）
-│  └─ demo-real/   ✦ 真实官方 Haru 模型端到端：转换 → 驱动 → 自包含 .l2dm 产物 + 二次修改/从零构建示例
+│  ├─ demo-real/   ✦ 真实官方 Haru 模型端到端：转换 → 驱动 → 自包含 .l2dm 产物 + 二次修改/从零构建示例
+│  └─ demo-p4b/    原图 → 拆解 → 绑定 → 驱动 全链路：内存立绘 → 半自动切图 → 自修复绑定 → 动作/JSONL 驱动 → 预览出图
 ├─ specs/          机器可读词表：standard-params.json（32 官方参数基线）、parts-naming.json（部件命名单一来源）
 ├─ docs/
 │  ├─ SPEC-DSL-v1.0.md   唯一权威规范（确认版）：融合分工 + JSONL 流式驱动 + 扁平 IR + 环境层 + 决策记录 ★ 开发以此为准
@@ -31,11 +36,25 @@ l2d-rules/
 │  ├─ SPEC-v2.0.md       平台主规格（参考：10.3 求值管线、6.2 字段规格）
 │  ├─ MOC3-PHASE2-PLAN.md .moc3 二进制导入实施计划（GitHub 参考 + 里程碑 + DoD）
 │  ├─ haru模型对照分析.md 编译对齐基准（官方 Haru 结构）
-│  └─ ARCHITECTURE.md    本 SDK 边界定义 + 宿主接口 + 迁移说明
+│  ├─ ARCHITECTURE.md    本 SDK 边界定义 + 宿主接口 + 迁移说明
+│  └─ GUIDE-FROM-IMAGE-TO-LIVE2D.md  **开发者向导：一张原图 → 拆解 → 绑定 → 驱动**（含真实服务/LLM 接线，P4 全链速成）
 └─ scripts/typecheck.mjs
 ```
 
 > 每个包自带独立 README（定位 / 依赖 / 安装 / 核心 API / 用法示例 / 边界 / 测试），见 `packages/<pkg>/README.md`，消费前先读对应包文档。
+
+## 从一张原图到能动的角色（P4 创作链，速成）
+
+▶ 开发者向导：[docs/GUIDE-FROM-IMAGE-TO-LIVE2D.md](docs/GUIDE-FROM-IMAGE-TO-LIVE2D.md)（拆解 → 绑定 → 驱动，含真实服务/LLM 接线）。
+
+```bash
+cd examples/demo-p4b
+export LLM_API_KEY=...   # 可选：真实 LLM 标注/审核；缺省走确定性 mock
+node scripts/run.mjs        # 纯 SDK：原图→拆→绑→驱动 + 预览 PNG
+node scripts/bridge.mjs     # 真实 HTTP 分割服务 + provider 注入
+node scripts/bridge-llm.mjs # 真实/模拟 LLM 接线
+npm run eval                # specs/evals/creation-cases.json（3/3）+ drive（6/6）
+```
 
 ## 把既有 Live2D 模型用起来（`@l2dp/convert`）
 
@@ -95,7 +114,10 @@ npm run dev         # 打开 http://localhost:5173
 | P3b | **JSONL 流式驱动**（StreamIngestor）+ 双模式校验 | ✅ `packages/driver`（M5 StreamIngestor + M6 双模式规则库） |
 | C1 | **既有官方模型转换**：model3/cdi3/physics3/pose3/userdata3/motion3/exp3 → 自包含 .l2dm（内嵌纹理）+ 从零构建/二次修改工具链 | ✅ `packages/convert` + `examples/demo-real`（26 用例，真实 Haru） |
 | C2 | **.moc3 二进制导入 + keyform 形变**：真实几何/索引缓冲/绘制顺序/精确参数范围 + warp 动画（keyform 绑定 + deformer compose → .l2dm.mesh.warps） | ✅ readMoc3/moc3ToL2dm（41 模型语料回归；顶点口径官方 Core 实证闭合）；✅ C2 keyform 形变管线（convert/moc3/deform.ts，自研零依赖）；✅ 官方动画级烘焙（examples/demo-real `npm run gen:deform`）＋ M5 像素 golden（`npm run golden`，0.001%–0.145% 像素差）；rotation deformer 实验性开关 |
-| P4 | LLM 创作通道（few-shot + 自修复 + 干跑），**后置为高级可选** | ⬜ |
+| P4a | **LLM 创作前半——半自动绑定**：PartSpec → 参数挂接 + warp 形变合成 + 自动顺序/物理 → .l2dm + RigSpec + 质检报告 + 像素 golden | ✅ `packages/rig`（11 用例；157 全绿） |
+| P4b | **LLM 创作后半——拆解 + 创作编排**：@l2dp/cutout + @l2dp/create + 全链 demo-p4b + 创作评估集 | ✅ `packages/cutout`(7) + `packages/create`(7) + `examples/demo-p4b` + `creation-cases`(3/3) |
+| P4c | **宿主桥接骨架**：@l2dp/host（HttpClient / ComfyUI REST 桥 / HTTP 分割服务 Segmenter / LLM Labeler+Reviewer / P4c 装配）+ demo-p4b bridge.mjs（真实 HTTP 服务 + provider 注入跑通全链） | ✅ `packages/host`（7 用例）+ `examples/demo-p4b/scripts/bridge.mjs` |
+| P4 | LLM 创作通道（few-shot + 自修复 + 干跑），**后置为高级可选**；@l2dp/rig(P4a)+cutout/create(P4b)+host 桥(P4c) 为地基 | ⬜（地基已就绪） |
 | P6 | 核心词表 manifest 生成器 + library 索引 + scene 舞台 + TTS 可选 | ⬜ |
 
 ## 模型驱动 live2d 技能（随包交付）
