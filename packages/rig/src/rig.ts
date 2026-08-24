@@ -2,7 +2,7 @@
 // 复用 @l2dp/convert 的 author.ts（createL2dm / embedTexture / sanitizeId）作为写入面。
 import { createL2dm, embedTexture, sanitizeId } from "@l2dp/convert";
 import type { L2dmDeformer, L2dmMesh, L2dmModel, L2dmPart } from "@l2dp/engine";
-import { RIG_TEMPLATES, headClusterSemantics } from "./vocab.ts";
+import { RIG_TEMPLATES, headClusterSemantics, type RigTemplate, type RigTemplateSemantic } from "./vocab.ts";
 import { collectCostumeGroups, costumeParamOf, deriveParameters } from "./params.ts";
 import { makeGrid, toL2dmMesh, type Grid } from "./meshes.ts";
 import {
@@ -179,6 +179,8 @@ export function rigCharacter(spec: RigCharacterSpec): RigResult {
       ...(p.semantic === "hoho" ? { opacityParam: "脸红" } : {}),
       // B-3：服装部件随 衣装组<N> 参数显隐（outfit op 置 1 即换装）
       ...(costumeGroup !== undefined ? { opacityParam: costumeParamOf(costumeGroup) } : {}),
+      // B-6：成人分级部件默认隐藏（opacityParam=分级隐藏，def=0）；ContentPolicy 判定后置 1 才可见
+      ...(tpl.adult === true ? { opacityParam: "分级隐藏" } : {}),
       ...(hasBody && breathing && p.semantic === "body_upper" ? { parent: "body_breathe" } : {}),
     };
     parts.push(part);
@@ -256,6 +258,10 @@ export function rigCharacter(spec: RigCharacterSpec): RigResult {
     pose: null,
     // B-3：服装组审计（outfit 换装依据）
     costumes: collectCostumeGroups(spec.parts).map((c) => ({ group: c.group, param: c.param, partIds: c.partIds })),
+    // B-6：成人分级部件审计（默认隐藏；ContentPolicy 由宿主判定）
+    adult: spec.parts
+      .filter((p) => (RIG_TEMPLATES[p.semantic] as RigTemplate | undefined)?.adult === true)
+      .map((p) => ({ semantic: p.semantic as string, partIds: [p.id] })),
     notes: [],
   };
 

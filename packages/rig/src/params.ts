@@ -31,6 +31,7 @@ export const RIG_PARAM_DEFS: Record<string, RigParamDef> = {
   尾巴摆: { min: 0, max: 1, def: 0, group: "Custom" },
   耳朵动: { min: -1, max: 1, def: 0, group: "Custom" },
   翅膀扇: { min: -1, max: 1, def: 0, group: "Custom" },
+  分级隐藏: { min: 0, max: 1, def: 0, group: "Custom" }, // B-6：成人部件默认隐藏开关（ContentPolicy 置 1 才可见）
 };
 
 const BASE = ["呼吸", "身转"] as const;
@@ -98,6 +99,8 @@ export function deriveParameters(
   if (opts.physics && (sems.has("hair_front") || sems.has("hair_side") || sems.has("hair_back"))) {
     ids.push("发摆");
   }
+  // B-6：成人分级部件存在 → 提供「分级隐藏」开关（默认 0 隐藏）
+  if (sems.has("adult_breast") || sems.has("adult_genital")) ids.push("分级隐藏");
   // B-3：服装组可见性参数（衣装组<N>；最小组默认可见 def=1，其余 0）
   const costumes = collectCostumeGroups(parts);
   const defaultGroup = costumes[0]?.group;

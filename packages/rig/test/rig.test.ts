@@ -313,3 +313,39 @@ test("B-3: 服装层双服装组——opacityParam 换装机制 + RigSpec.costum
   const g2px = render2({ 衣装组1: 0, 衣装组2: 1 });
   assert.notEqual(g1px, g2px, "切换服装组改变渲染像素（换装）");
 });
+test("B-6: 成人分级部件默认隐藏 + RigSpec.adult 审计 + ContentPolicy 揭示", () => {
+  const canvas = { width: 600, height: 1000 };
+  const parts: RigPartSpec[] = [
+    { id: "body-upper", semantic: "body_upper", bbox: { x: 120, y: 400, width: 360, height: 320 } },
+    { id: "breast", semantic: "adult_breast", bbox: { x: 190, y: 480, width: 220, height: 110 } },
+    { id: "adult-g", semantic: "adult_genital", bbox: { x: 280, y: 760, width: 40, height: 24 } },
+    { id: "face", semantic: "face", bbox: { x: 200, y: 200, width: 200, height: 160 } },
+  ];
+  const { model, report, spec } = rigCharacter({ id: "adult-demo", canvas, parts });
+  assert.equal(report.ok, true);
+  // 成人部件挂 opacityParam=分级隐藏（默认 def=0 → 引擎 0 不渲染 = 默认隐藏）
+  assert.equal(model.parts.find((p) => p.id === "breast")!.opacityParam, "分级隐藏");
+  assert.equal(model.parts.find((p) => p.id === "adult-g")!.opacityParam, "分级隐藏");
+  assert.equal(model.parts.find((p) => p.id === "face")!.opacityParam, undefined, "非成人部件不受影响");
+  const hideParam = model.parameters.find((p) => p.id === "分级隐藏")!;
+  assert.equal(hideParam.def, 0, "分级隐藏默认 0（不可见）");
+  // RigSpec.adult 审计
+  assert.ok(spec.adult.length >= 2, "成人部件都记录");
+  const sems = spec.adult.map((a) => a.semantic);
+  assert.ok(sems.includes("adult_breast") && sems.includes("adult_genital"));
+  // 默认隐藏 vs ContentPolicy 揭示：不透明像素数应增加
+  const renderOpaque = (revealAdult: boolean) => {
+    const player = new L2dmPlayer(model, new Map());
+    player.params.reset();
+    if (revealAdult) player.params.set("分级隐藏", 1);
+    const sw = new SoftwareRenderer();
+    player.render(sw);
+    let opaque = 0;
+    const px = sw.readPixels()!;
+    for (let i = 3; i < px.length; i += 4) if (px[i]! > 0) opaque++;
+    return opaque;
+  };
+  const hidden = renderOpaque(false);
+  const revealed = renderOpaque(true);
+  assert.ok(revealed > hidden, "揭示成人部件后像素增多（" + hidden + " -> " + revealed + "）");
+});

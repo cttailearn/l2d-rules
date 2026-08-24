@@ -107,6 +107,8 @@ export interface RigSpec {
   pose: { groups: { ids: string[] }[] } | null;
   /** 服装组（B-3）：每个组的部件 id + 对应可见性参数名（衣装组<N>） */
   costumes: { group: number; param: string; partIds: string[] }[];
+  /** 成人分级部件（B-6）：默认隐藏，ContentPolicy 决定可用性 */
+  adult: { semantic: string; partIds: string[] }[];
   notes: string[];
 }
 

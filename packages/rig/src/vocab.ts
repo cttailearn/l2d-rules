@@ -13,6 +13,8 @@ export interface RigTemplate {
   headCluster: boolean;
   /** 服装部件（B-3）：随服装组可见性参数显隐 */
   clothing?: boolean;
+  /** 成人分级部件（B-6）：默认隐藏，ContentPolicy 决定可用性 */
+  adult?: boolean;
   /** 缺省纯色（RGBA 0..1） */
   color: [number, number, number, number];
   /** 模板网格分辨率 [cols, rows]（形变合成按行列分区） */
@@ -35,10 +37,10 @@ export const RIG_TEMPLATES: Record<RigTemplateSemantic, RigTemplate> = {
   brow:       { semantic: "brow",       zh: "眉",   order: 11, headCluster: true,  color: [0.3, 0.28, 0.36, 1],  grid: [3, 2] },
   hair_front: { semantic: "hair_front", zh: "前发", order: 12, headCluster: true,  color: [0.5, 0.48, 0.62, 1],  grid: [5, 3] },
   body_lower: { semantic: "body_lower", zh: "下躯", order: 13, headCluster: false, color: [0.32, 0.44, 0.62, 1], grid: [4, 5] },
-  adult_breast: { semantic: "adult_breast", zh: "胸", order: 14, headCluster: false, color: [0.95, 0.8, 0.85, 1], grid: [3, 3] },
+  adult_breast: { semantic: "adult_breast", zh: "胸", order: 14, headCluster: false, adult: true, color: [0.95, 0.8, 0.85, 1], grid: [3, 3] },
   arm_a:      { semantic: "arm_a",      zh: "臂A",  order: 15, headCluster: false, color: [1.0, 0.85, 0.78, 1], grid: [2, 5] },
   arm_b:      { semantic: "arm_b",      zh: "臂B",  order: 16, headCluster: false, color: [1.0, 0.82, 0.75, 1], grid: [2, 5] },
-  adult_genital: { semantic: "adult_genital", zh: "阴部（分级）", order: 17, headCluster: false, color: [0.9, 0.75, 0.8, 1], grid: [2, 2] },
+  adult_genital: { semantic: "adult_genital", zh: "阴部（分级）", order: 17, headCluster: false, adult: true, color: [0.9, 0.75, 0.8, 1], grid: [2, 2] },
   leg:        { semantic: "leg",        zh: "腿",   order: 18, headCluster: false, color: [0.96, 0.84, 0.8, 1], grid: [2, 6] },
   feet:       { semantic: "feet",       zh: "足",   order: 19, headCluster: false, color: [0.9, 0.8, 0.78, 1],  grid: [2, 2] },
   // ---- 非标准部位（B-4｜demo.l2dm 实证路径：尾巴/兽耳/翅膀，任意语义参数）----
