@@ -142,7 +142,7 @@
 - **落点**：并入 demo-web ?scene=batch。
 - **DoD**：两种模式同一输入的行为差异有 UI 呈现与断言（沿用 driver validate 测试语义）。
 
-### A4  demo-llm-live —— 真实 LLM 驱动（第二跳）在线演示
+### A4  demo-llm-live —— 真实 LLM 驱动（第二跳）在线演示 【x 已完成（examples/demo-llm；headless + LLM_API_KEY 可真实、缺省 mock）】
 - **目标**：把 mock provider 换成真实 LLM（OpenAI 兼容端点）的『自然语言 → 角色动起来』完整演示；覆盖 Provider 分级 + 两跳第一/第二跳的可观测性。
 - **内容**：输入『你好呀！/ 我有点害羞 / 摇尾巴』，第二跳 LLM 决策 JSONL 流式注入；UI 显示 hop 1/2、每条注入指令行、audit 日志。
 - **落点**：examples/demo-llm（无 key 时降级 mock provider 仍可跑）。
@@ -253,3 +253,4 @@
 | v1.7 | 2026-08（S3-B5/B6 交付） | 完成 B-5（engine/bodies.test.ts 40 部件校验/加载/驱动/渲染 4 用例）、B-6（adult 分级：分级隐藏 opacityParam + RigSpec.adult 审计 + ContentPolicy 揭示）；实测 203 测试全绿 + typecheck 9 包 + eval 6/6+3/3 |
 | v1.8 | 2026-08（S4-A3 交付） | 完成 A3 demo-dual-mode（在线流式坏行隔离 vs 离线整批原子拒绝对照 + 规则库共享验证，3 断言）；实测 206 测试全绿 + typecheck 9 包 + eval 6/6+3/3 |
 | v1.9 | 2026-08（S5-R-P2-2 交付） | 完成 R-P2-2 ChainedReviewer 分级审核链（规则初审→低置信触发视觉复审→差异回注；免无谓复审短路；4 测试）；实测 210 测试全绿 + typecheck 9 包 + eval 6/6+3/3 |
+| v1.10 | 2026-08（S4-A4 交付） | 完成 A4 demo-llm（headless：两跳 hop 指标 + audit；LLM_API_KEY 走真实 OpenAI 兼容端点，缺省 Mock 兜底；3 断言）；实测 213 测试全绿 + typecheck 9 包 + eval 6/6+3/3 |
