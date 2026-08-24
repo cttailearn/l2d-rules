@@ -109,6 +109,19 @@ export class EnvironmentLayer {
     this.weightNoise = vossNoise(opts.seed + 202, 8);
   }
 
+  /** 清空可回滚状态（undo 重放用）：emote 目标/当前、眨眼覆盖/强制、drift 表、时基。 */
+  reset(): void {
+    this.emoteTarget = { valence: 0, arousal: 0 };
+    this.emoteCur = { valence: 0, arousal: 0 };
+    this.blinking = false;
+    this.blinkEndAt = 0;
+    this.blinkIntervalOverride = null;
+    this.forceBlink = false;
+    this.drifts.clear();
+    this.lastT = 0;
+    this.hasT = false;
+  }
+
   /** 控制器管辖的参数列表（测试断言用） */
   owned(): string[] {
     return [...this.breath, ...this.blinkParams, ...this.gaze, ...this.weight].map((p) => p.id);

@@ -68,18 +68,16 @@ engine.onFrame(dtMs: number);          // 帧驱动：宿主 rAF / 定时器调�
 
 ## 4. 版本策略
 
-- manifest：formatVersion（整数，破坏性 +1）+ syntaxVersion（DSL 语法 semver，packages/dsl/src/version.ts）
+- manifest：formatVersion（整数，破坏性 +1）+ syntaxVersion（DSL 语法 semver，由 convert 包 CONVERT_SYNTAX_VERSION 承接——原 packages/dsl 编译包已随 M7+ 重构移除，语言 A 编译入口不再单独存在）
 - Directive IR：节点带 schema 版本，校验器做前向兼容检查（P3 定义）
 - 包发布：semver；0.x 阶段允许破坏性，但 manifest/IR 字段变更必须写进本文件变更记录
 
 ## 5. 迁移说明（与 live2d-forge 的衔接）
 
-1. **当前 = 副本过渡态**：packages/{l2dp,dsl,renderer} 自平台整体复制，平台仍是独立一份。双份源码只存在到平台接线完成为止。
+1. **当前 = 副本过渡态**：原平台 packages/{l2dp,dsl,renderer} 中 l2dp 已抽取；**dsl（语言 A 编译器）与 renderer 已在本仓库移除**（dsl 能力由 convert/author 与创作 IR 承接，renderer 算法迁入 engine 后退役）。平台若仍持有这三个包，需对照本仓库当前 8 包清单（l2dp/engine/driver/convert/rig/cutout/create/host）接线。
 2. **平台接线步骤**（在 live2d-forge 侧执行）：
-   - 平台 packages/dsl、packages/l2dp、packages/renderer 的 package.json 依赖指向本 SDK（开发期 file: 链接或 yalc，稳定后 npm 发布）
-   - 平台 apps/web、services/api 的 @l2dp/* import 无需改名（scope 不变）
-   - 删除平台内的这三个包目录，并从 scripts/typecheck.mjs 的 12 包清单中移除
-   - 平台 renderer 中若新增仅浏览器用的模块（如 WebGL 上下文管理），不回移本仓库
+   - 平台按需把本 SDK 当前包的 package.json 依赖指向本 SDK（开发期 file: 链接或 yalc，稳定后 npm 发布）；平台 apps/web、services/api 的 @l2dp/* 伪 scope 不变
+   - 平台侧删除与 SDK 重叠的包目录（l2dp/engine/driver/convert 等），并从其 typecheck 清单中移除；仅浏览器用的模块（如 WebGL 上下文管理）不回移本仓库
 3. **本仓库不做的事**：不改 .l2dp 打包格式（平台资产格式）、不接 ComfyUI/网关、不实现 TTS 具体引擎、不做内容分级。
 
 ## 6. 变更记录
@@ -87,3 +85,4 @@ engine.onFrame(dtMs: number);          // 帧驱动：宿主 rAF / 定时器调�
 | 日期 | 变更 |
 |---|---|
 | 2026-08-18 | 自 live2d-forge 抽取建立仓库；同日整合为唯一权威规范 SPEC-DSL-v1.0（融合分工架构 + JSONL 流式驱动），删除 SPEC-DSL-v0.1 / DESIGN-v0.2 / DESIGN-v3.0 |
+| 2026-08（R-P0-2） | 文档对齐：移除已删除 packages/dsl、packages/renderer 的乱引；DSL 语法版本由 convert 的 CONVERT_SYNTAX_VERSION 承接；迁移说明对齐当前 8 包清单 |

@@ -76,8 +76,8 @@ npm run start   # 转换 Haru → JSONL 驱动 → out/: haru-full.l2dm(自包�
 
 ~~~bash
 npm install
-npm run typecheck   # 4 包 + demo-web 类型检查
-npm test            # 4 包 + 2 demo 全量 129 例全绿（含 moc3 语料解析/真实几何回归）
+npm run typecheck   # 9 包 + demo-web 类型检查
+npm test            # 9 包 + demo 全量 178 例全绿（含 moc3 语料解析/真实几何回归）
 npm run eval        # 评估集门禁：specs/evals/drive-cases.json → 报告（任一 case 失败退出码 1；6/6）
 ~~~
 

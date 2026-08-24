@@ -12,6 +12,7 @@ export * from "./ir/schema.ts";
 export * from "./layers/environment.ts";
 export * from "./layers/layer-stack.ts";
 export * from "./layers/route.ts";
+export * from "./layers/host-ops.ts";
 // ---- 双模式校验（§6.6）----
 export * from "./validate/rules.ts";
 export * from "./validate/inline.ts";

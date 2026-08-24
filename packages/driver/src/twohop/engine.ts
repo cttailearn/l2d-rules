@@ -2,7 +2,9 @@
 //   dispatch(event)：
 //     第一跳（同步）：BehaviorIndex.pick → 命中 → 逐行 feedLine（不进 LLM，<50ms）
 //     第二跳（异步）：未命中 → provider.createCompletion → fallback 提取 JSONL → 逐行 feedLine
-//   危险动作（自定义重写/非常规覆盖）→ 等待 LLM 慢路径（M7 占位：needsSlowPath 恒 false）
+//   危险动作（自定义重写/非常规覆盖）→ 语义抽查慢路径（R-P1-2｜§11.2）：
+//     needsSlowPath 命中 → 逐条 spotCheck（宿主注入：LLM 复核或确定性核对）→ 仅投喂通过行，
+//     全部被拒 → blocked:true（不增加首跳延迟：复核在第二跳提交后后台进行）。
 //
 //   feed 的行全部记入 audit（评估集 op 断言 + 未来 AuditSink 消费）；坏行由 ingestor 隔离。
 
@@ -17,6 +19,11 @@ export interface DriverEngineOpts {
   ing: StreamIngestor;
   /** 决策提示词（第二跳）；缺省给最小指令 */
   systemPrompt?: string;
+  /**
+   * 语义抽查（R-P1-2｜§11.2）：入参第二跳产出的指令行，返回通过复核的行
+   * （丢弃危险/越界行）。缺省 = 全量放行（等价"无慢路径"）。
+   */
+  spotCheck?: (lines: string[], event: DriverEvent, ctx: Context) => string[] | Promise<string[]>;
 }
 
 export class DriverEngine {
@@ -24,17 +31,21 @@ export class DriverEngine {
   private readonly provider: RuntimeProvider;
   private readonly ing: StreamIngestor;
   private readonly systemPrompt: string;
+  private readonly spotCheck?: DriverEngineOpts["spotCheck"];
 
   /** 已投喂行审计：{ tMs, line }（评估集断言 + AuditSink 消费） */
   readonly audit: { tMs: number; line: string }[] = [];
   /** 第二跳调用计数（测试断言：第一跳命中时不增加） */
   llmCalls = 0;
+  /** 语义抽查累计拒绝行数（R-P1-2 审计） */
+  spotBlocked = 0;
   private tMs = 0;
 
   constructor(opts: DriverEngineOpts) {
     this.index = opts.index;
     this.provider = opts.provider;
     this.ing = opts.ing;
+    this.spotCheck = opts.spotCheck;
     this.systemPrompt = opts.systemPrompt ??
       "你是 Live2D 角色驱动决策器。输出 JSONL 指令行（每行一个完整 JSON），可用的动作资产见上下文。只输出 JSONL，不要解释。";
   }
@@ -45,7 +56,7 @@ export class DriverEngine {
   }
 
   /** 事件驱动：第一跳同步，第二跳异步（await 仅在需要 LLM 决策时阻塞）。 */
-  async dispatch(event: DriverEvent, ctx: Context): Promise<{ hop: 1 | 2; behaviorId?: string; lines: string[] }> {
+  async dispatch(event: DriverEvent, ctx: Context): Promise<{ hop: 1 | 2; behaviorId?: string; lines: string[]; blocked?: boolean; spotChecked?: boolean }> {
     // ---- 第一跳：本地规则（<50ms，不进 LLM）----
     const behavior = this.index.pick(event, ctx);
     if (behavior !== null) {
@@ -54,22 +65,34 @@ export class DriverEngine {
       return { hop: 1, behaviorId: behavior.id, lines };
     }
 
-    // ---- 第二跳：LLM 决策（异步；危险动作慢路径占位：needsSlowPath 恒 false）----
-    if (this.needsSlowPath(event, ctx)) {
-      // 慢路径（M7 占位）：语义抽查/人工复核落地后在此等待，当前直通
-    }
+    // ---- 第二跳：LLM 决策（异步）----
     const result = await this.provider.createCompletion(
       { system: this.systemPrompt, messages: [{ role: "user", content: this.eventToPrompt(event, ctx) }] },
     );
     this.llmCalls += 1;
-    const lines = extractJsonLines(result.text);
-    this.feed(lines);
-    return { hop: 2, lines };
+    let lines = extractJsonLines(result.text);
+
+    // 危险动作 → 语义抽查慢路径（R-P1-2｜§11.2）：只喂通过复核的行
+    let blocked = false;
+    if (this.needsSlowPath(event, ctx) && this.spotCheck !== undefined && lines.length > 0) {
+      const approved = await this.spotCheck(lines, event, ctx);
+      this.spotBlocked += lines.length - approved.length;
+      if (approved.length === 0) blocked = true;
+      lines = approved;
+    }
+    if (!blocked) this.feed(lines);
+    return { hop: 2, lines, blocked, spotChecked: true };
   }
 
-  /** 危险动作判定（M7 占位：自定义重写/非常规覆盖 → 慢路径；当前恒 false） */
-  needsSlowPath(_event: DriverEvent, _ctx: Context): boolean {
-    return false;
+  /**
+   * 危险动作判定（R-P1-2｜§11.2）：自定义重写 / 非常规 override / 未知减速 等语义抽查触发条件。
+   * 实现：ctx.slowPath 显式置位 或 用户文本含原生命令/覆盖意图（"重写/覆盖/自定义/op:…/PARAM_"）→ true。
+   * 两跳 <50ms 断言不受影响：本判定仅决定第二跳提交后是否追加复核。
+   */
+  needsSlowPath(event: DriverEvent, ctx: Context): boolean {
+    if (ctx.slowPath === true) return true;
+    if (event.type !== "user_text") return false;
+    return /重写|覆盖|自定义|override|PARAM_|"op"\s*:/.test(event.text);
   }
 
   private renderLines(b: BehaviorItem, event: DriverEvent, ctx: Context): string[] {

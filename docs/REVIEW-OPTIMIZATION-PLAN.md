@@ -2,6 +2,8 @@
 
 > 本文档是对 @l2dp/*（l2d-rules）SDK 全面审查的落地执行方案。依据：审查期间的代码逐文件读取、178 测试实测、typecheck 9 包全绿、eval 双门禁（drive 6/6 + creation 3/3）实测。
 >
+> **实施进度（2026-08）**：S1 工程基建 + S2 承诺闭环已完成并提交（R-P0-1/R-P0-2/R-P1-1/R-P1-2/R-P1-3/R-P1-4/O-5/O-7 全部落地，实测 187 测试全绿 + typecheck 9 包 + eval 6/6+3/3）。剩余：S3 更多部位、S4 Demo 矩阵、S5 加固、S6 远期。
+>
 > 构成：① 现状盘点 → ② 问题分级与修复方案 → ③ 优化方案 → ④ **Demo 开发要求（新增）** → ⑤ **更多部位支持要求（新增）** → ⑥ 里程碑排期 → ⑦ 验收与纪律。
 >
 > 状态约定：【 】待办 / 【~】进行中 / 【x】已完成。文档版本随实施更新（变更记录见末尾）。
@@ -31,7 +33,7 @@
 
 ### P0（优先修复，工程安全）
 
-#### R-P0-1  P4 创作成果尚未入库
+#### R-P0-1  P4 创作成果尚未入库 【x 已完成（commit 4f51925）】
 - **问题**：packages/rig、packages/cutout、packages/create、packages/host、docs/GUIDE-FROM-IMAGE-TO-LIVE2D.md、docs/LLM-CREATION-PIPE-PLAN.md、scripts/eval-creation.mjs、specs/evals/creation-cases.json 等均为未提交（??）状态。
 - **风险**：核心资产丢失；CI 无法覆盖；他人/后续智能体拉分支看不到 P4。
 - **动作**：
@@ -40,7 +42,7 @@
   3. 把 demo-p4b 纳入 CI 测试清单（scripts/typecheck.mjs 已含 9 包）。
 - **DoD**：git status 干净；npm test（含 demo-p4b）全绿；CI 门禁包含 P4 包。
 
-#### R-P0-2  文档漂移（权威文档与代码不一致）
+#### R-P0-2  文档漂移（权威文档与代码不一致） 【x 已完成】
 - **问题**：docs/ARCHITECTURE.md 与 docs/DEVELOPMENT-SPEC.md 仍引用已删除的 packages/dsl、packages/renderer；README 测试数（129）与实测（178）不符；LLM-CREATION-PIPE-PLAN 中 146/178 并存。
 - **动作**：
   1. 修订 ARCHITECTURE.md 迁移说明：删除 dsl/renderer 引用，注明『dsl 编译器已移除、renderer 已由 engine 取代』。
@@ -50,7 +52,7 @@
 
 ### P1（近期，闭环当前承诺）
 
-#### R-P1-1  落地 StreamIngestor.undo() 与慢校验回滚（SPEC §7.3/§7.5 承诺）
+#### R-P1-1  落地 StreamIngestor.undo() 与慢校验回滚（SPEC §7.3/§7.5 承诺） 【x 已完成】
 - **问题**：undo() 恒返回 false；无 undo 栈；asyncCheck 慢校验（安全/内容复核）未实现——双模式校验与语义护栏目前只是名义达成。
 - **动作**：
   1. ingestor.ts 新增 asyncCheck(line, tMs)：对已生效行做异步慢校验（内容分级/数值干跑复核）。
@@ -58,7 +60,7 @@
   3. 同步 SPEC §7.5 接口合同；driver 测试新增『慢校验失败 → 回滚后参数轨迹还原』用例。
 - **DoD**：新增 ≥4 个单测（成功/失败回滚/栈空/多次 undo）；坏行隔离+回滚语义在 demo-web 接线可见。
 
-#### R-P1-2  落地 DriverEngine.needsSlowPath() 危险动作语义抽查（SPEC §11.2）
+#### R-P1-2  落地 DriverEngine.needsSlowPath() 危险动作语义抽查（SPEC §11.2） 【x 已完成】
 - **问题**：needsSlowPath() 恒 false，语义抽查（自定义重写/新资产/非常规 override 触发二次复核）未实现。
 - **动作**：
   1. 定义高风险动作规则：play 资产不在 manifest 缓存索引 / set 非常规覆盖 / 未知减速 / 自定义重写 → needsSlowPath=true。
@@ -66,7 +68,7 @@
   3. 保持不增加首跳延迟：慢复核在后台，首跳仍走第一跳/快校验。
 - **DoD**：eval 集新增 1 例『危险动作 → 慢路径拦截』；两跳 <50ms 断言仍成立。
 
-#### R-P1-3  补齐 6 个宿主 op 的宿主侧契约（outfit/speak/look/camera/action/wait）
+#### R-P1-3  补齐 6 个宿主 op 的宿主侧契约（outfit/speak/look/camera/action/wait） 【x 已完成】
 - **问题**：routeDirective 对这 6 op 仅确认不路由 → 主机接线无契约。
 - **动作**：
   1. ARCHITECTURE 注入接口清单新增 HostOpHandler：handle(op, d, tMs)（outfit 换装 / speak TTS / look 视线 / camera 相机 / action 嵌套行为 / wait 时序）。
@@ -74,7 +76,7 @@
   3. 每个 op 补 1 个契约单测（mock host 收到正确 d / 参数转换）。
 - **DoD**：6 op 全部有路由路径与测试；demo 至少接线 speak（TTS 降级）与 look。
 
-#### R-P1-4  createWithSelfRepair 缺省 Labeler 抛错优化
+#### R-P1-4  createWithSelfRepair 缺省 Labeler 抛错优化 【x 已完成】
 - **问题**：labeler ?? (async()=>{throw})() 缺省直接抛错，串联入口体验差。
 - **动作**：缺省改为 PositionLabeler（模板槽）+ 明确告警日志；仅当无槽可用时才给出可读错误并列出可选 labeler。
 - **DoD**：createWithSelfRepair({image, 无 labeler}) 走默认路径成功；错误信息含解决方案。
@@ -106,9 +108,9 @@
 | O-2 | 文档单一来源（CI 生成） | scripts/gen-stats.mjs 从测试/typecheck 输出生成包清单、测试数、里程碑状态 → 注入 README/build badge。 | README 数字=CI 实测，零手工漂移 |
 | O-3 | 规则库→schema 元一致性检查 | 脚本 lint：新增 op 必须同步 ir/types + OP_RULES + schema.ts + 各 README 表。 | CI 有 lint 步骤；C12 断言扩展 |
 | O-4 | 错误信息结构化 + rule 词典 | issue() 补 rule 词典（中/英 codes）直喂 LLM 自修复提示。 | eval 失败模式解析可用词典 |
-| O-5 | 测试分层与单一 verify 入口 | npm run verify = typecheck + test + eval + e2e(Playwright) 串联；CI 唯一入口。 | CI 只有 verify 一条命令的作业 |
+| O-5 | 测试分层与单一 verify 入口 【x 已完成】 | npm run verify = typecheck + test + eval（+ verify:e2e 浏览器）串联；CI 唯一入口。 | CI 只有 verify 一条命令的作业 |
 | O-6 | 切图适用域文档 | 明确 ColorKeySegmenter 面向平坦色插画，非平坦走宿主重型档（SAM2/ComfyUI）。 | GUIDE 增加适用域段落 |
-| O-7 | P4 包 README 补齐 | create/cutout/host/rig 中 3 个缺 README，补齐并统一文件头注释规范。 | 4 个 P4 包都有 README |
+| O-7 | P4 包 README 补齐 【x 已完成】 | create/cutout/host/rig 中 3 个缺 README，补齐并统一文件头注释规范。 | 4 个 P4 包都有 README |
 
 ---
 
@@ -242,3 +244,4 @@
 | 版本 | 日期 | 变更 |
 | --- | --- | --- |
 | v1.0 | 2026-08（审查交付） | 由全面审查结论产出：问题分级修复方案 + 优化方案 + Demo 开发要求（新增）+ 更多部位支持要求（新增）+ 排期与验收 |
+| v1.1 | 2026-08（S1+S2 交付） | 完成 R-P0-1（P4 入库 commit 4f51925）、R-P0-2（文档对齐）、R-P1-1（undo+asyncCheck 慢校验回滚）、R-P1-2（语义抽查即可 needsSlowPath+spotCheck）、R-P1-3（宿主 op 契约 HostOpHandler 透明上报）、R-P1-4（缺省 PositionLabeler）、O-5（verify/verify:e2e 入口）、O-7（rig/cutout/create README）；实测 187 测试全绿 + typecheck 9 包 + eval 6/6+3/3 |

@@ -1,7 +1,7 @@
 // loop.ts —— 创作自修复循环（P4b）：切图 → 标注 → 指令 → 校验/修复 → 执行 → 审核
 // 确定性默认链路（ColorKeySegmenter + Position/ColorMap Labeler + RuleRepairer + RuleReviewer）；
 // 每步均为可注入接口——LLM 可替换 Segmenter/Labeler/Repairer/Reviewer，宿主零改核心。
-import { ColorKeySegmenter, finalizeCutout, type CutoutPart, type Labeler, type RgbaImage, type Segmenter } from "@l2dp/cutout";
+import { ColorKeySegmenter, PositionLabeler, finalizeCutout, type CutoutPart, type Labeler, type RgbaImage, type Segmenter, type Slot } from "@l2dp/cutout";
 import { validateCreation, type CreationIssue } from "./validate.ts";
 import { executeCreation, type CreationResult } from "./execute.ts";
 import { RuleReviewer, type RigReviewer } from "./review.ts";
@@ -72,6 +72,34 @@ export class RuleRepairer implements Repairer {
   }
 }
 
+/**
+ * 缺省槽位表（R-P1-4）：无 labeler 时用「画布标准分区」把候选装配到语义槽。
+ * 确定性启发式：上带→后发/侧发，中中带→脸/眼/眉/口（按 y 细分），下带→上躯。
+ * 仅供「无标注器」时的可运行兜底——推荐宿主/用户注入 LLM 或色板标注以获得正确语义。
+ */
+export function defaultSlots(canvas: { width: number; height: number }): Slot[] {
+  const W = canvas.width;
+  const H = canvas.height;
+  const hw = W / 2;
+  const third = H / 3;
+  const q = Math.round(H / 8);
+  return [
+    { semantic: "hair_back", region: { x: 0, y: 0, width: W, height: third } },
+    { semantic: "hair_side", side: "left", region: { x: 0, y: 0, width: hw, height: third * 1.5 } },
+    { semantic: "hair_side", side: "right", region: { x: hw, y: 0, width: hw, height: third * 1.5 } },
+    { semantic: "face", region: { x: W * 0.15, y: third * 0.8, width: W * 0.7, height: third * 0.9 } },
+    { semantic: "eye", side: "left", region: { x: W * 0.2, y: third * 1.0, width: W * 0.28, height: q } },
+    { semantic: "eye", side: "right", region: { x: W * 0.52, y: third * 1.0, width: W * 0.28, height: q } },
+    { semantic: "brow", side: "left", region: { x: W * 0.2, y: third * 0.95, width: W * 0.28, height: q * 0.6 } },
+    { semantic: "brow", side: "right", region: { x: W * 0.52, y: third * 0.95, width: W * 0.28, height: q * 0.6 } },
+    { semantic: "mouth", region: { x: W * 0.3, y: third * 1.25, width: W * 0.4, height: q * 0.8 } },
+    { semantic: "nose", region: { x: W * 0.42, y: third * 1.15, width: W * 0.16, height: q * 0.6 } },
+    { semantic: "ear", side: "left", region: { x: 0, y: third * 0.9, width: W * 0.15, height: third * 0.7 } },
+    { semantic: "ear", side: "right", region: { x: W * 0.85, y: third * 0.9, width: W * 0.15, height: third * 0.7 } },
+    { semantic: "body_upper", region: { x: 0, y: third * 1.6, width: W, height: H - third * 1.6 } },
+  ];
+}
+
 /** 创作输入（切图阶段） */
 export interface CreateInput {
   character: string;
@@ -104,7 +132,14 @@ export async function createWithSelfRepair(input: CreateInput): Promise<CreateOu
   const log: string[] = [];
   const canvas = input.canvas ?? { width: input.image.width, height: input.image.height };
   const segmenter = input.segmenter ?? new ColorKeySegmenter({ tol: 12, minArea: 60 });
-  const labeler = input.labeler ?? (await (async () => { throw new Error("需要 Labeler（LLM 注入或 PositionLabeler/ColorMapLabeler）") })());
+  // R-P1-4：缺省用画布标准分区的 PositionLabeler（确定性可运行），不再抛错；
+  // 但会明确告警（正确标注建议注入 LLM/色板 Labeler）。
+  const defaultSlots_ = defaultSlots(canvas);
+  const labeler = input.labeler ?? new PositionLabeler(defaultSlots_);
+  if (input.labeler === undefined) {
+    log.push("警告: 未注入 Labeler，使用默认画布分区槽标注 —— 语义可能不准确，建议注入 LLM/色板标注器");
+    log.push("可选: ColorMapLabeler(色板) / PositionLabeler(模板槽) / LlmLabeler(@l2dp/host)");
+  }
   const repairer = input.repairer ?? new RuleRepairer();
 
   log.push("切图器: " + segmenter.name + " / 标注器: " + labeler.name);

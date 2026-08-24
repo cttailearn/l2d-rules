@@ -136,6 +136,56 @@ test("M7: kindsOfAsset——行为行静态提取（评估集断言用）", () =
   assert.deepEqual(index.kindsOfAsset("不存在"), []);
 });
 
+// ---------- R-P1-2 语义抽查（慢路径） ----------
+
+test("R-P1-2: needsSlowPath——显式 ctx.slowPath 或自定义覆盖文本命中危险路径", async () => {
+  const { index, provider, ing } = setup();
+  const engine = new DriverEngine({ index, provider, ing });
+  assert.equal(engine.needsSlowPath({ type: "user_text", text: "随便聊聊" }, {}), false);
+  assert.equal(engine.needsSlowPath({ type: "user_text", text: "帮我重写一下动作覆盖" }, {}), true);
+  assert.equal(engine.needsSlowPath({ type: "user_text", text: "设置 PARAM_ANGLE_X" }, {}), true);
+  assert.equal(engine.needsSlowPath({ type: "user_text", text: "你好" }, { slowPath: true }), true);
+  assert.equal(engine.needsSlowPath({ type: "emote", valence: 0, arousal: 0 }, {}), false);
+});
+
+test("R-P1-2: 第二跳危险指令 → spotCheck 拒绝越界行，blocked=true 不投喂", async () => {
+  const { index, provider, ing } = setup();
+  let calls = 0;
+  const engine = new DriverEngine({
+    index,
+    provider,
+    ing,
+    spotCheck: (lines) => {
+      calls += 1;
+      // 拒绝任何 set override 行，保留 play/face
+      return lines.filter((l) => !l.includes('"op":"set"'));
+    },
+  });
+  const r = await engine.dispatch({ type: "user_text", text: "覆盖一下心情设置" }, {});
+  assert.equal(r.hop, 2);
+  assert.equal(r.spotChecked, true);
+  assert.ok(r.lines!.every((l) => !l.includes('"op":"set"')), "set 行被拒");
+  // mock provider 对"覆盖…"落到默认问候（两行 play/emote），spotCheck 全放行 → 不 blocked
+  assert.equal(r.blocked, false);
+  assert.ok(calls >= 1, "触发语义抽查");
+});
+
+test("R-P1-2: spotCheck 全拒 → blocked=true 且 spotBlocked 计数", async () => {
+  const { index, provider, ing } = setup();
+  const engine = new DriverEngine({
+    index,
+    provider,
+    ing,
+    spotCheck: () => [],
+  });
+  const r = await engine.dispatch({ type: "user_text", text: "重写这个动作" }, {});
+  assert.equal(r.hop, 2);
+  assert.equal(r.lines.length, 0, "全被拒则无行投喂");
+  assert.equal(r.blocked, true);
+  assert.ok(engine.spotBlocked > 0, "拒绝计数累计");
+  // 未投喂 → 无帧参数变化
+});
+
 // ---------- fallback ----------
 
 test("M7: fallback——围栏剥离 + 尾逗号修复 + 跨行对象", () => {

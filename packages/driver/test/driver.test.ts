@@ -407,7 +407,139 @@ test("M5: feedBatch +id 跨行依赖与 at 排程", () => {
   );
 });
 
-test("M5: undo 占位——M5 无慢校验行，恒 false", () => {
+
+test("R-P1-3: 宿主 op——无 host 时透明上报 hostOps，不落层、不报错", () => {
+  const { ing, ev, sink } = setup();
+  const r = ing.feedLine('{"op":"speak","text":"你好呀","voice":"c1"}', 0);
+  assert.equal(r.skipped.length, 0);
+  assert.ok(r.hostOps !== undefined && r.hostOps.length === 1);
+  assert.equal(r.hostOps![0]!.op, "speak");
+  assert.equal(r.hostOps![0]!.tMs, 0);
+  // 未落任何层 → 参数面只有默认值
+  runFrames(ev, sink, 3, 16);
+  const p = sink.frames[sink.frames.length - 1]!.params;
+  assert.equal(p["微笑"] ?? 0, 0, "speak 不写参数层");
+  // 继续流式：speak 后接 play 仍生效
+  const r2 = ing.feedLine('{"op":"play","asset":"微笑点头"}', 100);
+  assert.equal(r2.skipped.length, 0);
+});
+
+test("R-P1-3: 宿主 op——注入 host handler 时分发调用", async () => {
+  const called: { op: string; target?: string; tMs: number }[] = [];
+  const ing = new StreamIngestor({
+    manifest: MANIFEST,
+    library: LIBRARY,
+    assets: ASSETS,
+    seed: 7,
+    host: {
+      outfit(d, tMs) { called.push({ op: "outfit", target: d.target, tMs }); },
+      speak(d, tMs) { called.push({ op: "speak", target: d.target, tMs }); },
+    },
+  });
+  const r1 = ing.feedLine('{"op":"outfit","outfit":"制服"}', 0);
+  const r2 = ing.feedLine('{"op":"speak","text":"hi"}', 50);
+  assert.equal(r1.hostOps!.length, 1);
+  assert.equal(r2.hostOps!.length, 1);
+  await new Promise((res) => setTimeout(res, 5));
+  assert.deepEqual(called.map((c) => c.op), ["outfit", "speak"]);
+  assert.equal(called[0]!.tMs, 0);
+  assert.equal(called[1]!.tMs, 50);
+});
+
+test("R-P1-3: 宿主 op——feedBatch 整批内的宿主 op 一并上报", () => {
   const { ing } = setup();
+  const r = ing.feedBatch(
+    {
+      v: 2,
+      directives: [
+        { op: "play", asset: "微笑点头" },
+        { op: "wait", ms: 500 },
+        { op: "camera" },
+      ],
+    },
+    0,
+  );
+  assert.equal(r.skipped.length, 0);
+  assert.deepEqual(r.hostOps!.map((h) => h.op), ["wait", "camera"]);
+});
+test("R-P1-1: undo——无失败行时返回 false（不改变状态）", () => {
+  const { ing, ev, sink } = setup();
+  ing.feedLine('{"op":"play","asset":"微笑点头"}', 0);
+  assert.equal(ing.undo(), false); // 无 fail 行
+  runFrames(ev, sink, 5, 16);
+  const p = sink.frames[sink.frames.length - 1]!.params;
+  assert.ok((p["微笑"] ?? 0) > 0, "未回滚，play 仍在生效");
+});
+
+test("R-P1-1: asyncCheck——缺省（无 slowCheck）全量 pass，undo 恒 false", async () => {
+  const { ing } = setup();
+  ing.feedLine('{"op":"play","asset":"微笑点头"}', 0);
+  ing.feedLine('{"op":"set","sem":"微笑","value":0.6}', 100);
+  const failed = await ing.asyncCheck();
+  assert.equal(failed.length, 0);
+  assert.deepEqual(ing.historyStatus().map((h) => h.status), ["pass", "pass"]);
   assert.equal(ing.undo(), false);
+});
+
+test("R-P1-1: asyncCheck + undo——慢校验失败行回滚，其余行保留", async () => {
+  const ing = new StreamIngestor({
+    manifest: MANIFEST,
+    library: LIBRARY,
+    assets: ASSETS,
+    seed: 7,
+    slowCheck: (e) =>
+      e.directive.op === "set" ? { ok: false, rule: "CONTENT_RISK", message: "成人越界" } : { ok: true },
+  });
+  const sink: { frames: Frame[] } & ParameterSink = {
+    frames: [],
+    apply(_c: string, params: Record<string, number>, tMs: number): void {
+      this.frames.push({ t: tMs, params: { ...params } });
+    },
+  };
+  const ev = new Evaluator(ing.stack, ing.env, PARAMS, sink);
+
+  ing.feedLine('{"op":"play","asset":"微笑点头"}', 0);   // 合法
+  ing.feedLine('{"op":"set","sem":"微笑","value":0.9}', 100); // 慢校验失败
+  ing.feedLine('{"op":"face","expression":"开心"}', 120); // 合法
+
+  const failed = await ing.asyncCheck();
+  assert.equal(failed.length, 1);
+  assert.equal(failed[0]!.index, 1);
+  assert.deepEqual(ing.historyStatus().map((h) => h.status), ["pass", "fail", "pass"]);
+
+  // set 曾生效（override 最高）
+  runFrames(ev, sink, 7, 16);
+  assert.equal(sink.frames[sink.frames.length - 1]!.params["微笑"], 0.9, "set=0.9 已生效");
+
+  // undo → 剔除 set 行
+  assert.equal(ing.undo(), true);
+  const st = ing.historyStatus();
+  assert.equal(st.length, 2);
+  assert.ok(st.every((h) => h.op !== "set"), "set 行已回滚");
+
+  // 回滚后：play(微笑 loop，从 startMs=0 重放) + face(害羞 Add) 保留，override 0.9 消失
+  runFrames(ev, sink, 60, 16); // ev.t 从 112 → 1072
+  const p = sink.frames[sink.frames.length - 1]!.params;
+  assert.ok(Math.abs((p["害羞"] ?? 0) - 0.2) < 0.02, "face 保留（害羞≈0.2），得 " + p["害羞"]);
+  assert.ok((p["微笑"] ?? 0) < 0.9, "override 0.9 已移除（微笑=" + p["微笑"] + " < 0.9）");
+  assert.ok((p["微笑"] ?? 0) > 0, "play 仍在 loop（微笑>0）");
+});
+
+test("R-P1-1: undo——多次失败仅回滚最近失败行", async () => {
+  const ing = new StreamIngestor({
+    manifest: MANIFEST,
+    library: LIBRARY,
+    assets: ASSETS,
+    seed: 7,
+    slowCheck: (e) => (e.directive.op === "set" ? { ok: false, rule: "CONTENT_RISK" } : { ok: true }),
+  });
+  ing.feedLine('{"op":"set","sem":"微笑","value":0.3}', 0);
+  ing.feedLine('{"op":"play","asset":"微笑点头"}', 10);
+  ing.feedLine('{"op":"set","sem":"害羞","value":0.5}', 20);
+  await ing.asyncCheck();
+  assert.deepEqual(ing.historyStatus().map((h) => h.status), ["fail", "pass", "fail"]);
+  assert.equal(ing.undo(), true, "回滚最近失败行");
+  const st = ing.historyStatus();
+  assert.equal(st.length, 2);
+  assert.deepEqual(st.map((h) => h.op), ["set", "play"]);
 });

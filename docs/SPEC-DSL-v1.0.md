@@ -387,7 +387,7 @@ interface AffectSignalSource { get(): { valence; arousal } }  // 情绪可观测
 ## 15. 文件与版本
 
 - **本文档版本 = 设计规格 v1.0**（确认版），标记设计定案；不是代码产物版本号
-- **DSL 语法版本**（`packages/dsl/src/version.ts`）：语言 A 语法未变，**保持 `0.1.0`**；待 P2/P3 变更语法/IR 时随实现同步 `1.0.0`（避免代码与文档不同步）
+- **DSL 语法版本**：原 `packages/dsl/src/version.ts` 所在包已随 M7+ 重构移除，DSL/资产语法版本由 `@l2dp/convert` 的 `CONVERT_SYNTAX_VERSION`（0.1.0）承接；语言 A 语法未变，待语法/IR 变更时同步 `1.0.0`（避免代码与文档不同步）
 - **IR 版本**：Directive Stream `v: 2`（扁平 IR 定案即生效）
 - **manifest**：`formatVersion`（破坏性 +1）
 - 本文档取代：`SPEC-DSL-v0.1.md`、`DESIGN-v0.2-提案.md`、`DESIGN-v3.0-发散蓝图.md`（已删除）

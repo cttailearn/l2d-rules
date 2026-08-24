@@ -6,6 +6,8 @@
 > 路线：**不依赖 Live2D Cubism Core、不绑定 PARAM/PARTS 白名单、原生支持大模型驱动、可无头渲染**。
 >
 > 开发纪律（继承）：TypeScript strict + 仅可擦除语法、零平台依赖核心、确定性一等公民（种子化时钟/随机）、每阶段 DoD = typecheck 全绿 + 测试全绿 + 确定性回归。
+>
+> **实现现状（2026-08 更新）**：M0–M7 / C1–C2 / P4a–P4c 已全部落地并保持 178 测试全绿 + typecheck 9 包 + eval（drive 6/6、creation 3/3）。本文档为当时的历史执行依据；其中提到的 `packages/dsl`（语言 A 编译）与 `packages/renderer`（旧预览器）**在本仓库已移除**（dsl 由 convert/author + 创作 IR 承接，renderer 算法迁入 engine 后退役），现仓库为 8 包：l2dp/engine/driver/convert/rig/cutout/create/host。其余章节作为历史规格参考，以 `SPEC-DSL-v1.0.md`（确认版）与 `ARCHITECTURE.md`（已对齐）为准。
 
 ---
 

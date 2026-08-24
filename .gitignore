@@ -14,6 +14,10 @@ data/
 # demo-real 生成的模型产物（自包含 .l2dm / 转换包 / 报告）
 examples/demo-real/out/
 
+# 临时探针/草稿脚本（不入库）
+packages/**/_scratch*
+scripts/**/_scratch*
+
 # 逆向脚手架与参考源码（不入库）
 scripts/moc3-*.mjs
 .moc3-refs/

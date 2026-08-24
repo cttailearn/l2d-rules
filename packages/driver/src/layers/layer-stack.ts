@@ -64,6 +64,13 @@ export class LayerStack {
     for (const p of params) this.defs.set(p.id, p);
   }
 
+  /** 清空全部层状态（undo 重放用；defs 保留）。 */
+  reset(): void {
+    this.states.clear();
+    this.faces.clear();
+    this.overrides.clear();
+  }
+
   /** 分层路由入口：play→动作层 / face→表达层 / set→override 层（其余 op 由 ingestor 分发给 env/宿主）。 */
   push(d: ResolvedDirective, startMs: number): void {
     const target = d.target ?? "main";
