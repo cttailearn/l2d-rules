@@ -30,6 +30,7 @@ examples/live2d/
 examples/demo-multi-body/out/
 examples/demo-env/out/
 examples/demo-clothing/out/
+examples/demo-dual-mode/out/
 
 # 渲染草稿（scripts/moc3-render.mjs 输出）
 out/

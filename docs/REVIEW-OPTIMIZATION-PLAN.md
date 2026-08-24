@@ -136,7 +136,7 @@
 - **落点**：并入 examples/demo-web（新增 ?scene=env 路由）或独立页。
 - **DoD**：提供环境层贡献叠加显示（哪些 sem 由环境层驱动）；无头回放轨迹一致（确定性）。
 
-### A3  demo-dual-mode —— 在线流式 vs 离线整批双模式对照
+### A3  demo-dual-mode —— 在线流式 vs 离线整批双模式对照 【x 已完成（examples/demo-dual-mode）】
 - **目标**：把行级原子/坏行隔离与整批原子拒绝做成可对比演示（审查确认两模式规则库共享、行为不同）。
 - **内容**：同一条含坏行的指令流：在线模式坏行跳过继续、离线模式整批拒绝并报告 issues/line；UI 高亮坏行。
 - **落点**：并入 demo-web ?scene=batch。
@@ -251,3 +251,4 @@
 | v1.5 | 2026-08（S5 部分交付） | 完成 R-P2-1（fuzz.test.ts：moc3 560 样本 + .moc 560 样本 0 崩溃，截断/翻转/计数损坏/版本篡改 + 空输入回归；转换校验抽样控制耗时）；实测 197 测试全绿 |
 | v1.6 | 2026-08（S3-B3 交付） | 完成 B-3 服装层：8 服装语义（outfit_dress/top/bottom/shoes/hairstyle 等）+ RigClothingPartSpec(costumeGroup) + 衣装组<N> 可见性参数 + outfitLines 换装工具（driver）+ 双服装组 demo（demo-clothing）；实测 199 测试全绿 + typecheck 9 包 |
 | v1.7 | 2026-08（S3-B5/B6 交付） | 完成 B-5（engine/bodies.test.ts 40 部件校验/加载/驱动/渲染 4 用例）、B-6（adult 分级：分级隐藏 opacityParam + RigSpec.adult 审计 + ContentPolicy 揭示）；实测 203 测试全绿 + typecheck 9 包 + eval 6/6+3/3 |
+| v1.8 | 2026-08（S4-A3 交付） | 完成 A3 demo-dual-mode（在线流式坏行隔离 vs 离线整批原子拒绝对照 + 规则库共享验证，3 断言）；实测 206 测试全绿 + typecheck 9 包 + eval 6/6+3/3 |
