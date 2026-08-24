@@ -130,7 +130,7 @@
   - 无头脚本输出帧像素 golden；软件/WebGL2 逐像素一致（沿用 test:e2e 断言）。
   - npm test 纳入本 demo（≥3 用例：非标准部位加载/驱动/环境层叠加）。
 
-### A2  demo-environment-layer —— 『角色一直活着』环境层专项演示
+### A2  demo-environment-layer —— 『角色一直活着』环境层专项演示 【x 已完成（examples/demo-env）】
 - **目标**：把程序化环境层（1/f 噪声 / 呼吸/眨眼/视线/重心 / emote 调制）从测试可见变成肉眼可见，这是 SPEC 核心卖点但当前 demo 未单列。
 - **内容**：静默渲染 60s；开关 emote（valence/arousal 滑杆）；blink 指令临时覆盖；drift 持续漂移；对比关环境层（静态）与开环境层两版。
 - **落点**：并入 examples/demo-web（新增 ?scene=env 路由）或独立页。
@@ -247,3 +247,4 @@
 | v1.1 | 2026-08（S1+S2 交付） | 完成 R-P0-1（P4 入库 commit 4f51925）、R-P0-2（文档对齐）、R-P1-1（undo+asyncCheck 慢校验回滚）、R-P1-2（语义抽查即可 needsSlowPath+spotCheck）、R-P1-3（宿主 op 契约 HostOpHandler 透明上报）、R-P1-4（缺省 PositionLabeler）、O-5（verify/verify:e2e 入口）、O-7（rig/cutout/create README）；实测 187 测试全绿 + typecheck 9 包 + eval 6/6+3/3 |
 | v1.2 | 2026-08（S3 部分交付） | 完成 B-1（RIG_SEMANTICS 12→23，含 20 body + tail/wing/ear_beast）、B-2（新增 8 个 warp 合成：下躯/臂/腿/胸/尾巴/翅膀/兽耳/脸红 opacity）、B-4（非标准部位模板）+ 33 部件全绑定测试；实测 188 测试全绿 + typecheck 9 包 + eval 6/6+3/3 |
 | v1.3 | 2026-08（S4-A1 交付） | 完成 A1 demo-multi-body（examples/demo-multi-body：33 部件 rig + 尾巴/翅膀/兽耳/脸红 JSONL 语义驱动 + 环境层 + 无头出图 + 3 自动化断言）；实测 191 测试全绿 + typecheck 9 包 + eval 6/6+3/3 |
+| v1.4 | 2026-08（S4-A2 交付） | 完成 A2 demo-env（examples/demo-env：环境层恒动统计 + emote 调制三态对比 + 渲染帧 + 3 断言：恒动/调制/确定性）；实测 194 测试全绿 + typecheck 9 包 + eval 6/6+3/3 |

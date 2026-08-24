@@ -26,5 +26,9 @@ ref/
 # 官方 Live2D 样例运行时 + 真实模型语料（~1GB；本机测试回归/构建期参考，不入库）
 examples/live2d/
 
+# demo 输出（A1/A2 生成的 PNG/report，可再生成）
+examples/demo-multi-body/out/
+examples/demo-env/out/
+
 # 渲染草稿（scripts/moc3-render.mjs 输出）
 out/

@@ -1,0 +1,15 @@
+{
+  "name": "demo-env",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "demo-env（A2）：环境层专项演示——呼吸/眨眼/视线/重心 1/f 噪声恒动 + emote 调制（arousal↑呼吸浅快/valence↓深缓），'角色一直活着'",
+  "scripts": {
+    "start": "node scripts/run.mjs",
+    "test": "node --test --test-isolation=none 'test/*.test.ts'"
+  },
+  "dependencies": {
+    "@l2dp/driver": "*",
+    "@l2dp/engine": "*"
+  }
+}
