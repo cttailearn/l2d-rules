@@ -10,6 +10,12 @@ export interface ReviewVerdict {
   suggestions: string[];
 }
 
+/** 复审（视觉 LLM）判定（R-P2-2）：比自带 issues/suggestions 更接近"差异回注"的结构）。 */
+export interface VisualReviewResult extends ReviewVerdict {
+  /** 命中的具体差异（回注给 RuleRepairer/create 用） */
+  diffs?: { part?: string; kind: string; message: string }[];
+}
+
 /** 多模态审核器（宿主可用视觉 LLM 注入：渲染帧 dataUri → 自然语言判定） */
 export interface RigReviewer {
   review(model: L2dmModel): Promise<ReviewVerdict>;
@@ -97,5 +103,54 @@ export class RuleReviewer implements RigReviewer {
     }
     const ok = issues.length === 0;
     return { ok, confidence: ok ? 0.9 : 0.5, issues, suggestions };
+  }
+}
+// ---------------- R-P2-2：分级审核链 ChainedReviewer ----------------
+
+/** 分级审核器（R-P2-2）：规则初审 →（置信不足或规则边缘时）视觉 LLM 复审 → 差异回注。 */
+export class ChainedReviewer implements RigReviewer {
+  readonly name = "chained";
+  /** 规则初审（确定性，SDK 兜底） */
+  private readonly primary: RigReviewer;
+  /** 视觉复审（宿主注入；缺省 = 无复审，等价纯规则） */
+  private readonly visual?: RigReviewer | null;
+  /** 规则通过但置信低于此阈值 → 触发视觉复审 */
+  private readonly confidenceThreshold: number;
+  /** 复审调用计数（测试断言） */
+  visualCalls = 0;
+
+  constructor(opts: {
+    primary?: RigReviewer;
+    visual?: RigReviewer | null;
+    confidenceThreshold?: number;
+  } = {}) {
+    this.primary = opts.primary ?? new RuleReviewer();
+    this.visual = opts.visual ?? null;
+    this.confidenceThreshold = opts.confidenceThreshold ?? 0.6;
+  }
+
+  async review(model: L2dmModel): Promise<ReviewVerdict> {
+    // 第 1 级：规则初审（确定性）
+    const first = await this.primary.review(model);
+    // 规则直接不过 → 回注修复（不进视觉，避免无谓成本）
+    if (!first.ok) return { ...first, confidence: 0.4 };
+    // 规则过但置信不足 → 第 2 级：视觉复审
+    if (this.visual !== undefined && this.visual !== null && first.confidence < this.confidenceThreshold) {
+      this.visualCalls += 1;
+      const second = await this.visual.review(model);
+      if (!second.ok) {
+        // 视觉发现规则未覆盖的差异 → 回注
+        const vr = second as VisualReviewResult;
+        const diffNotes = vr.diffs ? vr.diffs.map((d) => d.message) : second.issues;
+        return {
+          ok: false,
+          confidence: Math.min(first.confidence, second.confidence),
+          issues: [...first.issues, ...diffNotes],
+          suggestions: [...first.suggestions, ...second.suggestions],
+        };
+      }
+      return { ...second, issues: [...first.issues, ...second.issues], suggestions: [...first.suggestions, ...second.suggestions] };
+    }
+    return first;
   }
 }

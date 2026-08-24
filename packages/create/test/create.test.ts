@@ -6,7 +6,7 @@ import { validateCreation } from "../src/validate.ts";
 import { executeCreation } from "../src/execute.ts";
 import { generateStarterMotions, keysToSegments } from "../src/motions.ts";
 import { RuleRepairer, createWithSelfRepair } from "../src/loop.ts";
-import { RuleReviewer } from "../src/review.ts";
+import { RuleReviewer, ChainedReviewer, type VisualReviewResult } from "../src/review.ts";
 import { creationDirectiveSchema } from "../src/schema.ts";
 import type { CreationDirective } from "../src/ir.ts";
 
@@ -150,4 +150,61 @@ test("P4b: creationDirectiveSchema 基本形状", () => {
   const s = creationDirectiveSchema() as { required: string[]; properties: Record<string, unknown> };
   assert.ok(s.required.includes("parts"));
   assert.ok(s.properties.parts !== undefined);
+});
+// ---------------- R-P2-2：分级审核链 ChainedReviewer ----------------
+
+test("R-P2-2: 无 visual 时 ChainedReviewer 等价纯规则（不触发复审）", async () => {
+  const chain = new ChainedReviewer();
+  const { d } = await directiveFromScene();
+  const ok = executeCreation(d);
+  const v = await chain.review(ok.model);
+  assert.equal(v.ok, true, v.issues.join(";"));
+  assert.equal(chain.visualCalls, 0);
+});
+
+test("R-P2-2: 规则初审不过 → 回注，不进视觉（避免无谓成本）", async () => {
+  let visualCalls = 0;
+  const chain = new ChainedReviewer({
+    primary: new RuleReviewer(),
+    visual: {
+      name: "vision-mock",
+      async review() { visualCalls += 1; return { ok: true, confidence: 1, issues: [], suggestions: [] }; },
+    },
+  });
+  const empty = await chain.review({ formatVersion: 1 as 1, id: "e", canvas: { width: 32, height: 32 }, parameters: [], parts: [] } as never);
+  assert.equal(empty.ok, false, "空白模型规则初审失败");
+  assert.equal(visualCalls, 0, "规则已不过，无谓视觉复审不发生");
+});
+
+test("R-P2-2: 规则过但低置信 + 视觉发现差异 → 合并回注、visualCalls=1", async () => {
+  const chain = new ChainedReviewer({
+    primary: { name: "lowconf", async review() { return { ok: true, confidence: 0.3, issues: [], suggestions: [] }; } },
+    visual: {
+      name: "vision",
+      async review(): Promise<VisualReviewResult> {
+        return { ok: false, confidence: 0.4, issues: ["视觉:肢体缺失"], suggestions: ["补臂部件"], diffs: [{ kind: "missing-part", message: "肢体缺失(左臂)" }] };
+      },
+    },
+    confidenceThreshold: 0.6,
+  });
+  const { d } = await directiveFromScene();
+  const ok = executeCreation(d);
+  const v = await chain.review(ok.model);
+  assert.equal(v.ok, false, "视觉差异 → 回注");
+  assert.ok(v.issues.some((i) => i.includes("左臂")), "差异回注进 issues: " + v.issues.join(";"));
+  assert.ok(v.suggestions.some((s) => s.includes("补臂")), "建议回注");
+  assert.equal(chain.visualCalls, 1);
+});
+
+test("R-P2-2: 低置信但视觉通过 → 合并通过", async () => {
+  const chain = new ChainedReviewer({
+    primary: { name: "low", async review() { return { ok: true, confidence: 0.3, issues: [], suggestions: [] }; } },
+    visual: { name: "vision", async review() { return { ok: true, confidence: 0.9, issues: [], suggestions: [] }; } },
+    confidenceThreshold: 0.6,
+  });
+  const { d } = await directiveFromScene();
+  const ok = executeCreation(d);
+  const v = await chain.review(ok.model);
+  assert.equal(v.ok, true);
+  assert.equal(chain.visualCalls, 1);
 });

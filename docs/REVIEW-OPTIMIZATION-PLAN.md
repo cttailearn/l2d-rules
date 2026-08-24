@@ -87,7 +87,7 @@
 - **动作**：为 readMoc3/readMoc 增加 fuzz 测试（随机字节/截断/越界偏移/坏计数），确保抛出明确错误而非崩溃/内存越界；补损坏语料回归 10 例。
 - **DoD**：fuzz 500 组样本 0 崩溃；损坏文件均返回 {ok:false,error}。
 
-#### R-P2-2  创作侧『规则初审 → 视觉复审 → 差异回注』分级审核链
+#### R-P2-2  创作侧『规则初审 → 视觉复审 → 差异回注』分级审核链 【x 已完成（ChainedReviewer + 4 测试）】
 - **动作**：create/review.ts 增加 ChainedReviewer（RuleReviewer + LlmReviewer 组合）：规则不过 → 直修；规则过但置信低 → 触发视觉 LLM 复核 → 差异回注修复循环。
 - **DoD**：creation eval 3 例在不引入视觉模型时仍全绿；有 key 时走视觉复核路径。
 
@@ -252,3 +252,4 @@
 | v1.6 | 2026-08（S3-B3 交付） | 完成 B-3 服装层：8 服装语义（outfit_dress/top/bottom/shoes/hairstyle 等）+ RigClothingPartSpec(costumeGroup) + 衣装组<N> 可见性参数 + outfitLines 换装工具（driver）+ 双服装组 demo（demo-clothing）；实测 199 测试全绿 + typecheck 9 包 |
 | v1.7 | 2026-08（S3-B5/B6 交付） | 完成 B-5（engine/bodies.test.ts 40 部件校验/加载/驱动/渲染 4 用例）、B-6（adult 分级：分级隐藏 opacityParam + RigSpec.adult 审计 + ContentPolicy 揭示）；实测 203 测试全绿 + typecheck 9 包 + eval 6/6+3/3 |
 | v1.8 | 2026-08（S4-A3 交付） | 完成 A3 demo-dual-mode（在线流式坏行隔离 vs 离线整批原子拒绝对照 + 规则库共享验证，3 断言）；实测 206 测试全绿 + typecheck 9 包 + eval 6/6+3/3 |
+| v1.9 | 2026-08（S5-R-P2-2 交付） | 完成 R-P2-2 ChainedReviewer 分级审核链（规则初审→低置信触发视觉复审→差异回注；免无谓复审短路；4 测试）；实测 210 测试全绿 + typecheck 9 包 + eval 6/6+3/3 |
