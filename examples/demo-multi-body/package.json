@@ -1,0 +1,17 @@
+{
+  "name": "demo-multi-body",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "demo-multi-body（A1｜S3 联动）：更多部位 + 非标准部位演示——完整身体层 20 语义 + 尾巴/兽耳/翅膀，JSONL 语义驱动（尾巴摆/翅膀扇/耳朵动）+ 环境层，软件光栅出图（确定性 golden）",
+  "scripts": {
+    "start": "node scripts/run.mjs",
+    "test": "node --test --test-isolation=none 'test/*.test.ts'"
+  },
+  "dependencies": {
+    "@l2dp/cutout": "*",
+    "@l2dp/driver": "*",
+    "@l2dp/engine": "*",
+    "@l2dp/rig": "*"
+  }
+}

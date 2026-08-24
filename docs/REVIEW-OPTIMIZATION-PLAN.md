@@ -118,7 +118,7 @@
 
 > 目的：把 SDK 各层能力变成开箱即跑、可演示、可对比的用例，覆盖审查发现的演示盲区（环境层可感、更多部位、双模式、创作全链、真实 LLM、性能）。
 
-### A1  demo-multi-body —— 更多部位与非标准部位演示（★ 与 §5 强关联）
+### A1  demo-multi-body —— 更多部位与非标准部位演示（★ 与 §5 强关联） 【x 已完成（examples/demo-multi-body）】
 - **目标**：展示自研引擎『任意多部位 + 自定义语义参数』（G2）的差异化价值，即审查发现的『12 语义 vs 20+ 完整词表』差距的可视化实证。
 - **内容**：
   - 模型含非标准部位：尾巴（尾巴摆，Custom 组）、兽耳（耳动）、翅膀（翅膀扇），参考 demo.l2dm 已实证的尾巴摆扩展为完整小兽娘。
@@ -246,3 +246,4 @@
 | v1.0 | 2026-08（审查交付） | 由全面审查结论产出：问题分级修复方案 + 优化方案 + Demo 开发要求（新增）+ 更多部位支持要求（新增）+ 排期与验收 |
 | v1.1 | 2026-08（S1+S2 交付） | 完成 R-P0-1（P4 入库 commit 4f51925）、R-P0-2（文档对齐）、R-P1-1（undo+asyncCheck 慢校验回滚）、R-P1-2（语义抽查即可 needsSlowPath+spotCheck）、R-P1-3（宿主 op 契约 HostOpHandler 透明上报）、R-P1-4（缺省 PositionLabeler）、O-5（verify/verify:e2e 入口）、O-7（rig/cutout/create README）；实测 187 测试全绿 + typecheck 9 包 + eval 6/6+3/3 |
 | v1.2 | 2026-08（S3 部分交付） | 完成 B-1（RIG_SEMANTICS 12→23，含 20 body + tail/wing/ear_beast）、B-2（新增 8 个 warp 合成：下躯/臂/腿/胸/尾巴/翅膀/兽耳/脸红 opacity）、B-4（非标准部位模板）+ 33 部件全绑定测试；实测 188 测试全绿 + typecheck 9 包 + eval 6/6+3/3 |
+| v1.3 | 2026-08（S4-A1 交付） | 完成 A1 demo-multi-body（examples/demo-multi-body：33 部件 rig + 尾巴/翅膀/兽耳/脸红 JSONL 语义驱动 + 环境层 + 无头出图 + 3 自动化断言）；实测 191 测试全绿 + typecheck 9 包 + eval 6/6+3/3 |
