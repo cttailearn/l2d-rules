@@ -11,10 +11,30 @@ export const RIG_SEMANTICS = [
 ] as const;
 export type RigSemantic = (typeof RIG_SEMANTICS)[number];
 
+/** 服装层语义（B-3：对齐 specs/parts-naming.json clothingPartTemplates） */
+export const CLOTHING_SEMANTICS = [
+  "outfit_top", "outfit_bottom", "outfit_dress",
+  "outfit_underwear", "outfit_shoes", "outfit_socks", "outfit_accessory",
+  "hairstyle",
+] as const;
+export type RigClothingSemantic = (typeof CLOTHING_SEMANTICS)[number];
+
+/** 服装部件（B-3）：在 RigPartSpec 基础上带服装组号（Haru 双服装组范式 _001/_002）。 */
+export interface RigClothingPartSpec extends RigPartSpec {
+  /** 服装组号（>=1；同组部件一起切换）。缺省 1。 */
+  costumeGroup?: number;
+}
+
+/** 服装组描述（RigSpec 审计用） */
+export interface RigCostumeGroup {
+  group: number;
+  partIds: string[];
+}
+
 /** 单个部件输入：部件图 + 语义类 + 画布上的位置（模板网格配准到此 bbox） */
 export interface RigPartSpec {
   id: string;
-  semantic: RigSemantic;
+  semantic: RigSemantic | RigClothingSemantic;
   /** 画布像素 bbox（可视图；模板网格按此配准展开） */
   bbox: { x: number; y: number; width: number; height: number };
   /** 纯色部件（RGBA 0..1；缺省取模板默认色） */
@@ -51,11 +71,13 @@ export interface RigBinding {
 
 export interface RigSpecPart {
   id: string;
-  semantic: RigSemantic;
+  semantic: RigSemantic | RigClothingSemantic;
   order: number;
   color?: [number, number, number, number];
   texture?: string;
   bindings: RigBinding[];
+  /** 服装组号（服装部件） */
+  costumeGroup?: number;
 }
 
 export interface RigSpecDeformer {
@@ -83,6 +105,8 @@ export interface RigSpec {
   deformers: RigSpecDeformer[];
   physics: RigSpecPendulum[] | null;
   pose: { groups: { ids: string[] }[] } | null;
+  /** 服装组（B-3）：每个组的部件 id + 对应可见性参数名（衣装组<N>） */
+  costumes: { group: number; param: string; partIds: string[] }[];
   notes: string[];
 }
 

@@ -1,7 +1,7 @@
 // params.ts —— 半自动 rig 的语义参数词表 + 派生
 // 引擎参数即语义名（.l2dm 惯例）；分组对齐 L2DM_PARAM_GROUPS 与 driver 环境层（Ambient/EyeBlink/Head/Body/Physics）。
 import type { L2dmParamGroup } from "@l2dp/engine";
-import type { RigPartSpec, RigSemantic } from "./types.ts";
+import { CLOTHING_SEMANTICS, type RigPartSpec, type RigSemantic } from "./types.ts";
 
 export interface RigParamDef {
   min: number;
@@ -45,6 +45,38 @@ const BLUSH_TRIGGER: readonly RigSemantic[] = ["hoho"];
 
 export interface DerivedParam { id: string; min: number; max: number; def?: number; group?: L2dmParamGroup }
 
+/** 服装组 → 可见性参数名（B-3）：衣装组<N>。 */
+export function costumeParamOf(group: number): string {
+  return "衣装组" + group;
+}
+
+/** 服装语义判定（B-3）：只在服装层词表内。 */
+function isClothingSemantic(sem: string): boolean {
+  return (CLOTHING_SEMANTICS as readonly string[]).includes(sem);
+}
+
+/** 收集服装组（B-3）：仅服装语义部件的 costumeGroup 去重升序；附带组成员 id 清单（身体部件不参与换装）。 */
+export function collectCostumeGroups(
+  parts: RigPartSpec[],
+): { group: number; param: string; partIds: string[] }[] {
+  const byGroup = new Map<number, string[]>();
+  for (const p of parts) {
+    if (!isClothingSemantic(p.semantic as string)) continue; // 身体层/非标准部件不随服装组
+    const cg = (p as { costumeGroup?: number }).costumeGroup ?? 1;
+    const list = byGroup.get(cg) ?? [];
+    list.push(p.id);
+    byGroup.set(cg, list);
+  }
+  const groups = [...byGroup.keys()].sort((a, b) => a - b);
+  const defaultGroup = groups[0] ?? 1;
+  return groups.map((g) => ({
+    group: g,
+    param: costumeParamOf(g),
+    partIds: byGroup.get(g) ?? [],
+    ...(g === defaultGroup ? { defaultVisible: true as true | undefined } : {}),
+  }));
+}
+
 /** 依据部件集合推导需要的参数（模型只含被实际绑定/被驱动者，保持最小闭合）。 */
 export function deriveParameters(
   parts: RigPartSpec[],
@@ -66,8 +98,21 @@ export function deriveParameters(
   if (opts.physics && (sems.has("hair_front") || sems.has("hair_side") || sems.has("hair_back"))) {
     ids.push("发摆");
   }
+  // B-3：服装组可见性参数（衣装组<N>；最小组默认可见 def=1，其余 0）
+  const costumes = collectCostumeGroups(parts);
+  const defaultGroup = costumes[0]?.group;
+  for (const c of costumes) {
+    ids.push(c.param);
+  }
   const out = new Map<string, DerivedParam>();
-  for (const id of ids) out.set(id, { id, ...RIG_PARAM_DEFS[id] });
+  for (const id of ids) {
+    if (id.startsWith("衣装组")) {
+      const g = Number(id.slice(3));
+      out.set(id, { id, min: 0, max: 1, def: g === defaultGroup ? 1 : 0, group: "Custom" });
+    } else {
+      out.set(id, { id, ...RIG_PARAM_DEFS[id] });
+    }
+  }
   for (const p of parts) {
     for (const [k, v] of Object.entries(p.customParams ?? {})) {
       out.set(k, { id: k, min: v.min ?? 0, max: v.max ?? 1, def: v.def, group: v.group });

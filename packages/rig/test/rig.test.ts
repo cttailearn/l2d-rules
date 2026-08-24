@@ -5,7 +5,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { L2dmPlayer, SoftwareRenderer, type L2dmModel } from "@l2dp/engine";
-import { rigCharacter, RIG_TEMPLATES, RIG_PARAM_DEFS, type RigPartSpec } from "../src/index.ts";
+import { rigCharacter, RIG_TEMPLATES, RIG_PARAM_DEFS, type RigPartSpec, type RigClothingPartSpec } from "../src/index.ts";
 import { sampleSpec } from "./sample.ts";
 import { goldenRigFrames, renderState } from "./golden-frames.ts";
 
@@ -260,4 +260,56 @@ test("B-1/B-4: 完整身体层 20 语义 + 非标准部位（尾巴/兽耳/翅�
   assert.ok(orderOf("body-lower") < orderOf("leg-l"));
   // RigSpec 审计含新参数
   assert.ok(spec.parameters.some((p) => p.id === "尾巴摆"));
+});
+test("B-3: 服装层双服装组——opacityParam 换装机制 + RigSpec.costumes 审计", () => {
+  const canvas = { width: 800, height: 1200 };
+  const base: RigPartSpec[] = [
+    { id: "face", semantic: "face", bbox: { x: 240, y: 380, width: 320, height: 210 } },
+    { id: "body-upper", semantic: "body_upper", bbox: { x: 150, y: 470, width: 500, height: 420 } },
+    { id: "body-lower", semantic: "body_lower", bbox: { x: 170, y: 850, width: 460, height: 300 } },
+    { id: "neck", semantic: "neck", bbox: { x: 370, y: 350, width: 60, height: 90 } },
+  ];
+  const clothing: RigClothingPartSpec[] = [
+    { id: "dress-1", semantic: "outfit_dress", costumeGroup: 1, bbox: { x: 150, y: 480, width: 500, height: 300 } },
+    { id: "shoes-1", semantic: "outfit_shoes", costumeGroup: 1, bbox: { x: 250, y: 1160, width: 300, height: 30 } },
+    { id: "dress-2", semantic: "outfit_dress", costumeGroup: 2, bbox: { x: 150, y: 480, width: 500, height: 300 } },
+    { id: "hat-2", semantic: "hairstyle", costumeGroup: 2, bbox: { x: 260, y: 260, width: 280, height: 120 } },
+  ];
+  const { model, report, spec } = rigCharacter({ id: "costume", canvas, parts: [...base, ...clothing] });
+  assert.equal(report.ok, true, JSON.stringify(report.checks));
+
+  // 服装部件挂 opacityParam = 衣装组<N>
+  const dress1 = model.parts.find((p) => p.id === "dress-1")!;
+  const dress2 = model.parts.find((p) => p.id === "dress-2")!;
+  assert.equal(dress1.opacityParam, "衣装组1", "组1服装部件随 衣装组1 显隐");
+  assert.equal(dress2.opacityParam, "衣装组2", "组2服装部件随 衣装组2 显隐");
+  assert.equal(model.parts.find((p) => p.id === "hat-2")!.opacityParam, "衣装组2", "hairstyle 也随组");
+  // 非服装部件无 opacityParam（身体层 default 可见）
+  assert.equal(model.parts.find((p) => p.id === "face")!.opacityParam, undefined);
+
+  // 参数面：衣装组1 默认可见(def=1)、衣装组2 默认隐藏(def=0)
+  const p1 = model.parameters.find((p) => p.id === "衣装组1")!;
+  const p2 = model.parameters.find((p) => p.id === "衣装组2")!;
+  assert.equal(p1.def, 1, "最小组（1）默认可见");
+  assert.equal(p2.def, 0, "组 2 默认隐藏");
+
+  // RigSpec.costumes 审计
+  assert.ok(spec.costumes.length >= 2, "两个服装组都记录");
+  const g1 = spec.costumes.find((c) => c.group === 1)!;
+  const g2 = spec.costumes.find((c) => c.group === 2)!;
+  assert.ok(g1.partIds.includes("dress-1") && g1.partIds.includes("shoes-1"));
+  assert.ok(g2.partIds.includes("dress-2") && g2.partIds.includes("hat-2"));
+
+  // 换装语义等价：置 衣装组2=1 && 衣装组1=0 → 组1部件不可见、组2可见（引擎 partVisible opacity>0）
+  const render2 = (params: Record<string, number>) => {
+    const player2 = new L2dmPlayer(model, new Map());
+    player2.params.reset();
+    for (const [k, v] of Object.entries(params)) player2.params.set(k, v);
+    const sw2 = new SoftwareRenderer();
+    player2.render(sw2);
+    return Buffer.from(sw2.readPixels()!).toString("hex");
+  };
+  const g1px = render2({ 衣装组1: 1, 衣装组2: 0 });
+  const g2px = render2({ 衣装组1: 0, 衣装组2: 1 });
+  assert.notEqual(g1px, g2px, "切换服装组改变渲染像素（换装）");
 });

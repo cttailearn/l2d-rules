@@ -29,6 +29,7 @@ examples/live2d/
 # demo 输出（A1/A2 生成的 PNG/report，可再生成）
 examples/demo-multi-body/out/
 examples/demo-env/out/
+examples/demo-clothing/out/
 
 # 渲染草稿（scripts/moc3-render.mjs 输出）
 out/

@@ -193,7 +193,7 @@
 | --- | --- | --- | --- |
 | B-1 | RIG_SEMANTICS 扩到 20 body 语义 + 词表自检（grid≥2x2/顺序唯一/参数合法，沿用现有词表自检测试） 【x 已完成】 | packages/rig/src/{types,vocab,params}.ts | 词表自检 + 5 个新增语义绑定测试通过 |
 | B-2 | 新增 warp 合成：body_lower 微摆（重心跟随）、arm 摆臂、leg 步态、feet 着地、胸摆动（pendulum-out）、颊 TERE 脸红 【x 已完成】 | packages/rig/src/warps.ts + rig.ts | 形变结构断言（顶点/像素级）≥5 用例（B-1/B-4 全绑定测试覆盖） |
-| B-3 | 服装层：RigClothingPartSpec + outfit op 路由落地（联动 R-P1-3）→ demo 生成双服装组模型 | packages/rig + driver route + ARCHITECTURE | outfit 换装 demo 可视 + eval 新增换装用例 |
+| B-3 | 服装层：RigClothingPartSpec + outfit op 路由落地（联动 R-P1-3）→ demo 生成双服装组模型 【x 已完成】 | packages/rig(type/vocab/params/rig) + driver(host-ops outfitLines) + examples/demo-clothing | outfit 换装 demo（组1/组2 像素不同）+ 2 测试 + driver outfitLines 测试通过 |
 | B-4 | 非标准部位官方模板：tail/ear（兽耳）/wing + 对应参数（尾巴摆/耳动/翅膀扇） 【x 已完成】 | packages/rig/src/vocab.ts + warps.ts | 与 A1 demo-multi-body 联动验收（B-1/B-4 全绑定测试 33 部件） |
 | B-5 | 引擎侧确认任意部位渲染正确 + 环境层对 Custom 不写入（已保证）；新增多部位回归 fixture（≥40 部件） | packages/engine/test + demo-multi-body | 40 部件模型加载/驱动/像素 golden |
 | B-6 | 内容分级：adult 语义只进 RigSpec 标记、不默认渲染；宿主 ContentPolicy 决定可用性 | packages/create + host | 分级字段写入 RigSpec；无 ContentPolicy 时默认隐藏 adult |
@@ -249,3 +249,4 @@
 | v1.3 | 2026-08（S4-A1 交付） | 完成 A1 demo-multi-body（examples/demo-multi-body：33 部件 rig + 尾巴/翅膀/兽耳/脸红 JSONL 语义驱动 + 环境层 + 无头出图 + 3 自动化断言）；实测 191 测试全绿 + typecheck 9 包 + eval 6/6+3/3 |
 | v1.4 | 2026-08（S4-A2 交付） | 完成 A2 demo-env（examples/demo-env：环境层恒动统计 + emote 调制三态对比 + 渲染帧 + 3 断言：恒动/调制/确定性）；实测 194 测试全绿 + typecheck 9 包 + eval 6/6+3/3 |
 | v1.5 | 2026-08（S5 部分交付） | 完成 R-P2-1（fuzz.test.ts：moc3 560 样本 + .moc 560 样本 0 崩溃，截断/翻转/计数损坏/版本篡改 + 空输入回归；转换校验抽样控制耗时）；实测 197 测试全绿 |
+| v1.6 | 2026-08（S3-B3 交付） | 完成 B-3 服装层：8 服装语义（outfit_dress/top/bottom/shoes/hairstyle 等）+ RigClothingPartSpec(costumeGroup) + 衣装组<N> 可见性参数 + outfitLines 换装工具（driver）+ 双服装组 demo（demo-clothing）；实测 199 测试全绿 + typecheck 9 包 |

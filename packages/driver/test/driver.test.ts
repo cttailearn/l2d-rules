@@ -11,6 +11,8 @@ import {
   type MotionLike,
   type EnvParamDef,
   type ParameterSink,
+  outfitLines,
+  costumeGroupFromParam,
 } from "../src/index.ts";
 
 // ---------- 夹具：参数 / manifest / 资产 ----------
@@ -542,4 +544,39 @@ test("R-P1-1: undo——多次失败仅回滚最近失败行", async () => {
   const st = ing.historyStatus();
   assert.equal(st.length, 2);
   assert.deepEqual(st.map((h) => h.op), ["set", "play"]);
+});
+test("B-3: outfitLines——服装组切换编码 + 经 ingestor 生效（override 层换装）", () => {
+  const costumes = [
+    { group: 1, param: "衣装组1", partIds: ["dress-1"] },
+    { group: 2, param: "衣装组2", partIds: ["dress-2"] },
+  ];
+  // 编码：切到组 2 → 组2亮、组1灭
+  const lines = outfitLines(costumes, 2);
+  assert.equal(lines.length, 2);
+  assert.ok(lines.some((l) => l.includes("衣装组1") && l.includes("0")));
+  assert.ok(lines.some((l) => l.includes("衣装组2") && l.includes("1")));
+  // 切到不存在的组 → 空（不产生破坏性行为）
+  assert.equal(outfitLines(costumes, 9).length, 0);
+  assert.equal(costumeGroupFromParam("衣装组2"), 2);
+  assert.equal(costumeGroupFromParam("衣装组10"), 10);
+  assert.equal(costumeGroupFromParam("头转向"), null);
+
+  // 经 StreamIngestor 生效：把 衣装组1/衣装组2 当普通 sem 注入（override 层）
+  const PARAMS2: EnvParamDef[] = [
+    { id: "衣装组1", min: 0, max: 1, def: 1, group: "Custom" },
+    { id: "衣装组2", min: 0, max: 1, def: 0, group: "Custom" },
+  ];
+  const manifest2: ManifestLike = { sems: PARAMS2.map((p) => ({ name: p.id, min: p.min, max: p.max, group: p.group, def: p.def })) };
+  const lib2: AssetIndex = { motions: [], expressions: [], behaviors: [] };
+  const stack2 = new LayerStack(PARAMS2);
+  const env2 = new EnvironmentLayer(PARAMS2, { seed: 1 });
+  const ing2 = new StreamIngestor({ manifest: manifest2, library: lib2, stack: stack2, env: env2, seed: 1 });
+  const sink2: { frames: Record<string, number>[] } & ParameterSink = { frames: [], apply(_c, params) { this.frames.push({ ...params }); } };
+  const ev2 = new Evaluator(stack2, env2, PARAMS2, sink2);
+  // 初始：组1 可见(def=1)
+  for (const l of outfitLines(costumes, 2)) ing2.feedLine(l, 0);
+  ev2.onFrame(16);
+  const p = sink2.frames[sink2.frames.length - 1]!;
+  assert.equal(p["衣装组1"], 0, "组1 已隐藏");
+  assert.equal(p["衣装组2"], 1, "组2 已显示");
 });

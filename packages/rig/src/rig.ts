@@ -3,7 +3,7 @@
 import { createL2dm, embedTexture, sanitizeId } from "@l2dp/convert";
 import type { L2dmDeformer, L2dmMesh, L2dmModel, L2dmPart } from "@l2dp/engine";
 import { RIG_TEMPLATES, headClusterSemantics } from "./vocab.ts";
-import { deriveParameters } from "./params.ts";
+import { collectCostumeGroups, costumeParamOf, deriveParameters } from "./params.ts";
 import { makeGrid, toL2dmMesh, type Grid } from "./meshes.ts";
 import {
   warp1D,
@@ -23,8 +23,8 @@ import {
 import { buildReport } from "./report.ts";
 import type { RigBinding, RigCharacterSpec, RigResult, RigSpec, RigSpecDeformer, RigSpecPendulum } from "./types.ts";
 
-/** 语义 → headCluster 判定缓存 */
-const HEAD_SEM = new Set(headClusterSemantics());
+/** 语义 → headCluster 判定缓存（含服装头簇成员，如 hairstyle） */
+const HEAD_SEM = new Set<string>(headClusterSemantics() as readonly string[]);
 
 function defaultHinge(parts: RigCharacterSpec["parts"], canvas: { width: number; height: number }): { x: number; y: number } {
   const face = parts.find((p) => p.semantic === "face");
@@ -165,6 +165,10 @@ export function rigCharacter(spec: RigCharacterSpec): RigResult {
 
     const order = p.order ?? tpl.order * 10 + index;
     const color = p.color ?? tpl.color;
+    // B-3：服装部件 → 随服装组可见性参数显隐（opacityParam = 衣装组<N>）
+    const costumeGroup = tpl.clothing === true
+      ? ((p as { costumeGroup?: number }).costumeGroup ?? 1)
+      : undefined;
     const part: L2dmPart = {
       id: p.id,
       order,
@@ -173,6 +177,8 @@ export function rigCharacter(spec: RigCharacterSpec): RigResult {
       ...(p.image ? { texture: p.id } : {}),
       // B-1：脸颊随「脸红」参数显隐（0 → 透明，>0 渐显；引擎 opacityParam 驱动）
       ...(p.semantic === "hoho" ? { opacityParam: "脸红" } : {}),
+      // B-3：服装部件随 衣装组<N> 参数显隐（outfit op 置 1 即换装）
+      ...(costumeGroup !== undefined ? { opacityParam: costumeParamOf(costumeGroup) } : {}),
       ...(hasBody && breathing && p.semantic === "body_upper" ? { parent: "body_breathe" } : {}),
     };
     parts.push(part);
@@ -182,6 +188,7 @@ export function rigCharacter(spec: RigCharacterSpec): RigResult {
       order,
       color,
       ...(p.image ? { texture: p.id } : {}),
+      ...(costumeGroup !== undefined ? { costumeGroup } : {}),
       bindings,
     });
   });
@@ -247,6 +254,8 @@ export function rigCharacter(spec: RigCharacterSpec): RigResult {
     deformers: rigDeformers,
     physics: pendulums,
     pose: null,
+    // B-3：服装组审计（outfit 换装依据）
+    costumes: collectCostumeGroups(spec.parts).map((c) => ({ group: c.group, param: c.param, partIds: c.partIds })),
     notes: [],
   };
 
