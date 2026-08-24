@@ -148,11 +148,11 @@
 - **落点**：examples/demo-llm（无 key 时降级 mock provider 仍可跑）。
 - **DoD**：LLM_API_KEY 设置后全链真实跑通；无 key 时 mock 兜底并可见标注；具备 hop 指标显示 + 审计落盘（AuditSink 预留）。
 
-### A5  demo-creation-full —— 一张原图 → 可动角色（真实服务/LLM 接线）
+### A5  demo-creation-full —— 一张原图 → 可动角色（真实服务/LLM 接线） 【x 已完成（demo-p4b run/bridge/bridge-llm 三脚本 + A5 自动化全链测试）】
 - **目标**：补齐 demo-p4b 由纯 SDK + mock 到真实 HTTP 分割服务 + 真实 LLM 标注/审核的完整演示，让 P4 通道对使用者开箱即用。
 - **内容**：上传/选择立绘 → HttpSegmenter（真服务，无服务时降级 ColorKey）→ LlmLabeler（真实语义标注）→ createWithSelfRepair → rig/驱动/预览帧。
 - **落点**：扩展 examples/demo-p4b（新增 web.mjs 简易本地服务）或独立 examples/demo-creation。
-- **DoD**：一键脚本跑通全链并出预览 PNG + .l2dm + RigSpec + report；无服务/无 key 自动降级可复现。
+- **DoD**：一键脚本跑通全链并出预览 PNG + .l2dm + RigSpec + report；无服务/无 key 自动降级可复现。A5 自动化全链测试（examples/demo-p4b/test/demo.test.ts：原图→拆→LLM 标注 mock→自修复→绑定→驱动→渲染确定性）✅
 
 ### A6  demo-import-loop —— 官方模型导入回环（回归演示）
 - **目标**：把 convert（model3 + .moc3 + .moc）做成『导入 → .l2dm → 引擎渲染 → 与官方对比』的公开用例，承载 C1/C2 的 golden。
