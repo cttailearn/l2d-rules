@@ -83,7 +83,7 @@
 
 ### P2（中期，能力与工程加固）
 
-#### R-P2-1  .moc3/.moc 解析鲁棒性加固（对齐 CVE-2023-27566 教训）
+#### R-P2-1  .moc3/.moc 解析鲁棒性加固（对齐 CVE-2023-27566 教训） 【x 已完成（packages/convert/test/fuzz.test.ts）】
 - **动作**：为 readMoc3/readMoc 增加 fuzz 测试（随机字节/截断/越界偏移/坏计数），确保抛出明确错误而非崩溃/内存越界；补损坏语料回归 10 例。
 - **DoD**：fuzz 500 组样本 0 崩溃；损坏文件均返回 {ok:false,error}。
 
@@ -248,3 +248,4 @@
 | v1.2 | 2026-08（S3 部分交付） | 完成 B-1（RIG_SEMANTICS 12→23，含 20 body + tail/wing/ear_beast）、B-2（新增 8 个 warp 合成：下躯/臂/腿/胸/尾巴/翅膀/兽耳/脸红 opacity）、B-4（非标准部位模板）+ 33 部件全绑定测试；实测 188 测试全绿 + typecheck 9 包 + eval 6/6+3/3 |
 | v1.3 | 2026-08（S4-A1 交付） | 完成 A1 demo-multi-body（examples/demo-multi-body：33 部件 rig + 尾巴/翅膀/兽耳/脸红 JSONL 语义驱动 + 环境层 + 无头出图 + 3 自动化断言）；实测 191 测试全绿 + typecheck 9 包 + eval 6/6+3/3 |
 | v1.4 | 2026-08（S4-A2 交付） | 完成 A2 demo-env（examples/demo-env：环境层恒动统计 + emote 调制三态对比 + 渲染帧 + 3 断言：恒动/调制/确定性）；实测 194 测试全绿 + typecheck 9 包 + eval 6/6+3/3 |
+| v1.5 | 2026-08（S5 部分交付） | 完成 R-P2-1（fuzz.test.ts：moc3 560 样本 + .moc 560 样本 0 崩溃，截断/翻转/计数损坏/版本篡改 + 空输入回归；转换校验抽样控制耗时）；实测 197 测试全绿 |
