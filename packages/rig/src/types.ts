@@ -2,11 +2,12 @@
 // 仅可擦除语法（无 enum/namespace），类型注解仅编译期生效。
 import type { L2dmModel, L2dmParamGroup } from "@l2dp/engine";
 
-/** P4a 支持的语义部件类型（对齐 specs/parts-naming.json 身体层子集） */
+/** P4a 支持的语义部件类型（B-1：对齐 specs/parts-naming.json 身体层 20 语义 + B-4：非标准部位 tail/ear_beast/wing） */
 export const RIG_SEMANTICS = [
   "hair_back", "hair_side", "hair_front",
   "ear", "neck", "face", "eye", "eyeball", "brow", "mouth", "nose",
-  "body_upper",
+  "hoho", "body_upper", "body_lower", "arm_a", "arm_b", "leg", "feet",
+  "adult_breast", "adult_genital", "tail", "ear_beast", "wing",
 ] as const;
 export type RigSemantic = (typeof RIG_SEMANTICS)[number];
 

@@ -14,6 +14,11 @@ import {
   mouthSmileOffsets,
   hairSwayOffsets,
   hairHeadFollowOffsets,
+  bodyLowerSwayOffsets,
+  limbSwayOffsets,
+  tailSwayOffsets,
+  wingFlapOffsets,
+  earTwitchOffsets,
 } from "./warps.ts";
 import { buildReport } from "./report.ts";
 import type { RigBinding, RigCharacterSpec, RigResult, RigSpec, RigSpecDeformer, RigSpecPendulum } from "./types.ts";
@@ -91,6 +96,58 @@ export function rigCharacter(spec: RigCharacterSpec): RigResult {
         bindings.push({ param: "嘴开", kind: "warp1d" }, { param: "嘴笑", kind: "warp1d" });
         break;
       }
+      case "body_lower": {
+        warps1d.push(warp1D("身摆", [-1, 0, 1], (v) => bodyLowerSwayOffsets(grid, v)));
+        bindings.push({ param: "身摆", kind: "warp1d" });
+        break;
+      }
+      case "arm_a":
+      case "arm_b": {
+        const param = p.semantic === "arm_b" ? "臂右摆" : "臂左摆";
+        // 复用 臂摆 参数，区分左右：arm_a/arm_b 用一侧符号
+        warps1d.push(warp1D("臂摆", [-1, 0, 1], (v) => limbSwayOffsets(grid, p.side === "right" ? -v : v)));
+        bindings.push({ param: "臂摆", kind: "warp1d" });
+        void param;
+        break;
+      }
+      case "leg": {
+        warps1d.push(warp1D("腿摆", [-1, 0, 1], (v) => limbSwayOffsets(grid, p.side === "right" ? -v : v)));
+        bindings.push({ param: "腿摆", kind: "warp1d" });
+        break;
+      }
+      case "adult_breast": {
+        // 胸摆动：摆锤输出 胸摆 消费（见 §4 pendulums）
+        warps1d.push(warp1D("胸摆", [-1, 0, 1], (v) => limbSwayOffsets(grid, v, 8)));
+        bindings.push({ param: "胸摆", kind: "pendulum-out" });
+        break;
+      }
+      case "adult_genital": {
+        // 内容分级部件：不挂默认形变，仅静态（可见性由 ContentPolicy/opacity 控制）
+        break;
+      }
+      case "tail": {
+        warps1d.push(warp1D("尾巴摆", [0, 1], (v) => tailSwayOffsets(grid, v)));
+        bindings.push({ param: "尾巴摆", kind: "warp1d" });
+        break;
+      }
+      case "wing": {
+        warps1d.push(warp1D("翅膀扇", [-1, 1], (v) => wingFlapOffsets(grid, v)));
+        bindings.push({ param: "翅膀扇", kind: "warp1d" });
+        break;
+      }
+      case "ear_beast": {
+        warps1d.push(warp1D("耳朵动", [-1, 0, 1], (v) => earTwitchOffsets(grid, v)));
+        bindings.push({ param: "耳朵动", kind: "warp1d" });
+        break;
+      }
+      case "hoho": {
+        // 脸颊：脸红参数 → opacity 显隐（引擎 Part.opacityParam）
+        break;
+      }
+      case "feet": {
+        // 静态（无形变）；着地由画布摆放保证
+        break;
+      }
       default:
         if (p.semantic === "hair_front" || p.semantic === "hair_side" || p.semantic === "hair_back") {
           // 头转直驱跟随（必选：肉眼可见的发丝滞后）；物理摆锤输出（可选：叠加微小延迟）
@@ -114,6 +171,8 @@ export function rigCharacter(spec: RigCharacterSpec): RigResult {
       color,
       mesh,
       ...(p.image ? { texture: p.id } : {}),
+      // B-1：脸颊随「脸红」参数显隐（0 → 透明，>0 渐显；引擎 opacityParam 驱动）
+      ...(p.semantic === "hoho" ? { opacityParam: "脸红" } : {}),
       ...(hasBody && breathing && p.semantic === "body_upper" ? { parent: "body_breathe" } : {}),
     };
     parts.push(part);
@@ -147,11 +206,18 @@ export function rigCharacter(spec: RigCharacterSpec): RigResult {
     });
   }
 
-  // 4) 发丝物理（摆锤输出参数 发摆，sway warp 消费）
+  // 4) 物理（摆锤输出参数，warp 消费）
   let pendulums: RigSpecPendulum[] | null = null;
+  const hasBreast = spec.parts.some((p) => p.semantic === "adult_breast");
+  const list: RigSpecPendulum[] = [];
   if (physics && hasHair) {
-    pendulums = [{ id: "hair-sway", input: "头转向", outputParams: ["发摆"], delay: 0.8, acceleration: 0.5 }];
+    list.push({ id: "hair-sway", input: "头转向", outputParams: ["发摆"], delay: 0.8, acceleration: 0.5 });
   }
+  if (physics && hasBreast) {
+    // B-2：胸摆动（输入 呼吸 → 输出 胸摆；摆锤惯性模拟胸部跟随呼吸的迟缓摆动）
+    list.push({ id: "breast-sway", input: "呼吸", outputParams: ["胸摆"], delay: 1.2, acceleration: 0.4 });
+  }
+  if (list.length > 0) pendulums = list;
 
   // 5) 组装 .l2dm（复用 @l2dp/convert author API）
   const model = createL2dm({

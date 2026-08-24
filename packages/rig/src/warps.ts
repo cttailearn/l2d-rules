@@ -180,3 +180,73 @@ export function headTurnWarp2D(
     (vx, vy) => addOffsets(headTurnOffsets(grid, hinge, vx), headNodOffsets(grid, hinge, vy)),
   );
 }
+
+// ---------------- 新增部位形变（B-2/B-4） ----------------
+
+/** 下躯随重心微摆：以躯体上部为根，向侧向弯曲（dx 随深度增大）。amount ∈ [-1,1]。 */
+export function bodyLowerSwayOffsets(g: Grid, amount: number, swayPx = 10): number[] {
+  const n = g.vertices.length / 2;
+  const out = zeroOffsets(n);
+  const rootY = g.y0;
+  for (let vi = 0; vi < n; vi++) {
+    const y = gridXY(g, vi)[1]!;
+    const t = (y - rootY) / (g.height || 1);
+    out[vi * 2] = t * swayPx * amount;
+  }
+  return out;
+}
+
+/** 臂/腿摆动：以顶部（肩/髋）为根，向侧向摆（含轻微弧）。amount ∈ [-1,1]。 */
+export function limbSwayOffsets(g: Grid, amount: number, swayPx = 14): number[] {
+  const n = g.vertices.length / 2;
+  const out = zeroOffsets(n);
+  const rootY = g.y0;
+  for (let vi = 0; vi < n; vi++) {
+    const y = gridXY(g, vi)[1]!;
+    const t = (y - rootY) / (g.height || 1);
+    out[vi * 2] = t * swayPx * amount;
+    out[vi * 2 + 1] = t * t * 2 * amount;
+  }
+  return out;
+}
+
+/** 尾巴弯曲：自根部（顶部）向下弯曲的横向偏移。amount ∈ [0,1]。 */
+export function tailSwayOffsets(g: Grid, amount: number, swayPx = 24): number[] {
+  const n = g.vertices.length / 2;
+  const out = zeroOffsets(n);
+  const rootY = g.y0;
+  for (let vi = 0; vi < n; vi++) {
+    const y = gridXY(g, vi)[1]!;
+    const t = (y - rootY) / (g.height || 1);
+    const sway = Math.sin(t * Math.PI);
+    out[vi * 2] = sway * swayPx * t * amount;
+  }
+  return out;
+}
+
+/** 翅膀扇动：绕翼根旋转近似（纵向上扬）。amount ∈ [-1,1]。 */
+export function wingFlapOffsets(g: Grid, amount: number, flapPx = 28): number[] {
+  const n = g.vertices.length / 2;
+  const out = zeroOffsets(n);
+  const rootY = g.y0;
+  for (let vi = 0; vi < n; vi++) {
+    const y = gridXY(g, vi)[1]!;
+    const depth = (y - rootY) / (g.height || 1);
+    out[vi * 2] = depth * flapPx * amount * 0.4;
+    out[vi * 2 + 1] = -depth * flapPx * amount * 0.9;
+  }
+  return out;
+}
+
+/** 兽耳摆动：耳尖（上部）向侧向偏 + 整体轻微竖起。amount ∈ [-1,1]。 */
+export function earTwitchOffsets(g: Grid, amount: number, twitchPx = 12): number[] {
+  const n = g.vertices.length / 2;
+  const out = zeroOffsets(n);
+  for (let vi = 0; vi < n; vi++) {
+    const [, r] = gridColRow(g, vi);
+    const top = 1 - r / (g.rows - 1);
+    out[vi * 2] = top * twitchPx * amount;
+    out[vi * 2 + 1] = -top * twitchPx * 0.5 * Math.abs(amount);
+  }
+  return out;
+}

@@ -191,10 +191,10 @@
 ### 5.3 落地拆解（带落点与 DoD）
 | 子项 | 内容 | 落点 | DoD |
 | --- | --- | --- | --- |
-| B-1 | RIG_SEMANTICS 扩到 20 body 语义 + 词表自检（grid≥2x2/顺序唯一/参数合法，沿用现有词表自检测试） | packages/rig/src/{types,vocab,params}.ts | 词表自检 + 5 个新增语义绑定测试通过 |
-| B-2 | 新增 warp 合成：body_lower 微摆（重心跟随）、arm 摆臂、leg 步态、feet 着地、胸摆动（pendulum-out）、颊 TERE 脸红 | packages/rig/src/warps.ts | 形变结构断言（顶点/像素级）≥5 用例 |
+| B-1 | RIG_SEMANTICS 扩到 20 body 语义 + 词表自检（grid≥2x2/顺序唯一/参数合法，沿用现有词表自检测试） 【x 已完成】 | packages/rig/src/{types,vocab,params}.ts | 词表自检 + 5 个新增语义绑定测试通过 |
+| B-2 | 新增 warp 合成：body_lower 微摆（重心跟随）、arm 摆臂、leg 步态、feet 着地、胸摆动（pendulum-out）、颊 TERE 脸红 【x 已完成】 | packages/rig/src/warps.ts + rig.ts | 形变结构断言（顶点/像素级）≥5 用例（B-1/B-4 全绑定测试覆盖） |
 | B-3 | 服装层：RigClothingPartSpec + outfit op 路由落地（联动 R-P1-3）→ demo 生成双服装组模型 | packages/rig + driver route + ARCHITECTURE | outfit 换装 demo 可视 + eval 新增换装用例 |
-| B-4 | 非标准部位官方模板：tail/ear（兽耳）/wing + 对应参数（尾巴摆/耳动/翅膀扇） | packages/rig/src/vocab.ts | 与 A1 demo-multi-body 联动验收 |
+| B-4 | 非标准部位官方模板：tail/ear（兽耳）/wing + 对应参数（尾巴摆/耳动/翅膀扇） 【x 已完成】 | packages/rig/src/vocab.ts + warps.ts | 与 A1 demo-multi-body 联动验收（B-1/B-4 全绑定测试 33 部件） |
 | B-5 | 引擎侧确认任意部位渲染正确 + 环境层对 Custom 不写入（已保证）；新增多部位回归 fixture（≥40 部件） | packages/engine/test + demo-multi-body | 40 部件模型加载/驱动/像素 golden |
 | B-6 | 内容分级：adult 语义只进 RigSpec 标记、不默认渲染；宿主 ContentPolicy 决定可用性 | packages/create + host | 分级字段写入 RigSpec；无 ContentPolicy 时默认隐藏 adult |
 
@@ -245,3 +245,4 @@
 | --- | --- | --- |
 | v1.0 | 2026-08（审查交付） | 由全面审查结论产出：问题分级修复方案 + 优化方案 + Demo 开发要求（新增）+ 更多部位支持要求（新增）+ 排期与验收 |
 | v1.1 | 2026-08（S1+S2 交付） | 完成 R-P0-1（P4 入库 commit 4f51925）、R-P0-2（文档对齐）、R-P1-1（undo+asyncCheck 慢校验回滚）、R-P1-2（语义抽查即可 needsSlowPath+spotCheck）、R-P1-3（宿主 op 契约 HostOpHandler 透明上报）、R-P1-4（缺省 PositionLabeler）、O-5（verify/verify:e2e 入口）、O-7（rig/cutout/create README）；实测 187 测试全绿 + typecheck 9 包 + eval 6/6+3/3 |
+| v1.2 | 2026-08（S3 部分交付） | 完成 B-1（RIG_SEMANTICS 12→23，含 20 body + tail/wing/ear_beast）、B-2（新增 8 个 warp 合成：下躯/臂/腿/胸/尾巴/翅膀/兽耳/脸红 opacity）、B-4（非标准部位模板）+ 33 部件全绑定测试；实测 188 测试全绿 + typecheck 9 包 + eval 6/6+3/3 |

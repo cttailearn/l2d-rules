@@ -23,6 +23,14 @@ export const RIG_PARAM_DEFS: Record<string, RigParamDef> = {
   嘴开:   { min: 0, max: 1, def: 0, group: "LipSync" },
   嘴笑:   { min: 0, max: 1, def: 0, group: "Custom" },
   发摆:   { min: -1, max: 1, def: 0, group: "Physics" },
+  脸红:   { min: 0, max: 1, def: 0, group: "Custom" },
+  身摆:   { min: -1, max: 1, def: 0, group: "Body" },
+  臂摆:   { min: -1, max: 1, def: 0, group: "Custom" },
+  腿摆:   { min: -1, max: 1, def: 0, group: "Custom" },
+  胸摆:   { min: -1, max: 1, def: 0, group: "Physics" },
+  尾巴摆: { min: 0, max: 1, def: 0, group: "Custom" },
+  耳朵动: { min: -1, max: 1, def: 0, group: "Custom" },
+  翅膀扇: { min: -1, max: 1, def: 0, group: "Custom" },
 };
 
 const BASE = ["呼吸", "身转"] as const;
@@ -30,9 +38,10 @@ const HEAD = ["头转向", "头点头"] as const;
 const EYES = ["眼闭左", "眼闭右", "眉左升", "眉右升"] as const;
 const MOUTH = ["嘴开", "嘴笑"] as const;
 const HEAD_TRIGGER: readonly RigSemantic[] = [
-  "face", "eye", "eyeball", "brow", "mouth", "nose",
+  "face", "eye", "eyeball", "brow", "mouth", "nose", "hoho", "ear_beast",
   "hair_front", "hair_side", "hair_back", "ear", "neck",
 ];
+const BLUSH_TRIGGER: readonly RigSemantic[] = ["hoho"];
 
 export interface DerivedParam { id: string; min: number; max: number; def?: number; group?: L2dmParamGroup }
 
@@ -46,6 +55,14 @@ export function deriveParameters(
   if (sems.size > 0 && HEAD_TRIGGER.some((s) => sems.has(s))) ids.push(...HEAD);
   if (sems.has("eye") || sems.has("eyeball") || sems.has("brow")) ids.push(...EYES);
   if (sems.has("mouth")) ids.push(...MOUTH);
+  if (sems.has("body_upper") || sems.has("body_lower")) ids.push("身摆");
+  if (sems.has("body_lower")) ids.push("腿摆");
+  if (sems.has("arm_a") || sems.has("arm_b")) ids.push("臂摆");
+  if (sems.has("adult_breast")) ids.push("胸摆");
+  if (sems.has("tail")) ids.push("尾巴摆");
+  if (sems.has("ear_beast")) ids.push("耳朵动");
+  if (sems.has("wing")) ids.push("翅膀扇");
+  if (BLUSH_TRIGGER.some((s) => sems.has(s))) ids.push("脸红");
   if (opts.physics && (sems.has("hair_front") || sems.has("hair_side") || sems.has("hair_back"))) {
     ids.push("发摆");
   }

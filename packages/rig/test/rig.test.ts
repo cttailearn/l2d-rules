@@ -5,7 +5,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { L2dmPlayer, SoftwareRenderer, type L2dmModel } from "@l2dp/engine";
-import { rigCharacter, RIG_TEMPLATES, RIG_PARAM_DEFS } from "../src/index.ts";
+import { rigCharacter, RIG_TEMPLATES, RIG_PARAM_DEFS, type RigPartSpec } from "../src/index.ts";
 import { sampleSpec } from "./sample.ts";
 import { goldenRigFrames, renderState } from "./golden-frames.ts";
 
@@ -191,4 +191,73 @@ test("P4a: 词表自检（模板 grid ≥2×2、参数组合法、先验顺序�
   for (let i = 1; i < orders.length; i++) {
     assert.ok(orders[i]! > orders[i - 1]!, "先验顺序应严格递增（唯一）");
   }
+});
+
+test("B-1/B-4: 完整身体层 20 语义 + 非标准部位（尾巴/兽耳/翅膀）全绑定合法", () => {
+  const canvas = { width: 800, height: 1200 };
+  const parts: RigPartSpec[] = [
+    // 身体层 20
+    { id: "hr-back", semantic: "hair_back", bbox: { x: 200, y: 40, width: 400, height: 260 } },
+    { id: "hr-side-l", semantic: "hair_side", side: "left", bbox: { x: 140, y: 60, width: 120, height: 300 } },
+    { id: "hr-side-r", semantic: "hair_side", side: "right", bbox: { x: 540, y: 60, width: 120, height: 300 } },
+    { id: "hr-front", semantic: "hair_front", bbox: { x: 220, y: 50, width: 360, height: 240 } },
+    { id: "neck", semantic: "neck", bbox: { x: 370, y: 350, width: 60, height: 90 } },
+    { id: "ear-l", semantic: "ear", side: "left", bbox: { x: 240, y: 300, width: 40, height: 90 } },
+    { id: "ear-r", semantic: "ear", side: "right", bbox: { x: 520, y: 300, width: 40, height: 90 } },
+    { id: "hoho-l", semantic: "hoho", side: "left", bbox: { x: 260, y: 395, width: 70, height: 45 } },
+    { id: "hoho-r", semantic: "hoho", side: "right", bbox: { x: 470, y: 395, width: 70, height: 45 } },
+    { id: "face", semantic: "face", bbox: { x: 240, y: 380, width: 320, height: 210 } },
+    { id: "nose", semantic: "nose", bbox: { x: 386, y: 455, width: 28, height: 40 } },
+    { id: "eye-l", semantic: "eye", side: "left", bbox: { x: 290, y: 420, width: 70, height: 44 } },
+    { id: "eye-r", semantic: "eye", side: "right", bbox: { x: 440, y: 420, width: 70, height: 44 } },
+    { id: "eyeball-l", semantic: "eyeball", side: "left", bbox: { x: 306, y: 428, width: 24, height: 24 } },
+    { id: "eyeball-r", semantic: "eyeball", side: "right", bbox: { x: 470, y: 428, width: 24, height: 24 } },
+    { id: "brow-l", semantic: "brow", side: "left", bbox: { x: 288, y: 400, width: 78, height: 20 } },
+    { id: "brow-r", semantic: "brow", side: "right", bbox: { x: 434, y: 400, width: 78, height: 20 } },
+    { id: "mouth", semantic: "mouth", bbox: { x: 365, y: 505, width: 70, height: 40 } },
+    { id: "body-upper", semantic: "body_upper", bbox: { x: 150, y: 470, width: 500, height: 420 } },
+    { id: "body-lower", semantic: "body_lower", bbox: { x: 170, y: 850, width: 460, height: 300 } },
+    { id: "breast", semantic: "adult_breast", bbox: { x: 260, y: 520, width: 280, height: 120 } },
+    { id: "arm-l", semantic: "arm_a", side: "left", bbox: { x: 90, y: 500, width: 60, height: 360 } },
+    { id: "arm-r", semantic: "arm_b", side: "right", bbox: { x: 650, y: 500, width: 60, height: 360 } },
+    { id: "leg-l", semantic: "leg", side: "left", bbox: { x: 240, y: 900, width: 90, height: 280 } },
+    { id: "leg-r", semantic: "leg", side: "right", bbox: { x: 470, y: 900, width: 90, height: 280 } },
+    { id: "feet-l", semantic: "feet", side: "left", bbox: { x: 250, y: 1160, width: 80, height: 30 } },
+    { id: "feet-r", semantic: "feet", side: "right", bbox: { x: 470, y: 1160, width: 80, height: 30 } },
+    { id: "adult-g", semantic: "adult_genital", bbox: { x: 380, y: 880, width: 40, height: 26 } },
+    // 非标准部位（B-4）
+    { id: "tail", semantic: "tail", bbox: { x: 490, y: 780, width: 80, height: 400 } },
+    { id: "ear-beast-l", semantic: "ear_beast", side: "left", bbox: { x: 250, y: 250, width: 55, height: 130 } },
+    { id: "ear-beast-r", semantic: "ear_beast", side: "right", bbox: { x: 495, y: 250, width: 55, height: 130 } },
+    { id: "wing-l", semantic: "wing", side: "left", bbox: { x: 30, y: 240, width: 90, height: 320 } },
+    { id: "wing-r", semantic: "wing", side: "right", bbox: { x: 680, y: 240, width: 90, height: 320 } },
+  ];
+  const { model, report, spec } = rigCharacter({ id: "full-body", canvas, parts });
+  // 词表/模型合法
+  assert.equal(report.ok, true, JSON.stringify(report.checks));
+  assert.equal(model.parts.length, parts.length, "全部 33 部件入模");
+  // 参数面：新增语义参数全部派生
+  const paramIds = model.parameters.map((p) => p.id);
+  for (const expect of ["尾巴摆", "耳朵动", "翅膀扇", "脸红", "身摆", "臂摆", "腿摆", "胸摆"]) {
+    assert.ok(paramIds.includes(expect), "缺少参数 " + expect);
+  }
+  // 非标准部位 warp 绑定
+  const warpParamOf = (id: string) => model.parts.find((p) => p.id === id)!.mesh!.warps!.map((w) => w.parameter);
+  assert.ok(warpParamOf("tail").includes("尾巴摆"));
+  assert.ok(warpParamOf("wing-l").includes("翅膀扇"));
+  assert.ok(warpParamOf("ear-beast-l").includes("耳朵动"));
+  // 兽耳随头转（headCluster → warp2d）
+  assert.ok(model.parts.find((p) => p.id === "ear-beast-l")!.mesh!.warp2d!.length > 0);
+  // hoho 有 opacityParam=脸红
+  assert.equal(model.parts.find((p) => p.id === "hoho-l")!.opacityParam, "脸红");
+  // 胸有摆锤物理输出
+  assert.ok(model.physics!.pendulums.some((p) => p.id === "breast-sway"), "胸摆锤存在");
+  assert.ok(model.physics!.pendulums.some((p) => p.id === "hair-sway"), "发丝摆锤存在");
+  // 绘制顺序：后发 < 脸 < 前发；下躯在腿之上
+  const orderOf = (id: string) => model.parts.find((p) => p.id === id)!.order;
+  assert.ok(orderOf("hr-back") < orderOf("face"));
+  assert.ok(orderOf("face") < orderOf("hr-front"));
+  assert.ok(orderOf("body-lower") < orderOf("leg-l"));
+  // RigSpec 审计含新参数
+  assert.ok(spec.parameters.some((p) => p.id === "尾巴摆"));
 });
