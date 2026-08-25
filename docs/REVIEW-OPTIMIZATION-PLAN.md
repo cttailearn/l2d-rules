@@ -91,7 +91,7 @@
 - **动作**：create/review.ts 增加 ChainedReviewer（RuleReviewer + LlmReviewer 组合）：规则不过 → 直修；规则过但置信低 → 触发视觉 LLM 复核 → 差异回注修复循环。
 - **DoD**：creation eval 3 例在不引入视觉模型时仍全绿；有 key 时走视觉复核路径。
 
-#### R-P2-3  性能基线：SoftwareRenderer 与 warp 累加基准化
+#### R-P2-3  性能基线：SoftwareRenderer 与 warp 累加基准化 【x 已完成（scripts/bench-render.mjs + npm run bench：20 部件≈11.3k fps / 84≈5.3k fps / 200≈2.3k fps，同 seed 确定性）】
 - **动作**：新增 scripts/bench-render.mjs（1 万三角 + 16 纹理；中端约束 ≥30fps 对照），必要时 typed-array 池化 / GPU 参数。
 - **DoD**：基准脚本产出可复现报告并入库（非门禁，供优化依据）。
 
@@ -256,3 +256,4 @@
 | v1.9 | 2026-08（S5-R-P2-2 交付） | 完成 R-P2-2 ChainedReviewer 分级审核链（规则初审→低置信触发视觉复审→差异回注；免无谓复审短路；4 测试）；实测 210 测试全绿 + typecheck 9 包 + eval 6/6+3/3 |
 | v1.10 | 2026-08（S4-A4 交付） | 完成 A4 demo-llm（headless：两跳 hop 指标 + audit；LLM_API_KEY 走真实 OpenAI 兼容端点，缺省 Mock 兜底；3 断言）；实测 213 测试全绿 + typecheck 9 包 + eval 6/6+3/3 |
 | v1.11 | 2026-08（S4-A6 + 加固发现） | 完成 A6 官方模型导入回环（CI 核心）：@l2dp/host decodeModelAtlas（.l2dm 内嵌 atlas → engine Tex2D）；demo-real A6 测试改走真实几何（readMoc3→moc3ToL2dm：84 网格/28 warp 参数→校验→真实纹理渲染→≥2 参数驱动可见+确定性）。⚠ 发现：convert bundle→artifact 走 Phase-1 占位网格，Phase-2 真实几何未接线 toL2dmArtifact（后续待办）；实测 218 测试全绿 + typecheck 9 包 + eval 6/6+3/3 |
+| v1.12 | 2026-08（S5-R-P2-3 交付） | 完成 R-P2-3 渲染吞吐基准（scripts/bench-render.mjs + npm run bench）：软件光栅 20 部件≈11.3k fps / 84≈5.3k fps / 200≈2.3k fps（ms/帧 0.09/0.19/0.43）；同 seed 末帧哈希确定性 OK |

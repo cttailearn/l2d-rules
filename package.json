@@ -12,6 +12,7 @@
     "typecheck": "node scripts/typecheck.mjs",
     "test": "node --test --test-isolation=none \"packages/**/test/*.test.ts\" \"examples/**/test/*.test.ts\"",
     "eval": "node scripts/eval-drive.mjs && node scripts/eval-creation.mjs",
+    "bench": "node scripts/bench-render.mjs",
     "verify": "npm run typecheck && npm run test && npm run eval",
     "verify:e2e": "cd examples/demo-web && npm run test:e2e"
   },
