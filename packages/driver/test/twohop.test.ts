@@ -1,9 +1,11 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
+  AudioClock,
   BehaviorIndex,
   DriverEngine,
   MockProvider,
+  WallClock,
   extractJsonLines,
   OpenAIProvider,
   buildOpenAIBody,
@@ -251,4 +253,28 @@ test("M7: TTS 降级——空文本/纯空白不崩", () => {
   const t = estimateSpeechTimeline("   ");
   assert.ok(t.durationMs >= 0);
   assert.ok(t.visemes!.length === 0);
+});
+test("O-1: DriverEngine 注入 wall 时钟——audit/feed 时间来自 clock.now()（非内部 tMs）", async () => {
+  const s = setup();
+  // 注入独立 wall 时钟：宿主帧推进与事件时间解耦
+  const clock = new WallClock();
+  const engine2 = new DriverEngine({ index: s.index, provider: new MockProvider(), ing: s.ing, clock });
+  // 时钟先推进到 1000ms，再发生事件
+  clock.advance(1000);
+  const r = await engine2.dispatch({ type: "user_text", text: "你好呀！" }, {});
+  assert.equal(r.hop, 1);
+  assert.equal(engine2.audit.length, 2, "greeting 两条行入 audit");
+  assert.ok(engine2.audit.every((a) => a.tMs === 1000), "audit tMs 全部来自 clock（1000），实际 " + engine2.audit.map((a) => a.tMs).join(","));
+});
+
+test("O-1: wall 与 audio 时钟时间轴独立、单调（不比双时轴漂移）", () => {
+  const wall = new WallClock(0);
+  const audio = new AudioClock(5000, 0);
+  wall.advance(16); wall.advance(16);
+  audio.advancePlayhead(40); audio.advancePlayhead(40);
+  assert.equal(wall.now(), 32, "wall 由帧推进");
+  assert.equal(audio.now(), 80, "audio 由播放头推进");
+  assert.equal(audio.wallOffset(), 5000, "audio 事件 wall 偏移");
+  // 单调：负推进被夹到 0
+  wall.advance(-10); assert.equal(wall.now(), 32, "负 dt 不进");
 });

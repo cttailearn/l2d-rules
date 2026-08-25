@@ -11,6 +11,7 @@
 import type { StreamIngestor } from "../stream/ingestor.ts";
 import type { RuntimeProvider } from "../provider/types.ts";
 import { extractJsonLines } from "../provider/fallback.ts";
+import type { DriverClock } from "../clock.ts";
 import { BehaviorIndex, type BehaviorItem, type Context, type DriverEvent } from "./types.ts";
 
 export interface DriverEngineOpts {
@@ -24,6 +25,12 @@ export interface DriverEngineOpts {
    * （丢弃危险/越界行）。缺省 = 全量放行（等价"无慢路径"）。
    */
   spotCheck?: (lines: string[], event: DriverEvent, ctx: Context) => string[] | Promise<string[]>;
+  /**
+   * 统一时钟（O-1｜SPEC §5）：事件发生的 wall/audio 时间源。
+   * 缺省 = 内部 onFrame 累加 tMs（向后兼容）；注入后 feed/audit 使用 clock.now()，
+   * 避免宿主帧时钟与内部 tMs 双时间轴漂移（说话用 audioClock，其余 wallClock）。
+   */
+  clock?: DriverClock;
 }
 
 export class DriverEngine {
@@ -40,14 +47,21 @@ export class DriverEngine {
   /** 语义抽查累计拒绝行数（R-P1-2 审计） */
   spotBlocked = 0;
   private tMs = 0;
+  private readonly clock?: DriverClock;
 
   constructor(opts: DriverEngineOpts) {
     this.index = opts.index;
     this.provider = opts.provider;
     this.ing = opts.ing;
     this.spotCheck = opts.spotCheck;
+    this.clock = opts.clock;
     this.systemPrompt = opts.systemPrompt ??
       "你是 Live2D 角色驱动决策器。输出 JSONL 指令行（每行一个完整 JSON），可用的动作资产见上下文。只输出 JSONL，不要解释。";
+  }
+
+  /** 时间源（O-1）：注入 clock 用 clock.now()，否则回退内部 tMs */
+  private now(): number {
+    return this.clock !== undefined ? this.clock.now() : this.tMs;
   }
 
   /** 帧推进（同步宿主时钟；两跳 feed 的接收时刻由内部 tMs 推进） */
@@ -100,9 +114,10 @@ export class DriverEngine {
   }
 
   private feed(lines: string[]): void {
+    const ts = this.now();
     for (const line of lines) {
-      this.audit.push({ tMs: this.tMs, line });
-      this.ing.feedLine(line, this.tMs);
+      this.audit.push({ tMs: ts, line });
+      this.ing.feedLine(line, ts);
     }
   }
 

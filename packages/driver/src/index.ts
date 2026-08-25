@@ -30,5 +30,7 @@ export * from "./tts/types.ts";
 export * from "./tts/estimate.ts";
 // ---- 流式（§6.2）----
 export * from "./stream/ingestor.ts";
+// ---- 统一时钟（O-1）----
+export * from "./clock.ts";
 // ---- 求值（§6.5）----
 export * from "./eval/evaluator.ts";

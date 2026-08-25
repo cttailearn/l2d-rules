@@ -104,7 +104,7 @@
 
 | 编号 | 优化项 | 说明与落点 | DoD |
 | --- | --- | --- | --- |
-| O-1 | 统一时钟契约 | DriverEngine/Evaluator/Ingestor 显式注入 Clock；区分 wall/audio 时钟（SPEC §5）；避免宿主帧时钟 vs 内部 tMs 双时间轴漂移。落点：driver ir/types + 各构造器。 | 双重时轴用例；确定性测试通过 |
+| O-1 | 统一时钟契约 | DriverEngine 显式注入 Clock（WallClock/AudioClock，SPEC §5）：feed/audit 时间源用 clock.now()，缺省回退内部 tMs 向后兼容；audio 播放头时间轴独立不混用。落点：driver clock.ts + twohop/engine.ts。 【x 已完成】 | 注入时钟用例（audit tMs=clock）+ 双时轴独立/单调用例通过 |
 | O-2 | 文档单一来源（CI 生成） | scripts/gen-stats.mjs 从测试/typecheck 输出生成包清单、测试数、里程碑状态 → 注入 README/build badge。 | README 数字=CI 实测，零手工漂移 |
 | O-3 | 规则库→schema 元一致性检查 | 脚本 lint：新增 op 必须同步 ir/types + OP_RULES + schema.ts + 各 README 表。 | CI 有 lint 步骤；C12 断言扩展 |
 | O-4 | 错误信息结构化 + rule 词典 | issue() 补 rule 词典（中/英 codes）直喂 LLM 自修复提示。 | eval 失败模式解析可用词典 |
@@ -257,3 +257,4 @@
 | v1.10 | 2026-08（S4-A4 交付） | 完成 A4 demo-llm（headless：两跳 hop 指标 + audit；LLM_API_KEY 走真实 OpenAI 兼容端点，缺省 Mock 兜底；3 断言）；实测 213 测试全绿 + typecheck 9 包 + eval 6/6+3/3 |
 | v1.11 | 2026-08（S4-A6 + 加固发现） | 完成 A6 官方模型导入回环（CI 核心）：@l2dp/host decodeModelAtlas（.l2dm 内嵌 atlas → engine Tex2D）；demo-real A6 测试改走真实几何（readMoc3→moc3ToL2dm：84 网格/28 warp 参数→校验→真实纹理渲染→≥2 参数驱动可见+确定性）。⚠ 发现：convert bundle→artifact 走 Phase-1 占位网格，Phase-2 真实几何未接线 toL2dmArtifact（后续待办）；实测 218 测试全绿 + typecheck 9 包 + eval 6/6+3/3 |
 | v1.12 | 2026-08（S5-R-P2-3 交付） | 完成 R-P2-3 渲染吞吐基准（scripts/bench-render.mjs + npm run bench）：软件光栅 20 部件≈11.3k fps / 84≈5.3k fps / 200≈2.3k fps（ms/帧 0.09/0.19/0.43）；同 seed 末帧哈希确定性 OK |
+| v1.13 | 2026-08（O-1 交付） | 完成 O-1 统一时钟契约：driver clock.ts（DriverClock 接口 + WallClock/AudioClock + defaultClock）；DriverEngineOpts.clock 注入，feed/audit 用 clock.now()（缺省回退内部 tMs）；2 用例（注入时钟 audit tMs / 双时轴独立+单调）；实测 220 测试全绿 + typecheck 9 包 + eval 6/6+3/3 |
