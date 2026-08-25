@@ -10,6 +10,8 @@
   },
   "dependencies": {
     "@l2dp/create": "*",
+    "@l2dp/cutout": "*",
+    "@l2dp/driver": "*",
     "@l2dp/engine": "*",
     "@l2dp/rig": "*"
   }
