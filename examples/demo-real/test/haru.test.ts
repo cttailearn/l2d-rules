@@ -4,10 +4,12 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
+import { createHash } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { dirname, join, sep } from "node:path";
-import { loadL2dmObject } from "@l2dp/engine";
-import { addPart, convertLive2dModel, createL2dm, setParamRange, toL2dmArtifact, toL2dmSkeleton, validate } from "@l2dp/convert";
+import { L2dmPlayer, SoftwareRenderer, loadL2dmObject } from "@l2dp/engine";
+import { decodeModelAtlas } from "@l2dp/host";
+import { addPart, convertLive2dModel, createL2dm, moc3ToL2dm, readMoc3, setParamRange, toL2dmArtifact, toL2dmSkeleton, validate } from "@l2dp/convert";
 import { EnvironmentLayer, Evaluator, LayerStack, StreamIngestor } from "@l2dp/driver";
 import type { EnvParamDef } from "@l2dp/driver";
 import type { ConvertedBundle } from "@l2dp/convert";
@@ -162,4 +164,57 @@ test("从零构建：createL2dm + 编辑 API 产出合法模型", async () => {
   const v = validate(m);
   assert.equal(v.ok, true, JSON.stringify(v.issues));
   assert.equal(m.id, "mascot");
+});
+test("A6 回环：官方 .moc3 真实几何→.l2dm→引擎软件渲染（真实网格 + 确定性 + 驱动可见）", async () => {
+  // 1) 真实几何路径（Phase 2）：readMoc3 解析二进制 → moc3ToL2dm 产真实 ArtMesh 几何 + 烘焙 warp
+  const mocBytes = new Uint8Array(await readFile(join(HARU, "Haru.moc3")));
+  const rm = readMoc3(mocBytes);
+  assert.equal(rm.ok, true, rm.ok ? "" : rm.error);
+  const texNames = ["Haru.2048/texture_00.png", "Haru.2048/texture_01.png"];
+  const geoModel = moc3ToL2dm(rm.moc, { id: "Haru-geo", textures: texNames, targetHeight: 800 });
+  assert.ok(geoModel.parts.length >= 50, "真实几何部件数 ≥50（实际 " + geoModel.parts.length + "）");
+  const warpParams = new Set<string>();
+  for (const p of geoModel.parts) {
+    for (const w of p.mesh?.warps ?? []) warpParams.add(w.parameter);
+    for (const w2 of p.mesh?.warp2d ?? []) for (const pp of w2.parameters) warpParams.add(pp);
+  }
+  assert.ok(warpParams.size >= 10, "真实 warp 绑定参数 ≥10（实际 " + warpParams.size + "）");
+
+  // 2) 校验装载 + 真实纹理 atlas
+  const lr = loadL2dmObject(geoModel);
+  if (!lr.ok) throw new Error(lr.error);
+  const uriAtlas: Record<string, string> = {};
+  for (const t of texNames) {
+    const b = await readFile(join(HARU, t));
+    uriAtlas[t] = "data:image/png;base64," + Buffer.from(b).toString("base64");
+  }
+  const atlas = decodeModelAtlas(uriAtlas);
+  assert.equal(atlas.size, 2, "真实 Haru 两纹理解码（实际 " + atlas.size + "）");
+
+  // 3) 渲染回环：非空 + 确定性 + 参数驱动可见
+  const sw0 = new SoftwareRenderer();
+  const player0 = new L2dmPlayer(lr.model, atlas);
+  player0.params.reset(); player0.render(sw0);
+  const px = sw0.readPixels()!;
+  let opaque = 0;
+  for (let i = 3; i < px.length; i += 4) if (px[i]! >= 128) opaque++;
+  assert.ok(opaque > 1000, "真实几何渲染非空（不透明 " + opaque + " 像素）");
+
+  const renderHash = (drive: (p: { set(id: string, v: number): boolean }) => void): string => {
+    const sw = new SoftwareRenderer();
+    const pl = new L2dmPlayer(lr.model, atlas);
+    pl.params.reset();
+    drive(pl.params);
+    pl.render(sw);
+    return createHash("sha256").update(sw.readPixels()!).digest("hex");
+  };
+  const rest = renderHash(() => {});
+  assert.equal(renderHash(() => {}), rest, "确定性：同 rest 同哈希");
+  const drivable: string[] = [];
+  for (const p of lr.model.parameters) {
+    if (Math.abs(p.max - p.min) < 1e-6) continue;
+    const drv = renderHash((pp) => { pp.set(p.id, p.max); });
+    if (drv !== rest) drivable.push(p.id);
+  }
+  assert.ok(drivable.length >= 2, "真实几何回环可驱动可见变化 ≥2 参数（实际 " + drivable.length + ": " + drivable.slice(0, 8).join(",") + "）");
 });

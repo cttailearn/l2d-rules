@@ -6,5 +6,6 @@ export * from "./llm.ts";
 export * from "./llm-labeler.ts";
 export * from "./llm-reviewer.ts";
 export * from "./host.ts";
+export * from "./tex.ts";
 
 export const HOST_VERSION = "0.1.0";

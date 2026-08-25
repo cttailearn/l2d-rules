@@ -154,11 +154,12 @@
 - **落点**：扩展 examples/demo-p4b（新增 web.mjs 简易本地服务）或独立 examples/demo-creation。
 - **DoD**：一键脚本跑通全链并出预览 PNG + .l2dm + RigSpec + report；无服务/无 key 自动降级可复现。A5 自动化全链测试（examples/demo-p4b/test/demo.test.ts：原图→拆→LLM 标注 mock→自修复→绑定→驱动→渲染确定性）✅
 
-### A6  demo-import-loop —— 官方模型导入回环（回归演示）
+### A6  demo-import-loop —— 官方模型导入回环（回归演示） 【x 已完成（部分）】
 - **目标**：把 convert（model3 + .moc3 + .moc）做成『导入 → .l2dm → 引擎渲染 → 与官方对比』的公开用例，承载 C1/C2 的 golden。
 - **内容**：Haru 官方包整体导入（.moc3 真实几何 + 内嵌纹理 + keyform），引擎软件渲染截图 vs 官方 CubismCore 同帧对比，显示像素差%。
 - **落点**：复用 examples/demo-real（新增 compare 页面入口 + 脚本）。
 - **DoD**：golden 脚本输出像素差 <2% 并截图留档；纳入 CI（无 GPU 软件光栅）。
+- **✅ 已交付（CI 可跑核心）**：A6 真实几何回环测试（demo-real/test/haru.test.ts）——readMoc3→moc3ToL2dm（84 ArtMesh/28 warp 参数）→ 合法 .l2dm → 引擎软件渲染（非空帧、确定性、≥2 参数驱动可见）；@l2dp/host 新增 decodeModelAtlas（.l2dm 内嵌 atlas dataURI → engine Tex2D，SDK 侧宿主解码器）。⚠ **验证发现**：convert 的 bundle→artifact 走 Phase-1 占位网格（cdi3 部件目录），Phase-2 真实几何（moc3ToL2dm）尚未接线到 toL2dmArtifact——与官方逐像素对比（golden-moc3.mjs，需 CubismCore）保留，Phase-2 几何接线列后续待办。
 
 > 各 Demo 通用纪律：无 GPU 兜底（软件光栅）、确定性种子注入、纳入 npm run verify、坏行/坏输入有兜底演示。A1 与 §5 联动交付。
 
@@ -254,3 +255,4 @@
 | v1.8 | 2026-08（S4-A3 交付） | 完成 A3 demo-dual-mode（在线流式坏行隔离 vs 离线整批原子拒绝对照 + 规则库共享验证，3 断言）；实测 206 测试全绿 + typecheck 9 包 + eval 6/6+3/3 |
 | v1.9 | 2026-08（S5-R-P2-2 交付） | 完成 R-P2-2 ChainedReviewer 分级审核链（规则初审→低置信触发视觉复审→差异回注；免无谓复审短路；4 测试）；实测 210 测试全绿 + typecheck 9 包 + eval 6/6+3/3 |
 | v1.10 | 2026-08（S4-A4 交付） | 完成 A4 demo-llm（headless：两跳 hop 指标 + audit；LLM_API_KEY 走真实 OpenAI 兼容端点，缺省 Mock 兜底；3 断言）；实测 213 测试全绿 + typecheck 9 包 + eval 6/6+3/3 |
+| v1.11 | 2026-08（S4-A6 + 加固发现） | 完成 A6 官方模型导入回环（CI 核心）：@l2dp/host decodeModelAtlas（.l2dm 内嵌 atlas → engine Tex2D）；demo-real A6 测试改走真实几何（readMoc3→moc3ToL2dm：84 网格/28 warp 参数→校验→真实纹理渲染→≥2 参数驱动可见+确定性）。⚠ 发现：convert bundle→artifact 走 Phase-1 占位网格，Phase-2 真实几何未接线 toL2dmArtifact（后续待办）；实测 218 测试全绿 + typecheck 9 包 + eval 6/6+3/3 |

@@ -14,6 +14,7 @@
     "@l2dp/convert": "*",
     "@l2dp/engine": "*",
     "@l2dp/driver": "*",
+    "@l2dp/host": "*",
     "@l2dp/l2dp": "*"
   },
   "devDependencies": {
