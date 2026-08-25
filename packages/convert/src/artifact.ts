@@ -3,7 +3,8 @@
 // 宿主拿到后无需外部文件即可解码纹理并渲染（解码/上传仍归宿主）。
 
 import type { L2dmModel } from "@l2dp/engine";
-import { toL2dmSkeleton } from "./skeleton.ts";
+import { bundlePhysicsToPendulums, bundlePoseToGroups, toL2dmSkeleton } from "./skeleton.ts";
+import { moc3ToL2dm, readMoc3 } from "./moc3/index.ts";
 import type { ConvertedBundle } from "./types.ts";
 
 const B64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
@@ -48,25 +49,54 @@ export interface ArtifactOptions {
   canvas?: { width: number; height: number };
   /** 是否把占位部件改为引用真实纹理（默认 false：仅内嵌 atlas，网格保持纯色） */
   attachTextures?: boolean;
+  /**
+   * Phase-2 真实几何：官方 .moc3 二进制。提供后 toL2dmArtifact 用 readMoc3+moc3ToL2dm
+   * 产出真实 ArtMesh 几何 + 烘焙 warp + deformer 树（不再用占位网格），
+   * 并叠加 bundle 的 physics3→摆锤 与 pose3→联动组。缺省 = Phase-1 占位骨架。
+   */
+  moc3Bytes?: Uint8Array;
+  /** 目标高度（像素）：真实几何降采样渲染用（如浏览器 demo）；缺省 = 包围盒等比 */
+  targetHeight?: number;
 }
 
 /**
- * 把 ConvertedBundle 升级为**自包含 .l2dm 模型产物**：骨架几何 + 参数面 + 内嵌 atlas。
- * 二次修改用 author.ts 的编辑 API；Phase 2 的 .moc3 几何可替换 parts 网格（uv/uvRect 采样 atlas）。
+ * 把 ConvertedBundle 升级为**自包含 .l2dm 模型产物**：
+ * - 有 moc3Bytes（Phase-2）：真实几何（顶点/UV/索引/warp/deformer）+ bundle 参数面 + physics/pose 叠加 + 内嵌 atlas；
+ * - 无 moc3Bytes（Phase-1）：占位网格骨架 + 参数面 + 内嵌 atlas。
  */
 export function toL2dmArtifact(bundle: ConvertedBundle, opts: ArtifactOptions = {}): L2dmModel {
-  const model = toL2dmSkeleton(bundle, { canvas: opts.canvas });
+  const files = opts.textures ? opts.textures.map((t) => t.file) : [];
+  let model: L2dmModel;
+  if (opts.moc3Bytes) {
+    const rm = readMoc3(opts.moc3Bytes);
+    if (!rm.ok) throw new Error("toL2dmArtifact: .moc3 解析失败: " + rm.error);
+    model = moc3ToL2dm(rm.moc, {
+      id: bundle.source,
+      textures: files.length > 0 ? files : undefined,
+      groups: bundle.groups as { target: string; name: string; ids: string[] }[] | undefined,
+      canvas: opts.canvas,
+      targetHeight: opts.targetHeight,
+    });
+    // 叠加 bundle 元数据：physics3→摆锤 + pose3→联动组（moc3 本身不含这二者）
+    const paramIds = new Set(model.parameters.map((p) => p.id));
+    const pendulums = bundlePhysicsToPendulums(bundle, paramIds);
+    if (pendulums.length > 0) model.physics = { pendulums };
+    const groups = bundlePoseToGroups(bundle).filter((g) => g.ids.every((pid) => model.parts.some((p) => p.id === pid)));
+    if (groups.length > 0) model.pose = { groups };
+  } else {
+    model = toL2dmSkeleton(bundle, { canvas: opts.canvas });
+  }
   if (opts.textures && opts.textures.length > 0) {
     const atlas: Record<string, string> = {};
     for (const t of opts.textures) atlas[t.file] = toDataUri(t.bytes, mimeForFile(t.file));
     model.atlas = atlas;
     if (opts.attachTextures) {
-      const files = opts.textures.map((t) => t.file);
       model.parts = model.parts.map((p, i) => ({ ...p, texture: files[i % files.length]! }));
     }
   }
   return model;
 }
+
 
 /** 给任意 L2dmModel（含 moc3 真实几何）内嵌纹理 atlas（data URI）。 */
 export function embedAtlasInto(model: L2dmModel, textures: { file: string; bytes: Uint8Array }[]): L2dmModel {

@@ -45,7 +45,9 @@ async function main(): Promise<void> {
 
   // 2) 三种 .l2dm 产物
   const skeleton = toL2dmSkeleton(bundle); // 纯骨架
-  const fullArt = toL2dmArtifact(bundle, { textures: await readTextures(bundle) }); // 自包含（内嵌纹理）
+  // Phase-2 真实几何：注入 .moc3 二进制 → toL2dmArtifact 产出真实 ArtMesh + warp + deformer 的自包含模型
+  const moc3Bytes = new Uint8Array(await readFile(join(HARU, bundle.fileRefs.moc)));
+  const fullArt = toL2dmArtifact(bundle, { textures: await readTextures(bundle), moc3Bytes, targetHeight: 900 }); // 自包含（真实几何 + 内嵌纹理）
   const edited = structuredClone(fullArt); // 二次修改（官方转换产物直接编辑）
   attachTexture(edited, edited.parts[0]!.id, "Haru.2048/texture_00.png");
   setParamRange(edited, "ParamMouthOpenY", 0, 1, 0);

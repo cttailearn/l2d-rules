@@ -64,28 +64,8 @@ export function toL2dmSkeleton(b: ConvertedBundle, opts: SkeletonOptions = {}): 
 
   // physics3 → 摆锤近似；仅保留输入/输出参数都落在参数面内的设置
   const paramIds = new Set(parameters.map((p) => p.id));
-  const pendulums: NonNullable<L2dmModel["physics"]>["pendulums"] = [];
-  if (b.physics) {
-    for (const s of b.physics.settings) {
-      const input = s.inputs[0]?.param;
-      const outputs = s.outputs.map((o) => o.param);
-      if (input === undefined || !paramIds.has(input)) continue;
-      if (outputs.length === 0 || !outputs.every((o) => paramIds.has(o))) continue;
-      const delays = s.vertices.map((v) => v.delay).filter((v) => v > 0);
-      const accels = s.vertices.map((v) => v.acceleration).filter((v) => v > 0);
-      pendulums.push({
-        id: s.id || "pendulum-" + pendulums.length,
-        input,
-        outputParams: outputs,
-        delay: delays.length > 0 ? delays.reduce((a, v) => a + v, 0) / delays.length : 1,
-        acceleration: accels.length > 0 ? Math.max(...accels) : 1,
-      });
-    }
-  }
-
-  const poseGroups = (b.pose?.groups ?? [])
-    .filter((g) => g.ids.every((pid) => b.parts.some((p) => p.id === pid)))
-    .map((g) => ({ ids: g.ids }));
+  const pendulums = bundlePhysicsToPendulums(b, paramIds);
+  const poseGroups = bundlePoseToGroups(b).filter((g) => g.ids.every((pid) => b.parts.some((p) => p.id === pid)));
 
   return {
     formatVersion: 1,
@@ -96,6 +76,38 @@ export function toL2dmSkeleton(b: ConvertedBundle, opts: SkeletonOptions = {}): 
     physics: pendulums.length > 0 ? { pendulums } : undefined,
     pose: poseGroups.length > 0 ? { groups: poseGroups } : undefined,
   };
+}
+
+/** bundle physics3 → 引擎摆锤近似（Phase 2 复用；仅保留输入/输出参数都在参数面内的设置）。 */
+export function bundlePhysicsToPendulums(
+  b: ConvertedBundle,
+  paramIds: ReadonlySet<string>,
+): NonNullable<L2dmModel["physics"]>["pendulums"] {
+  const pendulums: NonNullable<L2dmModel["physics"]>["pendulums"] = [];
+  if (!b.physics) return pendulums;
+  for (const s of b.physics.settings) {
+    const input = s.inputs[0]?.param;
+    const outputs = s.outputs.map((o) => o.param);
+    if (input === undefined || !paramIds.has(input)) continue;
+    if (outputs.length === 0 || !outputs.every((o) => paramIds.has(o))) continue;
+    const delays = s.vertices.map((v) => v.delay).filter((v) => v > 0);
+    const accels = s.vertices.map((v) => v.acceleration).filter((v) => v > 0);
+    pendulums.push({
+      id: s.id || "pendulum-" + pendulums.length,
+      input,
+      outputParams: outputs,
+      delay: delays.length > 0 ? delays.reduce((a, v) => a + v, 0) / delays.length : 1,
+      acceleration: accels.length > 0 ? Math.max(...accels) : 1,
+    });
+  }
+  return pendulums;
+}
+
+/** bundle pose3 → 引擎联动组列表（只保留组内 id 都真实存在于部件目录的）。 */
+export function bundlePoseToGroups(b: ConvertedBundle): NonNullable<L2dmModel["pose"]>["groups"] {
+  return (b.pose?.groups ?? [])
+    .filter((g) => g.ids.every((pid) => b.parts.some((p) => p.id === pid)))
+    .map((g) => ({ ids: g.ids }));
 }
 
 /** 角色名 → .l2dm id（仅保留 [A-Za-z0-9_-]，非法字符连串折叠为 '-'，空则兜底 "model"） */

@@ -120,19 +120,28 @@ test("确定性：同 seed 同轨迹", async () => {
   }
 });
 
-test("自包含 .l2dm：真实 Haru 纹理内嵌 + engine 校验通过", async () => {
+test("自包含 .l2dm：Phase-2 真实几何（moc3Bytes→readMoc3→moc3ToL2dm）+ 纹理内嵌 + 校验通过", async () => {
   const b = await build();
   const textures = [];
   for (const t of b.fileRefs.textures) {
     const buf = await readFile(join(HARU, t.file));
     textures.push({ file: t.file, bytes: new Uint8Array(buf) });
   }
-  const art = toL2dmArtifact(b, { textures });
+  const moc3Bytes = new Uint8Array(await readFile(join(HARU, b.fileRefs.moc)));
+  const art = toL2dmArtifact(b, { textures, moc3Bytes, targetHeight: 900 });
   const v = loadL2dmObject(art);
   assert.equal(v.ok, true, v.ok ? "" : v.error);
-  assert.equal(Object.keys(art.atlas!).length, 2, "两张 Haru 纹理均内嵌");
+  // 真实几何：部件数 >> 占位骨架（20），真实纹理未替换时仍带 warp 绑定
+  assert.ok(art.parts.length >= 50, "Phase-2 真实几何部件数 ≥50（实际 " + art.parts.length + "）");
+  const warpParams = new Set<string>();
+  for (const p of art.parts) {
+    for (const w of p.mesh?.warps ?? []) warpParams.add(w.parameter);
+    for (const w2 of p.mesh?.warp2d ?? []) for (const pp of w2.parameters) warpParams.add(pp);
+  }
+  assert.ok(warpParams.size >= 10, "真实几何 warp 绑定参数 ≥10（实际 " + warpParams.size + "）");
+  // 纹理内嵌照旧
+  assert.equal(Object.keys(art.atlas ?? {}).length, 2, "两张 Haru 纹理均内嵌");
   assert.ok(art.atlas!["Haru.2048/texture_00.png"]!.startsWith("data:image/png;base64,"));
-  if (v.ok) assert.equal(v.model.parts.length, 20);
 });
 
 test("二次修改：转换产物可编辑（改范围/加部件/引用纹理），编辑后校验通过", async () => {

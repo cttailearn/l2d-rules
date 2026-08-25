@@ -159,7 +159,7 @@
 - **内容**：Haru 官方包整体导入（.moc3 真实几何 + 内嵌纹理 + keyform），引擎软件渲染截图 vs 官方 CubismCore 同帧对比，显示像素差%。
 - **落点**：复用 examples/demo-real（新增 compare 页面入口 + 脚本）。
 - **DoD**：golden 脚本输出像素差 <2% 并截图留档；纳入 CI（无 GPU 软件光栅）。
-- **✅ 已交付（CI 可跑核心）**：A6 真实几何回环测试（demo-real/test/haru.test.ts）——readMoc3→moc3ToL2dm（84 ArtMesh/28 warp 参数）→ 合法 .l2dm → 引擎软件渲染（非空帧、确定性、≥2 参数驱动可见）；@l2dp/host 新增 decodeModelAtlas（.l2dm 内嵌 atlas dataURI → engine Tex2D，SDK 侧宿主解码器）。⚠ **验证发现**：convert 的 bundle→artifact 走 Phase-1 占位网格（cdi3 部件目录），Phase-2 真实几何（moc3ToL2dm）尚未接线到 toL2dmArtifact——与官方逐像素对比（golden-moc3.mjs，需 CubismCore）保留，Phase-2 几何接线列后续待办。
+- **✅ 已交付（CI 可跑核心）**：A6 真实几何回环测试（demo-real/test/haru.test.ts）——readMoc3→moc3ToL2dm（84 ArtMesh/28 warp 参数）→ 合法 .l2dm → 引擎软件渲染（非空帧、确定性、≥2 参数驱动可见）；@l2dp/host 新增 decodeModelAtlas（.l2dm 内嵌 atlas dataURI → engine Tex2D，SDK 侧宿主解码器）。✅ **已闭合 Phase-2 接线**：toL2dmArtifact 新增 moc3Bytes 选项——有 .moc3 时用 readMoc3+moc3ToL2dm 产真实几何（84 部件/28 warp/97 deformer）+ bundle physics3→摆锤叠加 + 内嵌纹理；无则回退 Phase-1 占位骨架。demo-real 自包含测试断言真实几何，haru-full.l2dm 产物部件数 84。与官方逐像素对比（golden-moc3.mjs，需 CubismCore）保留后续。
 
 > 各 Demo 通用纪律：无 GPU 兜底（软件光栅）、确定性种子注入、纳入 npm run verify、坏行/坏输入有兜底演示。A1 与 §5 联动交付。
 
@@ -259,3 +259,4 @@
 | v1.12 | 2026-08（S5-R-P2-3 交付） | 完成 R-P2-3 渲染吞吐基准（scripts/bench-render.mjs + npm run bench）：软件光栅 20 部件≈11.3k fps / 84≈5.3k fps / 200≈2.3k fps（ms/帧 0.09/0.19/0.43）；同 seed 末帧哈希确定性 OK |
 | v1.13 | 2026-08（O-1 交付） | 完成 O-1 统一时钟契约：driver clock.ts（DriverClock 接口 + WallClock/AudioClock + defaultClock）；DriverEngineOpts.clock 注入，feed/audit 用 clock.now()（缺省回退内部 tMs）；2 用例（注入时钟 audit tMs / 双时轴独立+单调）；实测 220 测试全绿 + typecheck 9 包 + eval 6/6+3/3 |
 | v1.14 | 2026-08（O-6 交付） | 完成 O-6 切图适用域文档：GUIDE-FROM-IMAGE-TO-LIVE2D §2 新增 ColorKeySegmenter 适用域/局限性（平坦色适合；厚涂/照片/复杂背景走 HttpSegmenter/ComfyUI 重型档）+ 判据经验（coverage/overlap/碎片） |
+| v1.15 | 2026-08（Phase-2 几何接线交付） | 闭合 A6 发现的缺口：toL2dmArtifact 新增 moc3Bytes → readMoc3+moc3ToL2dm 产真实几何（84 部件/28 warp/97 deformer + physics3 摆锤叠加 + 内嵌纹理）；skeleton.ts 提炼 bundlePhysicsToPendulums/bundlePoseToGroups 复用；demo-real run.ts 与自包含测试走真实几何；haru-full.l2dm 891 真 84 部件；实测 220 测试全绿 + typecheck 9 包 |
