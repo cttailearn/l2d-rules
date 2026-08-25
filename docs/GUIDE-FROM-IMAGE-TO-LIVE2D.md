@@ -56,6 +56,22 @@ console.log(cut.parts.length + " 件 覆盖率" + cut.coveragePct + "% 重叠" +
 - `parts` 可直接喂给 §3（`createWithSelfRepair` 自动转成创作指令再绑定）。
 - 手工微调：改 `part.bbox` / 增删 `parts` / 换 `side:"left|right"` 后重跑即可。
 
+
+> ### 🎯 ColorKeySegmenter 适用域与局限性（O-6）
+>
+> **面向：平坦色插画**（赛璐璐/动漫风无渐变、色块边界清晰）。判定依据：候选区域为近似单色连通域（tol 内色差）。
+>
+> - **适合**：透明底半身立绘、扁平角色原画、色板分明的拆分图。
+> - **不适合（请走宿主重型分割档）**：
+>   - 实拍照片 / 厚涂 / 渐变阴影（无平坦色块 → 会拆成碎块或整片连体）；
+>   - 背景复杂、前景与背景同色系（需 background:[r,g,b] 也无法稳定分离）；
+>   - 交叠遮挡的多个部件（色键无法判断前后关系）。
+>
+> 上述情况换 **HttpSegmenter（宿主分割服务，SAM2/U2Net 等）或 ComfyUIBridge**——
+> 平台托管重型档（见 §6 平台桥接），返回 mask 候选，标注层（LlmLabeler / PositionLabeler）不变。
+> 判断经验：finalizeCutout 输出 coveragePct 过低 / overlapPct 过高、或部件碎片化严重时，
+> 优先怀疑"色键不适用该图像"，而非只调 tol。
+
 ## 3. ② 创作编排（自修复循环）—— `@l2dp/create`
 
 ```ts
@@ -164,4 +180,3 @@ node scripts/run.mjs | node scripts/bridge.mjs | node scripts/bridge-llm.mjs
 ## 相关文档
 
 - `docs/LLM-CREATION-PIPE-PLAN.md` · `docs/DEVELOPMENT-SPEC.md` · `docs/SPEC-v2.0.md`(§7-10) · `docs/SPEC-DSL-v1.0.md` · README 路线图 P4a–P4c。
-

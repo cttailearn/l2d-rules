@@ -109,7 +109,7 @@
 | O-3 | 规则库→schema 元一致性检查 | 脚本 lint：新增 op 必须同步 ir/types + OP_RULES + schema.ts + 各 README 表。 | CI 有 lint 步骤；C12 断言扩展 |
 | O-4 | 错误信息结构化 + rule 词典 | issue() 补 rule 词典（中/英 codes）直喂 LLM 自修复提示。 | eval 失败模式解析可用词典 |
 | O-5 | 测试分层与单一 verify 入口 【x 已完成】 | npm run verify = typecheck + test + eval（+ verify:e2e 浏览器）串联；CI 唯一入口。 | CI 只有 verify 一条命令的作业 |
-| O-6 | 切图适用域文档 | 明确 ColorKeySegmenter 面向平坦色插画，非平坦走宿主重型档（SAM2/ComfyUI）。 | GUIDE 增加适用域段落 |
+| O-6 | 切图适用域文档 | 明确 ColorKeySegmenter 面向平坦色插画，非平坦走宿主重型档（SAM2/ComfyUI）。 【x 已完成】 | GUIDE-FROM-IMAGE-TO-LIVE2D §2 增加适用域/局限性段落 + 判据经验 |
 | O-7 | P4 包 README 补齐 【x 已完成】 | create/cutout/host/rig 中 3 个缺 README，补齐并统一文件头注释规范。 | 4 个 P4 包都有 README |
 
 ---
@@ -258,3 +258,4 @@
 | v1.11 | 2026-08（S4-A6 + 加固发现） | 完成 A6 官方模型导入回环（CI 核心）：@l2dp/host decodeModelAtlas（.l2dm 内嵌 atlas → engine Tex2D）；demo-real A6 测试改走真实几何（readMoc3→moc3ToL2dm：84 网格/28 warp 参数→校验→真实纹理渲染→≥2 参数驱动可见+确定性）。⚠ 发现：convert bundle→artifact 走 Phase-1 占位网格，Phase-2 真实几何未接线 toL2dmArtifact（后续待办）；实测 218 测试全绿 + typecheck 9 包 + eval 6/6+3/3 |
 | v1.12 | 2026-08（S5-R-P2-3 交付） | 完成 R-P2-3 渲染吞吐基准（scripts/bench-render.mjs + npm run bench）：软件光栅 20 部件≈11.3k fps / 84≈5.3k fps / 200≈2.3k fps（ms/帧 0.09/0.19/0.43）；同 seed 末帧哈希确定性 OK |
 | v1.13 | 2026-08（O-1 交付） | 完成 O-1 统一时钟契约：driver clock.ts（DriverClock 接口 + WallClock/AudioClock + defaultClock）；DriverEngineOpts.clock 注入，feed/audit 用 clock.now()（缺省回退内部 tMs）；2 用例（注入时钟 audit tMs / 双时轴独立+单调）；实测 220 测试全绿 + typecheck 9 包 + eval 6/6+3/3 |
+| v1.14 | 2026-08（O-6 交付） | 完成 O-6 切图适用域文档：GUIDE-FROM-IMAGE-TO-LIVE2D §2 新增 ColorKeySegmenter 适用域/局限性（平坦色适合；厚涂/照片/复杂背景走 HttpSegmenter/ComfyUI 重型档）+ 判据经验（coverage/overlap/碎片） |
