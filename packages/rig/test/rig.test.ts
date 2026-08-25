@@ -5,7 +5,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { L2dmPlayer, SoftwareRenderer, type L2dmModel } from "@l2dp/engine";
-import { rigCharacter, RIG_TEMPLATES, RIG_PARAM_DEFS, type RigPartSpec, type RigClothingPartSpec } from "../src/index.ts";
+import { rigCharacter, RIG_TEMPLATES, RIG_PARAM_DEFS, type RigPartSpec, type RigClothingPartSpec, type RigTemplateLike } from "../src/index.ts";
 import { sampleSpec } from "./sample.ts";
 import { goldenRigFrames, renderState } from "./golden-frames.ts";
 
@@ -348,4 +348,48 @@ test("B-6: 成人分级部件默认隐藏 + RigSpec.adult 审计 + ContentPolicy
   const hidden = renderOpaque(false);
   const revealed = renderOpaque(true);
   assert.ok(revealed > hidden, "揭示成人部件后像素增多（" + hidden + " -> " + revealed + "）");
+});
+
+test("B-7: 自定义语义模板注入（customTemplates）——新语义无需改源码即可绑定、渲染、被参数驱动", () => {
+  // 自定义语义「飘带」：运行时注册模板（非内置词表），带 drive.id 参数
+  const canvas = { width: 500, height: 900 };
+  const customTemplates: Record<string, RigTemplateLike> = {
+    ribbon: { zh: "飘带", order: 20, headCluster: false, color: [0.9, 0.7, 0.9, 1], grid: [2, 8], drive: { id: "飘摆" } },
+  };
+  const parts: RigPartSpec[] = [
+    { id: "face", semantic: "face", bbox: { x: 150, y: 200, width: 200, height: 160 } },
+    { id: "body-upper", semantic: "body_upper", bbox: { x: 80, y: 340, width: 340, height: 300 } },
+    { id: "ribbon", semantic: "ribbon" as RigPartSpec["semantic"], bbox: { x: 330, y: 360, width: 40, height: 300 }, customParams: { 飘摆: { min: -1, max: 1, def: 0, group: "Custom" } } },
+  ];
+  const { model, report, spec } = rigCharacter({ id: "custom-chan", canvas, parts, customTemplates });
+  assert.equal(report.ok, true, JSON.stringify(report.checks));
+  // 新语义入模 + 飘摆参数派生
+  const ribbon = model.parts.find((p) => p.id === "ribbon")!;
+  assert.ok(ribbon !== undefined, "自定义语义部件入模");
+  assert.ok(model.parameters.some((p) => p.id === "飘摆"), "drive 参数已派生");
+  // drive warp 已绑定（摆动）
+  const warpParams = (ribbon.mesh!.warps ?? []).map((w) => w.parameter);
+  assert.ok(warpParams.includes("飘摆"), "drive warp 绑定（" + warpParams.join(",") + "）");
+  assert.ok(spec.parts.find((p) => p.id === "ribbon") !== undefined, "RigSpec 审计含自定义部件");
+  // 驱动可见：置 飘摆=1 改变像素
+  const sw = new SoftwareRenderer();
+  const player = new L2dmPlayer(model, new Map());
+  player.params.reset(); player.render(sw);
+  const rest = Buffer.from(sw.readPixels()!).toString("hex");
+  player.params.set("飘摆", 1); player.render(sw);
+  const drv = Buffer.from(sw.readPixels()!).toString("hex");
+  assert.notEqual(rest, drv, "自定义语义被参数驱动改变像素（B-7 可见）");
+});
+
+test("B-7: customTemplates 覆盖内置语义优先 + 未知语义（无模板）仍拒绝", () => {
+  const canvas = { width: 300, height: 400 };
+  // 覆盖 face 模板的颜色 → 生成像素应不同
+  const customTemplates: Record<string, RigTemplateLike> = {
+    face: { zh: "脸(自定义)", order: 6, headCluster: true, color: [0.1, 0.9, 0.1, 1], grid: [4, 4] },
+  };
+  const { model } = rigCharacter({ id: "c", canvas, parts: [{ id: "face", semantic: "face", bbox: { x: 50, y: 50, width: 200, height: 160 } }], customTemplates, physics: false });
+  const f = model.parts.find((p) => p.id === "face")!;
+  assert.deepEqual(f.color, [0.1, 0.9, 0.1, 1], "自定义模板覆盖内置 face 颜色");
+  // 未注册语义 → 拒绝（既有守卫仍然生效）
+  assert.throws(() => rigCharacter({ id: "x", canvas, parts: [{ id: "zzz", semantic: "zzz" as RigPartSpec["semantic"], bbox: { x: 0, y: 0, width: 10, height: 10 } }] }), /未知语义/);
 });

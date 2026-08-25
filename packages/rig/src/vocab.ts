@@ -21,6 +21,15 @@ export interface RigTemplate {
   grid: [number, number];
 }
 
+/**
+ * 自定义语义模板（B-7）：与 RigTemplate 形状基本一致，但
+ * - 不带 semantic 字段（key 即语义 id）；
+ * - 可选 drive.id：调用方在部件 customParams 里声明该参数后，rig 自动挂一个摆动 warp（等效内置语义的摆动绑定）。
+ */
+export interface RigTemplateLike extends Omit<RigTemplate, "semantic"> {
+  drive?: { id: string };
+}
+
 export const RIG_TEMPLATES: Record<RigTemplateSemantic, RigTemplate> = {
   // ---- 身体层（20 语义，对齐 specs/parts-naming.json bodyParts）----
   hair_back:  { semantic: "hair_back",  zh: "后发", order: 0,  headCluster: true,  color: [0.24, 0.22, 0.34, 1], grid: [3, 4] },

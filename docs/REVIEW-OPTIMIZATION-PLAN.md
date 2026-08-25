@@ -198,6 +198,7 @@
 | B-4 | 非标准部位官方模板：tail/ear（兽耳）/wing + 对应参数（尾巴摆/耳动/翅膀扇） 【x 已完成】 | packages/rig/src/vocab.ts + warps.ts | 与 A1 demo-multi-body 联动验收（B-1/B-4 全绑定测试 33 部件） |
 | B-5 | 引擎侧确认任意部位渲染正确 + 环境层对 Custom 不写入（已保证）；新增多部位回归 fixture（≥40 部件） 【x 已完成】 | packages/engine/test/bodies.test.ts | 40 部件模型校验/加载/驱动/渲染（4 用例） |
 | B-6 | 内容分级：adult 语义只进 RigSpec 标记、不默认渲染；宿主 ContentPolicy 决定可用性 【x 已完成】 | packages/rig（分级隐藏 opacityParam + RigSpec.adult 审计） | 默认隐藏 + ContentPolicy 揭示像素变化（1 用例） |
+| B-7 | 自定义语义扩展：rigCharacter 支持 customTemplates 运行时注入（无需改源码注册新语义 + drive 参数挂摆动 warp）；创建路径 CreationDirective.customTemplates/customParams 透传 + validate 识别；LLM 创作可产出服装语义 【x 已完成】 | packages/rig(type/vocab/rig) + packages/create(ir/validate/execute) + examples/demo-custom + GUIDE §9.5 | customTemplates 注入语义可驱动（像素变化）；创作路径自定义+服装全链；demo-custom 2 用例 + rig 2 用例 + create 2 用例 |
 
 ### 5.4 更多部位对下游的影响与约束
 - **确定性保持不变**：新增 warp 全部走 accumulateKeyforms 确定性路径；无 Date.now、随机种子注入。
@@ -261,3 +262,4 @@
 | v1.14 | 2026-08（O-6 交付） | 完成 O-6 切图适用域文档：GUIDE-FROM-IMAGE-TO-LIVE2D §2 新增 ColorKeySegmenter 适用域/局限性（平坦色适合；厚涂/照片/复杂背景走 HttpSegmenter/ComfyUI 重型档）+ 判据经验（coverage/overlap/碎片） |
 | v1.15 | 2026-08（Phase-2 几何接线交付） | 闭合 A6 发现的缺口：toL2dmArtifact 新增 moc3Bytes → readMoc3+moc3ToL2dm 产真实几何（84 部件/28 warp/97 deformer + physics3 摆锤叠加 + 内嵌纹理）；skeleton.ts 提炼 bundlePhysicsToPendulums/bundlePoseToGroups 复用；demo-real run.ts 与自包含测试走真实几何；haru-full.l2dm 真 84 部件；实测 220 测试全绿 + typecheck 9 包 |
 | v1.16 | 2026-08（O-3/O-4 交付） | 完成 O-3 规则库→schema 元一致性 lint（scripts/lint-rules.mjs，npm run lint 并入 verify：Op↔OP_RULES/无游离键/字段∈PAYLOAD∪COMMON/词典齐全/SPEC-DSL 覆盖 5 项）；完成 O-4 规则错误词典（RULE_CODE_DICT 16 条中/英/action + describeRule + annotateIssues 供 LLM 自修复）；修复 lint 发现的 PAYLOAD_FIELDS 与文档覆盖问题；实测 221 测试全绿 + typecheck 9 包 + eval 6/6+3/3 + lint 全一致 |
+| v1.17 | 2026-08（B-7 交付） | 完成自定义语义扩展：rigCharacter.customTemplates（运行时注入新语义，drive.id 自动挂摆动 warp；custom 优先可覆盖内置；未注册仍拒绝）；create 路径 CreationPart.customParams + CreationDirective.customTemplates 全链透传（execute/validate 识别，LLM 创作可产出服装语义）；新增 examples/demo-custom + GUIDE §9.5 + 计划 B-7 勾选；实测 226 测试全绿 + typecheck 9 包 + eval 6/6+3/3 + lint 全一致 |

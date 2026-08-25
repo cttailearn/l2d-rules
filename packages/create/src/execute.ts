@@ -24,11 +24,12 @@ export function executeCreation(d: CreationDirective): CreationResult {
 
   const rigParts: RigPartSpec[] = d.parts.map((p) => ({
     id: p.id,
-    semantic: p.semantic,
+    semantic: p.semantic as RigPartSpec["semantic"],
     side: p.side,
     bbox: p.bbox,
     color: p.color,
     image: p.image,
+    customParams: p.customParams,
   }));
   const rigSpec: RigCharacterSpec = {
     id: d.character,
@@ -37,6 +38,7 @@ export function executeCreation(d: CreationDirective): CreationResult {
     hinge: d.hinge,
     physics: d.physics,
     breathing: d.breathing,
+    customTemplates: d.customTemplates,
   };
   const rig = rigCharacter(rigSpec);
 

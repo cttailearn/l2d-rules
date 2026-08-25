@@ -1,6 +1,7 @@
 // @l2dp/rig —— 半自动绑定类型（P4a；SPEC-v2.0 §9.3 的 SDK 落地）
 // 仅可擦除语法（无 enum/namespace），类型注解仅编译期生效。
 import type { L2dmModel, L2dmParamGroup } from "@l2dp/engine";
+import type { RigTemplateLike } from "./vocab.ts";
 
 /** P4a 支持的语义部件类型（B-1：对齐 specs/parts-naming.json 身体层 20 语义 + B-4：非标准部位 tail/ear_beast/wing） */
 export const RIG_SEMANTICS = [
@@ -19,6 +20,9 @@ export const CLOTHING_SEMANTICS = [
 ] as const;
 export type RigClothingSemantic = (typeof CLOTHING_SEMANTICS)[number];
 
+/** 自定义语义 id（B-7：运行时注入；任意字符串均可注册） */
+export type CustomSemantic = string & { __customSemantic?: never };
+
 /** 服装部件（B-3）：在 RigPartSpec 基础上带服装组号（Haru 双服装组范式 _001/_002）。 */
 export interface RigClothingPartSpec extends RigPartSpec {
   /** 服装组号（>=1；同组部件一起切换）。缺省 1。 */
@@ -34,7 +38,7 @@ export interface RigCostumeGroup {
 /** 单个部件输入：部件图 + 语义类 + 画布上的位置（模板网格配准到此 bbox） */
 export interface RigPartSpec {
   id: string;
-  semantic: RigSemantic | RigClothingSemantic;
+  semantic: RigSemantic | RigClothingSemantic | CustomSemantic;
   /** 画布像素 bbox（可视图；模板网格按此配准展开） */
   bbox: { x: number; y: number; width: number; height: number };
   /** 纯色部件（RGBA 0..1；缺省取模板默认色） */
@@ -55,6 +59,12 @@ export interface RigCharacterSpec {
   /** 画布（缺省 512×1024） */
   canvas?: { width: number; height: number };
   parts: RigPartSpec[];
+  /**
+   * 自定义语义模板注入（B-7）：key = 语义 id，值 = 模板（可从 RIG_TEMPLATES 克隆改造）。
+   * 运行时合并进查找表（custom 优先），无需改源码即可注册新语义；
+   * 隐藏的驱动参数用 drive.id（部件 customParams 声明即自动绑定摆动 warp）。
+   */
+  customTemplates?: Record<string, RigTemplateLike>;
   /** 头转向枢轴（缺省 = face bbox 底中，无 face 时 = 画布中下部） */
   hinge?: { x: number; y: number };
   /** 是否生成发丝物理摆锤（缺省 true） */
@@ -71,7 +81,7 @@ export interface RigBinding {
 
 export interface RigSpecPart {
   id: string;
-  semantic: RigSemantic | RigClothingSemantic;
+  semantic: RigSemantic | RigClothingSemantic | CustomSemantic;
   order: number;
   color?: [number, number, number, number];
   texture?: string;

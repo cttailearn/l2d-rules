@@ -1,15 +1,18 @@
 // 创作 IR v1（P4b）——LLM 结构化产物的"创作侧"契约（与驱动 IR v2 并列）
 // 仅可擦除语法。
-import type { RigSemantic } from "@l2dp/rig";
+import type { RigSemantic, RigClothingSemantic, CustomSemantic, RigTemplateLike } from "@l2dp/rig";
+import type { L2dmParamGroup } from "@l2dp/engine";
 
 export interface CreationPart {
   id: string;
-  semantic: RigSemantic;
+  semantic: RigSemantic | RigClothingSemantic | CustomSemantic;
   side?: "left" | "right";
   bbox: { x: number; y: number; width: number; height: number };
   color?: [number, number, number, number];
   /** 部件图（裁剪 RGBA dataURI；@l2dp/rig PartSpec.image） */
   image?: { dataUri: string };
+  /** B-7：自定义驱动参数（供 customTemplates.drive 消费；rig 会派生该参数） */
+  customParams?: Record<string, { min?: number; max?: number; def?: number; group?: L2dmParamGroup }>;
 }
 
 export type MotionKind = "idle" | "blink" | "talk" | "surprise";
@@ -38,6 +41,8 @@ export interface CreationDirective {
   physics?: boolean;
   breathing?: boolean;
   motions?: CreationMotion[];
+  /** B-7：自定义语义模板（随部件 semantic 一起注册给 rig；LLM 创作可产出全新语义） */
+  customTemplates?: Record<string, RigTemplateLike>;
 }
 
 export interface CreationEval {

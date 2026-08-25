@@ -2,7 +2,7 @@
 // 复用 @l2dp/convert 的 author.ts（createL2dm / embedTexture / sanitizeId）作为写入面。
 import { createL2dm, embedTexture, sanitizeId } from "@l2dp/convert";
 import type { L2dmDeformer, L2dmMesh, L2dmModel, L2dmPart } from "@l2dp/engine";
-import { RIG_TEMPLATES, headClusterSemantics, type RigTemplate, type RigTemplateSemantic } from "./vocab.ts";
+import { RIG_TEMPLATES, headClusterSemantics, type RigTemplate, type RigTemplateLike, type RigTemplateSemantic } from "./vocab.ts";
 import { collectCostumeGroups, costumeParamOf, deriveParameters } from "./params.ts";
 import { makeGrid, toL2dmMesh, type Grid } from "./meshes.ts";
 import {
@@ -45,10 +45,16 @@ export function rigCharacter(spec: RigCharacterSpec): RigResult {
   const physics = spec.physics !== false;
   const breathing = spec.breathing !== false;
 
-  // 输入防御：语义已知 + id 唯一
+  // B-7：自定义模板合并查找（custom 优先；RIG_TEMPLATES 为内置兜底）
+  const customT = spec.customTemplates ?? {};
+  const isCustom = (sem: string): boolean => Object.prototype.hasOwnProperty.call(customT, sem);
+  const templateOf = (sem: string): RigTemplateLike =>
+    customT[sem] ?? (RIG_TEMPLATES[sem as RigTemplateSemantic] as unknown as RigTemplateLike);
+
+  // 输入防御：语义已知（内置 ∪ 自定义）+ id 唯一
   const seen = new Set<string>();
   for (const p of spec.parts) {
-    if (!(p.semantic in RIG_TEMPLATES)) throw new Error(`未知语义部件: ${p.semantic}`);
+    if (!isCustom(p.semantic) && !(p.semantic in RIG_TEMPLATES)) throw new Error(`未知语义部件: ${p.semantic}`);
     if (seen.has(p.id)) throw new Error(`部件 id 重复: ${p.id}`);
     seen.add(p.id);
   }
@@ -64,7 +70,7 @@ export function rigCharacter(spec: RigCharacterSpec): RigResult {
   const parts: L2dmPart[] = [];
   const rigParts: RigSpec["parts"] = [];
   spec.parts.forEach((p, index) => {
-    const tpl = RIG_TEMPLATES[p.semantic]!;
+    const tpl = templateOf(p.semantic);
     const grid = makeGrid(tpl.grid[0], tpl.grid[1], p.bbox);
     const mesh: L2dmMesh = toL2dmMesh(grid);
     const bindings: RigBinding[] = [];
@@ -158,6 +164,13 @@ export function rigCharacter(spec: RigCharacterSpec): RigResult {
             bindings.push({ param: "发摆", kind: "warp1d" });
           }
         }
+    }
+
+    // B-7：自定义语义 drive 挂接——调用方在部件 customParams 里声明 drive.id 参数后，自动挂摆动 warp
+    const driveId = (tpl as { drive?: { id: string } }).drive?.id;
+    if (driveId !== undefined && !bindings.some((b) => b.param === driveId)) {
+      warps1d.push(warp1D(driveId, [-1, 0, 1], (v) => limbSwayOffsets(grid, v)));
+      bindings.push({ param: driveId, kind: "warp1d" });
     }
 
     mesh.warps = warps1d.length > 0 ? warps1d : undefined;
@@ -260,7 +273,7 @@ export function rigCharacter(spec: RigCharacterSpec): RigResult {
     costumes: collectCostumeGroups(spec.parts).map((c) => ({ group: c.group, param: c.param, partIds: c.partIds })),
     // B-6：成人分级部件审计（默认隐藏；ContentPolicy 由宿主判定）
     adult: spec.parts
-      .filter((p) => (RIG_TEMPLATES[p.semantic] as RigTemplate | undefined)?.adult === true)
+      .filter((p) => templateOf(p.semantic).adult === true)
       .map((p) => ({ semantic: p.semantic as string, partIds: [p.id] })),
     notes: [],
   };

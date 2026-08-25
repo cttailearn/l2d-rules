@@ -1,5 +1,5 @@
 // validate.ts —— 创作 IR 校验（规则名与 schema 一致；错误结构可直接回注 LLM/修复器）
-import { RIG_SEMANTICS } from "@l2dp/rig";
+import { CLOTHING_SEMANTICS, RIG_SEMANTICS } from "@l2dp/rig";
 import type { CreationDirective } from "./ir.ts";
 
 export interface CreationIssue {
@@ -28,8 +28,13 @@ export function validateCreation(d: CreationDirective): CreationIssue[] {
     }
     if (seen.has(p.id)) issues.push({ rule: "PART_ID_DUP", path, message: "部件 id 重复: " + p.id });
     seen.add(p.id);
-    if (!(RIG_SEMANTICS as readonly string[]).includes(p.semantic)) {
-      issues.push({ rule: "SEM_NOT_IN_VOCAB", path, message: "语义 '" + p.semantic + "' 不在词表" });
+    const customSem = d.customTemplates !== undefined
+      && Object.prototype.hasOwnProperty.call(d.customTemplates, p.semantic);
+    const inVocab = customSem
+      || (RIG_SEMANTICS as readonly string[]).includes(p.semantic)
+      || (CLOTHING_SEMANTICS as readonly string[]).includes(p.semantic);
+    if (!inVocab) {
+      issues.push({ rule: "SEM_NOT_IN_VOCAB", path, message: "语义 '" + p.semantic + "' 不在词表（body/clothing/customTemplates）" });
     }
     if (p.side !== undefined && p.side !== "left" && p.side !== "right") {
       issues.push({ rule: "SIDE_INVALID", path, message: "side 必须为 left/right" });

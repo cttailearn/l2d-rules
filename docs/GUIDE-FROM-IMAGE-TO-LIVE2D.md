@@ -169,6 +169,35 @@ const outcome = await createWithSelfRepair({ character: "my-chan", image: img, s
 - `.l2dm`（自包含模型）· `RigSpec`（审计，回注用）· 预览 PNG/report（无 GPU，CI 可用）。
 - 宿主侧：装配台 UI / 上传存储 / ComfyUI workflows / PSD 导出 → `docs/LLM-CREATION-PIPE-PLAN.md` P4c。
 
+## 9.5 扩展：自定义语义（B-7）
+
+需要新增词表之外的部件语义？两条路径都**无需修改 SDK 源码**：
+
+1. **rig 层注入**（直接绑定）：
+
+```ts
+import { rigCharacter } from "@l2dp/rig";
+const rig = rigCharacter({
+  id: "my-chan",
+  canvas: { width: 512, height: 1024 },
+  parts: [
+    { id: "face", semantic: "face", bbox: {x:0,y:0,width:1,height:1} },
+    { id: "cape", semantic: "cape", bbox: {x:0,y:0,width:1,height:1}, customParams: { 披风飘: { min: -1, max: 1, def: 0, group: "Custom" } } },
+  ],
+  customTemplates: {
+    cape: { zh: "披风", order: 21, headCluster: false, color: [0.65, 0.38, 0.78, 1], grid: [3, 6], drive: { id: "披风飘" } },
+  },
+});
+```
+
+2. **创作路径透传**（LLM/IPA 产出）：`CreationDirective` 加 `customTemplates` + 部件 `customParams`，
+`executeCreation` 自动转发给 rig（校验层也识别自定义语义，不再报 `SEM_NOT_IN_VOCAB`）。
+
+`customTemplates` 的 key 即语义 id；值：`{ zh, order, headCluster, color, grid, drive? }`。
+custom 优先于内置词表（可覆盖，如换 `face` 颜色）；`drive.id` 声明的参数在部件 `customParams` 里注册后自动挂摆动 warp。
+完整演示：`examples/demo-custom`（`npm start` 与 `npm test`）。
+
+
 ## 10. 仓库内怎么跑
 
 ```bash

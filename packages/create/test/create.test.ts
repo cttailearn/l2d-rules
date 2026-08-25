@@ -208,3 +208,40 @@ test("R-P2-2: 低置信但视觉通过 → 合并通过", async () => {
   assert.equal(v.ok, true);
   assert.equal(chain.visualCalls, 1);
 });
+test("B-7: validateCreation 接受服装语义（LLM 创作路径可产 outfit_dress 等）", () => {
+  const d: CreationDirective = {
+    v: 1, character: "c", canvas: { width: 320, height: 480 },
+    parts: [
+      { id: "body", semantic: "body_upper", side: "left", bbox: { x: 20, y: 100, width: 200, height: 260 }, color: [0.5, 0.6, 0.9, 1] },
+      { id: "dress", semantic: "outfit_dress", side: "left", bbox: { x: 20, y: 110, width: 200, height: 240 }, color: [0.9, 0.4, 0.6, 1] },
+      { id: "shoes", semantic: "outfit_shoes", side: "left", bbox: { x: 40, y: 430, width: 160, height: 30 }, color: [0.3, 0.3, 0.4, 1] },
+    ],
+    motions: [],
+  };
+  const issues = validateCreation(d);
+  assert.equal(issues.length, 0, "服装语义应被词表接受（实际 " + JSON.stringify(issues) + "）");
+  // 对照：未注册语义仍报 SEM_NOT_IN_VOCAB
+  const bad: CreationDirective = { ...d, parts: [{ id: "zzz", semantic: "zzz", side: "left", bbox: { x: 0, y: 0, width: 10, height: 10 }, color: [0.5, 0.5, 0.5, 1] }] };
+  const badIssues = validateCreation(bad);
+  assert.ok(badIssues.some((i) => i.rule === "SEM_NOT_IN_VOCAB"), "未注册语义仍拒绝");
+});
+test("B-7: LLM 创作路径产出全新自定义语义——CreationDirective.customTemplates 经 execute 全链可绑定", () => {
+  const customTemplates: Record<string, import("@l2dp/rig").RigTemplateLike> = {
+    cape: { zh: "披风", order: 22, headCluster: false, color: [0.6, 0.3, 0.7, 1], grid: [3, 6] },
+  };
+  const d: CreationDirective = {
+    v: 1, character: "cape-chan", canvas: { width: 320, height: 480 },
+    parts: [
+      { id: "body", semantic: "body_upper", side: "left", bbox: { x: 60, y: 180, width: 200, height: 220 }, color: [0.5, 0.6, 0.9, 1] },
+      { id: "cape", semantic: "cape", side: "left", bbox: { x: 260, y: 200, width: 40, height: 220 }, color: [0.6, 0.3, 0.7, 1] },
+    ],
+    customTemplates,
+    motions: [],
+  };
+  const issues = validateCreation(d);
+  assert.equal(issues.length, 0, "自定义语义过校验: " + JSON.stringify(issues));
+  const r = executeCreation(d);
+  assert.ok(r.model.parts.some((p) => p.id === "cape"), "自定义语义部件入模");
+  assert.ok(r.rig.report.ok, "rig 校验通过");
+  assert.ok(r.rig.spec.parameters.length > 0, "参数面生成");
+});
