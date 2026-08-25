@@ -106,8 +106,8 @@
 | --- | --- | --- | --- |
 | O-1 | 统一时钟契约 | DriverEngine 显式注入 Clock（WallClock/AudioClock，SPEC §5）：feed/audit 时间源用 clock.now()，缺省回退内部 tMs 向后兼容；audio 播放头时间轴独立不混用。落点：driver clock.ts + twohop/engine.ts。 【x 已完成】 | 注入时钟用例（audit tMs=clock）+ 双时轴独立/单调用例通过 |
 | O-2 | 文档单一来源（CI 生成） | scripts/gen-stats.mjs 从测试/typecheck 输出生成包清单、测试数、里程碑状态 → 注入 README/build badge。 | README 数字=CI 实测，零手工漂移 |
-| O-3 | 规则库→schema 元一致性检查 | 脚本 lint：新增 op 必须同步 ir/types + OP_RULES + schema.ts + 各 README 表。 | CI 有 lint 步骤；C12 断言扩展 |
-| O-4 | 错误信息结构化 + rule 词典 | issue() 补 rule 词典（中/英 codes）直喂 LLM 自修复提示。 | eval 失败模式解析可用词典 |
+| O-3 | 规则库→schema 元一致性检查 | 脚本 lint：新增 op 必须同步 ir/types + OP_RULES + schema.ts + 各 README 表。 【x 已完成 scripts/lint-rules.mjs + npm run lint 并入 verify】 | CI（verify）含 lint：5 项检查（Op↔OP_RULES / 无游离键 / 字段∈PAYLOAD∪COMMON / 词典齐全 / SPEC-DSL 覆盖） |
+| O-4 | 错误信息结构化 + rule 词典 | issue() 补 rule 词典（中/英 codes）直喂 LLM 自修复提示。 【x 已完成 RULE_CODE_DICT + describeRule + annotateIssues】 | 16 条 code 词典（中/英/action）；annotateIssues 供宿主把 ValidationIssue 转 LLM 自修复提示；O-4 测试通过 |
 | O-5 | 测试分层与单一 verify 入口 【x 已完成】 | npm run verify = typecheck + test + eval（+ verify:e2e 浏览器）串联；CI 唯一入口。 | CI 只有 verify 一条命令的作业 |
 | O-6 | 切图适用域文档 | 明确 ColorKeySegmenter 面向平坦色插画，非平坦走宿主重型档（SAM2/ComfyUI）。 【x 已完成】 | GUIDE-FROM-IMAGE-TO-LIVE2D §2 增加适用域/局限性段落 + 判据经验 |
 | O-7 | P4 包 README 补齐 【x 已完成】 | create/cutout/host/rig 中 3 个缺 README，补齐并统一文件头注释规范。 | 4 个 P4 包都有 README |
@@ -259,4 +259,5 @@
 | v1.12 | 2026-08（S5-R-P2-3 交付） | 完成 R-P2-3 渲染吞吐基准（scripts/bench-render.mjs + npm run bench）：软件光栅 20 部件≈11.3k fps / 84≈5.3k fps / 200≈2.3k fps（ms/帧 0.09/0.19/0.43）；同 seed 末帧哈希确定性 OK |
 | v1.13 | 2026-08（O-1 交付） | 完成 O-1 统一时钟契约：driver clock.ts（DriverClock 接口 + WallClock/AudioClock + defaultClock）；DriverEngineOpts.clock 注入，feed/audit 用 clock.now()（缺省回退内部 tMs）；2 用例（注入时钟 audit tMs / 双时轴独立+单调）；实测 220 测试全绿 + typecheck 9 包 + eval 6/6+3/3 |
 | v1.14 | 2026-08（O-6 交付） | 完成 O-6 切图适用域文档：GUIDE-FROM-IMAGE-TO-LIVE2D §2 新增 ColorKeySegmenter 适用域/局限性（平坦色适合；厚涂/照片/复杂背景走 HttpSegmenter/ComfyUI 重型档）+ 判据经验（coverage/overlap/碎片） |
-| v1.15 | 2026-08（Phase-2 几何接线交付） | 闭合 A6 发现的缺口：toL2dmArtifact 新增 moc3Bytes → readMoc3+moc3ToL2dm 产真实几何（84 部件/28 warp/97 deformer + physics3 摆锤叠加 + 内嵌纹理）；skeleton.ts 提炼 bundlePhysicsToPendulums/bundlePoseToGroups 复用；demo-real run.ts 与自包含测试走真实几何；haru-full.l2dm 891 真 84 部件；实测 220 测试全绿 + typecheck 9 包 |
+| v1.15 | 2026-08（Phase-2 几何接线交付） | 闭合 A6 发现的缺口：toL2dmArtifact 新增 moc3Bytes → readMoc3+moc3ToL2dm 产真实几何（84 部件/28 warp/97 deformer + physics3 摆锤叠加 + 内嵌纹理）；skeleton.ts 提炼 bundlePhysicsToPendulums/bundlePoseToGroups 复用；demo-real run.ts 与自包含测试走真实几何；haru-full.l2dm 真 84 部件；实测 220 测试全绿 + typecheck 9 包 |
+| v1.16 | 2026-08（O-3/O-4 交付） | 完成 O-3 规则库→schema 元一致性 lint（scripts/lint-rules.mjs，npm run lint 并入 verify：Op↔OP_RULES/无游离键/字段∈PAYLOAD∪COMMON/词典齐全/SPEC-DSL 覆盖 5 项）；完成 O-4 规则错误词典（RULE_CODE_DICT 16 条中/英/action + describeRule + annotateIssues 供 LLM 自修复）；修复 lint 发现的 PAYLOAD_FIELDS 与文档覆盖问题；实测 221 测试全绿 + typecheck 9 包 + eval 6/6+3/3 + lint 全一致 |

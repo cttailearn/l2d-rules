@@ -43,6 +43,51 @@ export interface RuleCtx {
 export function issue(rule: string, line: number, message: string, path = ""): ValidationIssue {
   return { path, line, col: -1, rule, message };
 }
+// ---------------- O-4：规则错误词典（中/英 → LLM 自修复提示） ----------------
+
+export interface RuleDictEntry {
+  en: string;
+  zh: string;
+  /** 自修复动作：直喂 LLM 修复提示（eval 失败模式可解析） */
+  action: string;
+}
+
+/** 错误词典：rule code → {en, zh, action}。新增 op/规则时必须在此登记（O-3 lint 校验）。 */
+export const RULE_CODE_DICT: Readonly<Record<string, RuleDictEntry>> = {
+  JSON_PARSE:      { en: "JSON parse failed", zh: "JSON 解析失败", action: "重写该行：确保是合法 JSON 对象，不要注释/尾逗号/多值" },
+  SHAPE:           { en: "Directive must be a JSON object", zh: "指令必须是 JSON 对象", action: "输出单行 JSON 对象，含 op 字段" },
+  OP:              { en: "Unknown op", zh: "未知 op", action: "改用支持的 op：play/face/set/outfit/speak/blink/drift/look/camera/action/emote/wait" },
+  REQUIRED:        { en: "Missing required field", zh: "缺少必填字段", action: "补上规则要求的必填字段（见 per-op 表）" },
+  FORBIDDEN:       { en: "Field not allowed for this op", zh: "该 op 不允许此字段", action: "去掉多余字段，只保留该 op 允许的载荷" },
+  RANGE:           { en: "Value out of range", zh: "值越界", action: "把值修正到合法范围（如 value 在 sem 的 [min,max] 内、[0,1] 系数）" },
+  NAMING:          { en: "Bare official id outside map", zh: "映射区外裸官方 id", action: "使用语义名或经 semantic:true 编译产物" },
+  SEM_NOT_FOUND:   { en: "Semantic not in manifest", zh: "语义不在角色 manifest", action: "改用角色 manifest 里声明的语义名" },
+  ASSET_NOT_FOUND: { en: "Asset not in library", zh: "资产不在库", action: "改用 library.motions/expressions 中存在的 name" },
+  ASSET_UNRESOLVED:{ en: "Asset present but unparsable", zh: "资产存在但不可解析", action: "修正资产文件或换一个可用资产" },
+  CURVE:           { en: "Invalid curve segments", zh: "曲线段不合法", action: "修正 motion 曲线围段格式" },
+  ID_DUP:          { en: "Duplicate id", zh: "id 重复", action: "给 IR 指令分配唯一 id" },
+  AT_DEP_MISSING:  { en: "Referenced id not found", zh: "+id 依赖不存在", action: "去掉 at 引用或先定义被依赖 id" },
+  DEP_CYCLE:       { en: "Dependency cycle", zh: "依赖成环", action: "调整依赖顺序消除环" },
+  STREAM_DEP:      { en: "Cross-line dep forbidden in streaming", zh: "流式禁跨行依赖", action: "只允许 +N 相对毫秒，改用绝对 at" },
+  DRY_RUN:         { en: "Dry-run eval produced NaN/out-of-range", zh: "干跑求值产生 NaN/越界", action: "修正导致参数非有限/越界的指令" },
+} as const;
+
+/** 查词典：code → 条目；未知 code 返回降级条目（保证 LLM 提示永不空）。 */
+export function describeRule(code: string): RuleDictEntry {
+  return RULE_CODE_DICT[code] ?? { en: "UNKNOWN", zh: "未知规则", action: "参考规则库文档核对指令格式" };
+}
+
+/** 给一组校验 issues 标注词典动作（O-4）：宿主/LLM 自修复提示用（中/英 + 动作）。 */
+export interface AnnotatedIssue extends ValidationIssue {
+  en: string;
+  zh: string;
+  action: string;
+}
+
+export function annotateIssues(issues: readonly ValidationIssue[]): AnnotatedIssue[] {
+  return issues.map((iss) => ({ ...iss, ...describeRule(iss.rule) }));
+}
+
 
 // ---------------- 语法：JSON 解析 ----------------
 

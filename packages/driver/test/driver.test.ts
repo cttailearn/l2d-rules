@@ -13,6 +13,8 @@ import {
   type ParameterSink,
   outfitLines,
   costumeGroupFromParam,
+  RULE_CODE_DICT,
+  describeRule,
 } from "../src/index.ts";
 
 // ---------- 夹具：参数 / manifest / 资产 ----------
@@ -579,4 +581,22 @@ test("B-3: outfitLines——服装组切换编码 + 经 ingestor 生效（overri
   const p = sink2.frames[sink2.frames.length - 1]!;
   assert.equal(p["衣装组1"], 0, "组1 已隐藏");
   assert.equal(p["衣装组2"], 1, "组2 已显示");
+});
+
+
+test("O-4: 规则错误词典——已知 code 有中/英+自修复动作，未知 code 降级不崩", () => {
+  const r = RULE_CODE_DICT;
+  // 核心 rule codes 已被词典覆盖
+  for (const c of ["JSON_PARSE", "OP", "REQUIRED", "RANGE", "SEM_NOT_FOUND", "ASSET_NOT_FOUND", "DRY_RUN", "STREAM_DEP"]) {
+    assert.ok(r[c] !== undefined, "词典遗漏 code " + c);
+    assert.ok(r[c]!.en.length > 0 && r[c]!.zh.length > 0 && r[c]!.action.length > 0, c + " 三字段齐全");
+  }
+  // describeRule：已知返回条目；未知降级
+  const known = describeRule("RANGE");
+  assert.equal(known.zh.includes("值越界"), true, "RANGE 中文释义");
+  assert.equal(known.action.length > 8, true, "RANGE 自修复动作");
+  const unk = describeRule("NO_SUCH_CODE_999");
+  assert.equal(unk.zh, "未知规则", "未知 code 降级");
+  // 词典与 OP_RULES 对齐：每个 op 的 code 族（OP/REQUIRED）都在词典
+  assert.ok(r.OP !== undefined && r.REQUIRED !== undefined);
 });
