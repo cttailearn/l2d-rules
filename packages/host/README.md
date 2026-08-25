@@ -13,6 +13,9 @@
 | llm.ts | few-shot 提示词 + 响应 JSON Schema（标注/审核） | — |
 | llm-labeler.ts | Labeler：候选 → 提示词 → RuntimeProvider 结构化输出 → CutoutPart | RuntimeProvider（@l2dp/driver） |
 | llm-reviewer.ts | RigReviewer：软件渲染帧(data URI) → 提示词 → provider 判定（多模态端点直接看图） | RuntimeProvider |
+| llm-directive.ts | P4 指令清洗/主色提取/提示词：`sanitizeCreationDirective`（LLM 幻觉只进结构）、`buildDesignPrompt`/`buildRepairPrompt`、`dominantColorOfPart` | — |
+| llm-designer.ts | `Designer`（@l2dp/create）：切图 → few-shot 结构化生成整条 `CreationDirective` | RuntimeProvider |
+| llm-repairer.ts | `Repairer`（@l2dp/create）：校验问题回注 → LLM 修正整条指令（自修复） | RuntimeProvider |
 | host.ts | buildP4cBridges：装配 segmenter+labeler+reviewer 三件套 | — |
 
 ## 用法（宿主把三件套喂给 create 的自修复循环）
@@ -32,6 +35,25 @@ const outcome = await createWithSelfRepair({
   character: "my-char", image, segmenter, labeler, reviewer,
 });
 // → model(.l2dm) + motions + RigSpec，全链可驱动
+```
+
+### P4 完整 LLM 创作通道（few-shot 生成 + LLM 自修复 + 干跑审核）
+
+```ts
+import { createWithSelfRepair } from "@l2dp/create";
+import { ColorKeySegmenter } from "@l2dp/cutout";
+import { LlmDesigner, LlmRepairer, LlmReviewer } from "@l2dp/host";
+import { OpenAIProvider } from "@l2dp/driver";
+
+const provider = new OpenAIProvider({ baseUrl, apiKey, model: "gpt-4o" });
+const outcome = await createWithSelfRepair({
+  character: "my-char",
+  image,
+  segmenter: new ColorKeySegmenter(),   // 或 buildP4cBridges(...).segmenter（HTTP/ComfyUI）
+  designer: new LlmDesigner({ provider }),   // ① few-shot 生成整条 CreationDirective
+  repairer: new LlmRepairer({ provider }),   // ② 校验问题回注 → LLM 修正
+  reviewer: new LlmReviewer({ provider }),   // ③ 渲染帧多模态干跑审核
+});
 ```
 
 ## ComfyUI（重型档 / 模式A）
@@ -57,6 +79,6 @@ for (const ref of run.images) {
 ## Diagnostic / test
 
 ```bash
-npm test                    # packages/host/test 7 例（mock fetch / mock provider）
+npm test                    # packages/host/test 13 例（mock fetch / mock provider / LLM designer+repairer）
 node --test --test-isolation=none packages/host/test/*.test.ts
 ```

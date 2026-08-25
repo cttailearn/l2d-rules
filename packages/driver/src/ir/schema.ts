@@ -12,6 +12,7 @@ export interface JsonSchema {
   type?: string | string[];
   const?: unknown;
   enum?: unknown[];
+  description?: string;
   properties?: Record<string, JsonSchema>;
   required?: string[];
   additionalProperties?: boolean | JsonSchema;

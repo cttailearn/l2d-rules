@@ -76,8 +76,8 @@ npm run start   # 转换 Haru → JSONL 驱动 → out/: haru-full.l2dm(自包�
 
 ~~~bash
 npm install
-npm run typecheck   # 9 包 + demo-web 类型检查
-npm test            # 9 包 + demo 全量 178 例全绿（含 moc3 语料解析/真实几何回归）
+npm run typecheck   # 8 包 + demo-web 类型检查
+npm test            # 8 包 + demo 全量 254 例全绿（含 moc3 语料解析/真实几何回归）
 npm run eval        # 评估集门禁：specs/evals/drive-cases.json → 报告（任一 case 失败退出码 1；6/6）
 ~~~
 
@@ -117,8 +117,8 @@ npm run dev         # 打开 http://localhost:5173
 | P4a | **LLM 创作前半——半自动绑定**：PartSpec → 参数挂接 + warp 形变合成 + 自动顺序/物理 → .l2dm + RigSpec + 质检报告 + 像素 golden | ✅ `packages/rig`（11 用例；157 全绿） |
 | P4b | **LLM 创作后半——拆解 + 创作编排**：@l2dp/cutout + @l2dp/create + 全链 demo-p4b + 创作评估集 | ✅ `packages/cutout`(7) + `packages/create`(7) + `examples/demo-p4b` + `creation-cases`(3/3) |
 | P4c | **宿主桥接骨架**：@l2dp/host（HttpClient / ComfyUI REST 桥 / HTTP 分割服务 Segmenter / LLM Labeler+Reviewer / P4c 装配）+ demo-p4b bridge.mjs（真实 HTTP 服务 + provider 注入跑通全链） | ✅ `packages/host`（7 用例）+ `examples/demo-p4b/scripts/bridge.mjs` |
-| P4 | LLM 创作通道（few-shot + 自修复 + 干跑），**后置为高级可选**；@l2dp/rig(P4a)+cutout/create(P4b)+host 桥(P4c) 为地基 | ⬜（地基已就绪） |
-| P6 | 核心词表 manifest 生成器 + library 索引 + scene 舞台 + TTS 可选 | ⬜ |
+| P4 | **LLM 创作通道**（few-shot + 自修复 + 干跑）：`@l2dp/host` `LlmDesigner`（切图 → few-shot 结构化生成整条 `CreationDirective`）+ `LlmRepairer`（问题回注 → LLM 修正）+ `@l2dp/create` `Designer` 注入点 | ✅（创作评估集 3/3；真实 LLM 由 `LLM_API_KEY` 注入） |
+| P6 | 词表 manifest 生成器 + library 索引 + scene 舞台 + TTS 升级 + MCP 表层 | ✅ `generateManifest`/`generateLibraryIndex` + `BehaviorIndex` 加权随机/`buildBehaviorIndex` + `SceneStage`（多角色/相机/背景）+ `phonemes`/`viseme`（音素→口型+韵律）+ `driverToolCatalog`（E6）；`examples/demo-capabilities` 可运行演示；parts-naming 扩展与场景 UI 属宿主 |
 
 ## 模型驱动 live2d 技能（随包交付）
 

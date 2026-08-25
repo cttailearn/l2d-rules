@@ -13,7 +13,24 @@ export interface RepairResult {
 }
 
 export interface Repairer {
-  repair(d: CreationDirective, issues: CreationIssue[]): RepairResult;
+  repair(d: CreationDirective, issues: CreationIssue[]): RepairResult | Promise<RepairResult>;
+  readonly name: string;
+}
+
+/**
+ * 设计器（P4：few-shot 生成整条 CreationDirective）：在切图产出后可替换
+ * 「标注件 → 指令」的默认映射，由 LLM 一次性产出 parts + 动作 + hinge/physics。
+ * 缺省 = 直接由 CutoutPart 组装（确定性路径）。
+ */
+export interface DesignContext {
+  character: string;
+  canvas: { width: number; height: number };
+  parts: CutoutPart[];
+  image: RgbaImage;
+}
+
+export interface Designer {
+  design(ctx: DesignContext): Promise<CreationDirective> | CreationDirective;
   readonly name: string;
 }
 
@@ -111,6 +128,8 @@ export interface CreateInput {
   motionKinds?: MotionKind[];
   segmenter?: Segmenter;
   labeler?: Labeler;
+  /** 设计器（P4：LLM few-shot 生成整条 CreationDirective）；缺省 = 由标注件直接组装 */
+  designer?: Designer;
   repairer?: Repairer;
   reviewer?: RigReviewer | null;
   maxRounds?: number;
@@ -149,22 +168,28 @@ export async function createWithSelfRepair(input: CreateInput): Promise<CreateOu
   const cutout = finalizeCutout(input.image, parts);
   log.push("标注产出: " + parts.length + " 件；覆盖率 " + cutout.coveragePct + "% / 重叠 " + cutout.overlapPct + "%");
 
-  let directive: CreationDirective = {
-    v: 1,
-    character: input.character,
-    canvas,
-    parts: parts.map((p: CutoutPart) => ({
-      id: p.id,
-      semantic: p.semantic as CreationPart["semantic"],
-      side: p.side,
-      bbox: p.bbox,
-      image: { dataUri: p.image.dataUri },
-    })),
-    ...(input.hinge ? { hinge: input.hinge } : {}),
-    ...(input.physics !== undefined ? { physics: input.physics } : {}),
-    ...(input.breathing !== undefined ? { breathing: input.breathing } : {}),
-    motions: undefined,
-  };
+  let directive: CreationDirective;
+  if (input.designer !== undefined) {
+    directive = await input.designer.design({ character: input.character, canvas, parts, image: input.image });
+    log.push("设计器: " + input.designer.name + "（LLM few-shot 生成整条指令）");
+  } else {
+    directive = {
+      v: 1,
+      character: input.character,
+      canvas,
+      parts: parts.map((p: CutoutPart) => ({
+        id: p.id,
+        semantic: p.semantic as CreationPart["semantic"],
+        side: p.side,
+        bbox: p.bbox,
+        image: { dataUri: p.image.dataUri },
+      })),
+      ...(input.hinge ? { hinge: input.hinge } : {}),
+      ...(input.physics !== undefined ? { physics: input.physics } : {}),
+      ...(input.breathing !== undefined ? { breathing: input.breathing } : {}),
+      motions: undefined,
+    };
+  }
 
   let rounds = 0;
   while (rounds < maxRounds) {
@@ -172,7 +197,7 @@ export async function createWithSelfRepair(input: CreateInput): Promise<CreateOu
     const issues = validateCreation(directive);
     if (issues.length > 0) {
       log.push("第 " + rounds + " 轮校验:" + issues.map((i) => i.rule).join(","));
-      const repaired = repairer.repair(directive, issues);
+      const repaired = await repairer.repair(directive, issues);
       if (repaired.fixes.length === 0) {
         log.push("修复器无进展 → 终止");
         return { ok: false, rounds, log, directive, cutout, issues: issues.map((i) => i.rule + ":" + i.message) };
@@ -187,7 +212,7 @@ export async function createWithSelfRepair(input: CreateInput): Promise<CreateOu
     if (!result.rig.report.ok) {
       const msgs = result.rig.report.validation.issues.map((i) => i.message);
       log.push("rig 报告:" + msgs.slice(0, 5).join(","));
-      const repaired = repairer.repair(directive, msgs.map((m) => ({ rule: "RIG", path: "", message: m })));
+      const repaired = await repairer.repair(directive, msgs.map((m) => ({ rule: "RIG", path: "", message: m })));
       if (repaired.fixes.length === 0 || rounds >= maxRounds) {
         return { ok: false, rounds, log, directive, cutout, issues: msgs, result };
       }
@@ -202,7 +227,7 @@ export async function createWithSelfRepair(input: CreateInput): Promise<CreateOu
         if (rounds >= maxRounds) {
           return { ok: false, rounds, log, directive, cutout, issues: verdict.issues, result };
         }
-        const repaired = repairer.repair(directive, verdict.issues.map((m) => ({ rule: "REVIEW", path: "", message: m })));
+        const repaired = await repairer.repair(directive, verdict.issues.map((m) => ({ rule: "REVIEW", path: "", message: m })));
         if (repaired.fixes.length === 0) {
           return { ok: false, rounds, log, directive, cutout, issues: verdict.issues, result };
         }

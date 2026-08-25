@@ -22,7 +22,8 @@ npm i @l2dp/engine
 | format | `L2dmModel` / `L2DM_FORMAT_VERSION`(1) / `L2DM_PARAM_GROUPS` / `validateL2dmModel` / `loadL2dm(text, atlas?)` / `parseL2dm` / `loadL2dmObject` |
 | runtime | `ParameterStore`(set 钳制/get/normalized/reset)、`translate/scale/rotate/multiply/applyAffine/resolveDeformerMatrices`、`accumulateKeyforms/accumulateKeyforms2D/applyWarps/applyWarp2D`、`PendulumSim`、`mulberry32` |
 | render | `RenderSink`(uploadTexture/begin/draw/end + readPixels)、`SoftwareRenderer`、`createWebGL2Renderer(gl)` |
-| player | `L2dmPlayer`(params/tick/render/play)、`EngineMotion`、`parseSegments`/`sampleSegments`/`applyMotion` |
+| player | `L2dmPlayer`(params/tick/render/play)、`renderFrame(out, view?)`（SceneStage 用，不 begin/end）、`ViewTransform`、`EngineMotion`、`parseSegments`/`sampleSegments`/`applyMotion` |
+| scene | `SceneStage`（多角色+相机 pan/zoom+背景合成，P6 scene 舞台）、`StageChild`/`StageCamera` |
 | compat | `importMotion3` / `importExpression3` / `applyExpression`（l2dp 标准资产 → 引擎；非语义官方 id 拒绝） |
 
 ## 用法
@@ -77,7 +78,7 @@ if (m.ok) player.play(m.value);
 ## 测试
 
 ```bash
-npm test        # 44 例：format 校验/loader、Warp 数值断言、层级连乘、物理收敛、player golden 像素、compat
+npm test        # 64 例：format 校验/loader、Warp 数值断言、层级连乘、物理收敛、player golden 像素、compat、scene 舞台
 cd examples/demo-web && npm run test:e2e   # 真实 Chromium WebGL2 ↔ 软件渲染逐像素一致
 ```
 

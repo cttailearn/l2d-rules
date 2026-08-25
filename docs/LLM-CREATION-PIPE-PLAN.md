@@ -2,7 +2,7 @@
 
 > 依据：本仓库现状（146 测试全绿基线）、docs/SPEC-v2.0.md §7–10（平台规格中的自动分层/自动绑定/装配台/导入导出）、docs/SPEC-DSL-v1.0.md §9.4（P4 创作模式）、docs/DEVELOPMENT-SPEC.md §4（P4 后置为 M7+ 可选项）。
 >
-> **落地状态**：✅ **P4a**（@l2dp/rig，11 用例 + 像素 golden）。✅ **P4b**（@l2dp/cutout 7 用例 + @l2dp/create 7 用例 + demo-p4b + 创作评估集 3/3）。✅ **P4c 宿主桥接骨架**（@l2dp/host 7 用例：HttpClient/ComfyUI 桥/HttpSegmenter/LLM Labeler+Reviewer/P4c 装配 + demo-p4b bridge.mjs 真实 HTTP 服务跑通全链）。全仓 **178 测试全绿** + typecheck（9 包）+ eval 双门禁（drive 6/6 + creation 3/3）。⬜ 剩余宿主工程（装配台 UI/上传存储/ComfyUI workflows 落地）属平台侧。
+> **落地状态**：✅ **P4a**（@l2dp/rig，16 用例 + 像素 golden）。✅ **P4b**（@l2dp/cutout 7 用例 + @l2dp/create 13 用例 + demo-p4b + 创作评估集 3/3）。✅ **P4c 宿主桥接骨架**（@l2dp/host 13 用例：HttpClient/ComfyUI 桥/HttpSegmenter/LLM Labeler+Reviewer/P4c 装配 + demo-p4b bridge.mjs 真实 HTTP 服务跑通全链）。✅ **P4 完整 LLM 创作通道**（@l2dp/host LlmDesigner few-shot 生成 CreationDirective + LlmRepairer 校验回注自修复 + create Designer 注入点）。全仓 **254 测试全绿** + typecheck（9 包）+ eval 双门禁（drive 6/6 + creation 3/3）。⬜ 剩余宿主工程（装配台 UI/上传存储/ComfyUI workflows 落地）属平台侧。
 > **开发向导**：`docs/GUIDE-FROM-IMAGE-TO-LIVE2D.md`（原图→拆→绑→驱动 全链，含真实服务/LLM 接线与 demo 命令）。
 >
 > 结论先行：**本仓库的"驱动"半边已经完整（M5–M7/P2/P3 + C1/C2 转换链），而"从一张原图做出可驱动模型"的创作半边（拆解/切图 + 自动绑定/rig）恰好是当前唯一没有落地的目标**——对应平台规格 §9 的「自动分层」「自动绑定」与路线图 P4「LLM 创作通道」。下面逐项拆解：哪些现成可复用、哪些是新增、缺什么、怎么补。

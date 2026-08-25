@@ -57,7 +57,7 @@ const { model, spec, report } = rigCharacter({
 ## 测试
 
 ```bash
-npm test            # 12 例：绑定合法/顺序先验/warp 完整性/形变结构/像素 golden/异常输入
+npm test            # 16 例：绑定合法/顺序先验/warp 完整性/形变结构/像素 golden/异常输入/服装层/分级/自定义语义
 npm run golden      # 生成 /test/fixtures/rig-golden.json 像素 golden（确定性回归基准）
 ```
 

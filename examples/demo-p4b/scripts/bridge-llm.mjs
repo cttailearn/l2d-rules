@@ -8,7 +8,7 @@ import { ColorKeySegmenter, encodePng } from "@l2dp/cutout";
 import { createWithSelfRepair, RuleReviewer } from "@l2dp/create";
 import { OpenAIProvider } from "@l2dp/driver";
 import { L2dmPlayer, SoftwareRenderer } from "@l2dp/engine";
-import { LlmLabeler, LlmReviewer } from "@l2dp/host";
+import { LlmDesigner, LlmLabeler, LlmRepairer, LlmReviewer } from "@l2dp/host";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const OUT = join(here, "..", "out");
@@ -59,12 +59,15 @@ if (key) {
 const labeler = new LlmLabeler({ provider });
 const reviewer = key ? new LlmReviewer({ provider }) : new RuleReviewer();
 
+// 真实 LLM 通道：设计器（few-shot 生成 CreationDirective）+ 修复器（自修复）+ 审核
 const outcome = await createWithSelfRepair({
   character: "llm-chan",
   image: img,
   canvas: { width: W, height: H },
   segmenter: new ColorKeySegmenter({ tol: 8, minArea: 60 }),
+  designer: key ? new LlmDesigner({ provider }) : undefined,   // 仅有真实 key 时才用 LLM 设计，否则走默认构建
   labeler,
+  repairer: key ? new LlmRepairer({ provider }) : undefined,   // 同上
   reviewer,
   maxRounds: 3,
 });

@@ -29,7 +29,7 @@ npm i @l2dp/create
 | execute | `executeCreation(d)` → `{ model, rig, motions, notes }` |
 | motions | `generateStarterMotions(params)`、`motionFromCreation` |
 | review | `RuleReviewer`、`RigReviewer` 接口 |
-| loop | `createWithSelfRepair(input)` → CreateOutcome（切图→标注→修复→执行→审核全链） |
+| loop | `createWithSelfRepair(input)` → CreateOutcome（切图→标注→修复→执行→审核全链）、`Designer`/`DesignContext`（P4 注入点：LLM few-shot 生成整条指令）、`Repairer`（同步或异步） |
 
 ## 用法
 
@@ -61,7 +61,7 @@ const { model, rig, motions } = outcome.result!;
 ## 测试
 
 ```bash
-npm test    # 7 例：validate/repair/execute/review/自修复循环/动作生成
+npm test    # 13 例：validate/repair/execute/review/自修复循环/动作生成
 npm run eval  # 根目录 scripts/eval-creation.mjs → creation-cases 3/3（确定性）
 ```
 

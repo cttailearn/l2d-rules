@@ -5,6 +5,9 @@ export * from "./http-segmenter.ts";
 export * from "./llm.ts";
 export * from "./llm-labeler.ts";
 export * from "./llm-reviewer.ts";
+export * from "./llm-directive.ts";
+export * from "./llm-designer.ts";
+export * from "./llm-repairer.ts";
 export * from "./host.ts";
 export * from "./tex.ts";
 

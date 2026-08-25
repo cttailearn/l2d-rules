@@ -6,7 +6,7 @@
 - **分层求值**（override 最高）+ **环境层**（呼吸/眨眼/视线/重心 1/f 噪声恒动）
 - **双模式共享校验规则库**（7 类 + IR/流专属），错误结构直接回传 LLM 自修复
 - **两跳**：第一跳本地规则 `<50ms`、第二跳 LLM 异步决策；`Provider` 三档（native/text/mock，确定性可测）
-- **语音口型估算**（TTS 降级）+ **IR JSON Schema 同源生成**（OpenAI `response_format` 结构化输出）
+- **语音口型估算**（TTS 降级）+ **TTS 升级**（音素→viseme 映射 + 60–80ms 混合 + 语调韵律包络）+ **IR JSON Schema 同源生成**（OpenAI `response_format` 结构化输出）
 
 ## 依赖与安装
 
@@ -27,8 +27,11 @@ npm i @l2dp/driver
 | stream | `StreamIngestor({manifest,library,assets,stack,env,seed}).feedLine(line,tMs)` |
 | eval | `Evaluator(stack,env,defs,{apply}).onFrame(dtMs)` |
 | provider | `RuntimeProvider`、`MockProvider`（确定性）、`OpenAIProvider`、`extractJsonLines`（fallback 剥围栏/修尾逗号） |
-| twohop | `BehaviorIndex`（register/pick）、`DriverEngine`（dispatch/onFrame） |
-| tts | `estimateSpeechTimeline(text)`、`SpeechTimeline` |
+| twohop | `BehaviorIndex`（register/pick，同优先级按 `weight` 种子加权随机）、`pickWeighted`、`DriverEngine`（dispatch/onFrame） |
+| catalog | `buildBehaviorIndex({behaviors,seed})` —— 行为目录（含权重）一次性装配第一跳索引（P6 library 索引） |
+| manifest | `generateManifest(params)` / `vocabularyOf` / `generateLibraryIndex(motions,expressions)` —— 词表 manifest 生成器（P6） |
+| mcp | `driverToolCatalog()` —— IR schema 同源生成 MCP 工具清单（emit_directives + play_motion/… + get_state，E6） |
+| tts | `estimateSpeechTimeline(text)`、`estimateProsody`、`phonemeToViseme`/`phonemeSegmentsToVisemes`、`blendVisemes`/`visemeTimeline`、`SpeechTimeline` |
 
 ## 用法
 
@@ -116,7 +119,7 @@ const r = batchValidate(stream, ctxB);   // 整批原子拒绝 + 干跑拦截 Na
 ## 测试
 
 ```bash
-npm test    # 43 例：ingestor/layers/environment/evaluator/validate/IR schema/两跳/tts
+npm test    # 71 例：ingestor/layers/environment/evaluator/validate/IR schema/两跳/tts/catalog/manifest/mcp
 npm run eval   # 根目录评估集 scripts/eval-drive.mjs → 6/6（改提示词/schema 必过）
 ```
 

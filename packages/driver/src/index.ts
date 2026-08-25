@@ -25,9 +25,15 @@ export * from "./provider/openai.ts";
 // ---- 两跳（§6.8）----
 export * from "./twohop/types.ts";
 export * from "./twohop/engine.ts";
+// ---- 库索引 / 词表 manifest 生成器 / MCP 表层（P6 / E6）----
+export * from "./catalog.ts";
+export * from "./manifest.ts";
+export * from "./mcp.ts";
 // ---- 语音与口型（§7）----
 export * from "./tts/types.ts";
 export * from "./tts/estimate.ts";
+export * from "./tts/phonemes.ts";
+export * from "./tts/viseme.ts";
 // ---- 流式（§6.2）----
 export * from "./stream/ingestor.ts";
 // ---- 统一时钟（O-1）----

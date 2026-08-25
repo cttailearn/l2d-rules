@@ -20,6 +20,14 @@ import { PendulumSim } from "../runtime/physics.ts";
 import type { SeededRandom } from "../runtime/random.ts";
 import { applyMotion, type EngineMotion } from "./motion.ts";
 
+export interface ViewTransform {
+  /** 舞台/相机平移（画布像素，y 向下） */
+  offsetX: number;
+  offsetY: number;
+  /** 统一缩放（>0） */
+  scale: number;
+}
+
 export class L2dmPlayer {
   /** 参数面：外部驱动（LLM/环境层/动作）每帧写入；引擎每帧读取。 */
   readonly params: ParameterStore;
@@ -69,10 +77,19 @@ export class L2dmPlayer {
   }
 
   /** 输出当前帧到 RenderSink（uploadTexture 幂等 → begin → 逐 part 绘制 → end）。 */
-  render(out: RenderSink): void {
+  render(out: RenderSink, view?: ViewTransform): void {
     const { width, height } = this.model.canvas;
-    for (const [id, tex] of this.atlas) out.uploadTexture(id, tex);
     out.begin(width, height);
+    this.renderFrame(out, view);
+    out.end();
+  }
+
+  /**
+   * 只绘制本帧部件（uploadTexture + 逐 part draw），不调用 begin/end。
+   * 供 SceneStage 把多角色合成到同一舞台 sink；view 施加舞台/相机变换。
+   */
+  renderFrame(out: RenderSink, view?: ViewTransform): void {
+    for (const [id, tex] of this.atlas) out.uploadTexture(id, tex);
     const worlds = resolveDeformerMatrices(this.model.deformers ?? [], this.params);
     const parts = [...this.model.parts].sort((a, b) => a.order - b.order);
     const visibility = this.poseVisibility(parts);
@@ -101,6 +118,15 @@ export class L2dmPlayer {
             verts[i] = x;
             verts[i + 1] = y;
           }
+        }
+      }
+
+      // 2.5) 舞台/相机变换（SceneStage 合成；缺省恒等）
+      if (view !== undefined && (view.scale !== 1 || view.offsetX !== 0 || view.offsetY !== 0)) {
+        const s = view.scale;
+        for (let i = 0; i < verts.length; i += 2) {
+          verts[i] = verts[i]! * s + view.offsetX;
+          verts[i + 1] = verts[i + 1]! * s + view.offsetY;
         }
       }
 
@@ -136,7 +162,6 @@ export class L2dmPlayer {
         color,
       });
     }
-    out.end();
   }
 
   private partOpacity(part: L2dmPart): number {
