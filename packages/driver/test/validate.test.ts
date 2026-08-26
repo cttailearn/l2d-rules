@@ -4,6 +4,7 @@ import {
   inlineValidate,
   batchValidate,
   opShapeIssues,
+  resolveSchedule,
   namingIssues,
   semanticIssues,
   refIssues,
@@ -77,6 +78,18 @@ test("M6: 语义——未知 op / 缺 required / 表外字段", () => {
   if (!forb.ok) assert.equal(forb.issues[0]!.rule, "FORBIDDEN");
 });
 
+test("P0-2: camera——zoom/pan 载荷可表达（不再静默丢弃）", () => {
+  const ok = opShapeIssues({ op: "camera", zoom: 1.5, pan: [10, 20] }, 0, false);
+  assert.equal(ok.ok, true, "camera 允许 zoom+pan");
+  const noLoad = opShapeIssues({ op: "camera" }, 0, false);
+  assert.equal(noLoad.ok, true, "空 camera 仍合法");
+  const badZoom = opShapeIssues({ op: "camera", zoom: 0 }, 0, false);
+  assert.equal(badZoom.ok, false);
+  if (!badZoom.ok) assert.equal(badZoom.issues[0]!.rule, "RANGE", "zoom≤0 越界");
+  const badPan = opShapeIssues({ op: "camera", pan: [1] }, 0, false);
+  assert.equal(badPan.ok, false, "pan 必须 [x,y]");
+});
+
 test("M6: 命名——语义名禁裸官方 PARAM/PARTS id", () => {
   const d = { op: "set", sem: "PARAM_ANGLE_X", value: 0.5 } as const;
   const issues = namingIssues(d as never, 0);
@@ -128,6 +141,32 @@ test("M6: IR 专属——id 重复 / 依赖缺失 / 前向引用", () => {
   assert.ok(rules.includes("ID_DUP"), JSON.stringify(rules));
   assert.ok(rules.includes("AT_DEP_MISSING"), JSON.stringify(rules)); // 甲 不存在
   assert.ok(rules.includes("DEP_CYCLE"), JSON.stringify(rules)); // x 前向
+});
+
+test("P1-5: resolveSchedule——+id 依赖 play 结束（dur 指定用真实 durationMs）", () => {
+  // M_OK durationMs = 1000
+  const stream: DirectiveStream = {
+    v: 2,
+    directives: [
+      { id: "motion", op: "play", asset: "微笑点头" },
+      { id: "after", op: "set", sem: "微笑", value: 1, at: "+motion", dur: 1 }, // dur 指定 → 依赖 motion 结束
+    ],
+  };
+  const s = resolveSchedule(stream, 100, ASSETS.motions);
+  assert.equal(s.ok, true);
+  if (s.ok) {
+    assert.equal(s.schedule[0]!.startMs, 100, "首条 = 流起点");
+    assert.equal(s.schedule[1]!.startMs, 1100, "dur 指定 → 依赖 play 结束（100+1000）");
+  }
+  // 无 dur → 依赖开始
+  const s2 = resolveSchedule({
+    v: 2,
+    directives: [
+      { id: "motion", op: "play", asset: "微笑点头" },
+      { op: "set", sem: "微笑", value: 1, at: "+motion" },
+    ],
+  }, 100, ASSETS.motions);
+  assert.equal(s2.ok && (s2 as { schedule: { startMs: number }[] }).schedule[1]!.startMs, 100, "无 dur → 依赖开始");
 });
 
 // ---------- 双模式策略 ----------

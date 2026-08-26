@@ -4,6 +4,7 @@ import {
   blendVisemes,
   estimateProsody,
   estimateSpeechTimeline,
+  pinyinFinal,
   phonemeSegmentsToVisemes,
   phonemeToViseme,
 } from "../src/index.ts";
@@ -92,4 +93,29 @@ test("P6: estimateSpeechTimeline——CJK 音节 A 视素 + 叠问句韵律；�
   assert.equal(blank.durationMs, 0);
   assert.equal(blank.visemes!.length, 0);
   assert.ok(blank.prosody!.length >= 1);
+});
+
+// ---------- P1-4 拼音分段 → 真实视素 ----------
+
+test("P1-4: pinyinFinal——去声调/声母，v→ü", () => {
+  assert.equal(pinyinFinal("ni3"), "i", "ni→i");
+  assert.equal(pinyinFinal("hao3"), "ao", "hao→ao");
+  assert.equal(pinyinFinal("shu"), "u", "sh→u");
+  assert.equal(pinyinFinal("lü"), "ü", "lv→ü");
+  assert.equal(pinyinFinal("e"), "e", "零声母音节=全韵母");
+  assert.equal(pinyinFinal("xiao"), "iao", "复合韵母保留");
+});
+
+test("P1-4: estimateSpeechTimeline 拼音分段 → 真实视素（不再恒 A），缺省不改", () => {
+  const t = estimateSpeechTimeline("你好", { phonemes: [{ syl: "ni3", tMs: 100 }, { syl: "hao3", tMs: 300 }] });
+  const seq = t.visemes!.filter((v) => v.viseme !== "silence").map((v) => v.viseme);
+  assert.ok(seq.includes("I"), "ni→i→I（实际 " + seq.join(",") + "）");
+  assert.ok(seq.includes("O"), "hao→ao→O（实际 " + seq.join(",") + "）");
+  assert.equal(t.visemes![t.visemes!.length - 1]!.viseme, "silence", "尾静音");
+  assert.ok(t.durationMs > 300, "时长含尾静音");
+
+  // 缺省路径（不传 phonemes）行为不变：CJK 恒 A
+  const legacy = estimateSpeechTimeline("你好");
+  const legacySeq = legacy.visemes!.filter((v) => v.viseme !== "silence");
+  assert.ok(legacySeq.every((v) => v.viseme === "A"), "缺省 CJK 仍是 A（实际 " + legacySeq.map((v) => v.viseme).join(",") + "）");
 });

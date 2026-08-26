@@ -94,14 +94,23 @@ test("P6: BehaviorIndex——不同优先级仍取高者（权重不越级）", 
 
 // ---------- E6 MCP 表层 ----------
 
-test("E6: driverToolCatalog——主工具 + 细粒度 op 工具 + get_state（schema 同源）", () => {
+test("E6: driverToolCatalog——主工具 + 全部 12 op 细粒度工具 + get_state（schema 同源）", () => {
   const tools = driverToolCatalog();
   const names = tools.map((t) => t.name);
-  assert.deepEqual(names, ["emit_directives", "play_motion", "set_expression", "set_parameter", "look_at", "speak", "get_state"]);
+  assert.deepEqual(names, [
+    "emit_directives",
+    "play_motion", "set_expression", "set_parameter", "set_outfit", "speak", "blink",
+    "set_drift", "look_at", "move_camera", "run_action", "set_emote", "wait",
+    "get_state",
+  ], "工具清单覆盖全部 12 op");
   const emit = tools.find((t) => t.name === "emit_directives")!;
   assert.equal(emit.inputSchema.properties?.v?.const, 2, "emit_directives 的 v 常量与 IR_VERSION 同源");
   const play = tools.find((t) => t.name === "play_motion")!;
   assert.deepEqual(play.inputSchema.required, ["op", "asset"], "play 工具 required 与 OP_RULES 同源");
+  // P1-3：camera 工具的允许载荷 = OP_RULES.camera.allowed（zoom/pan 同源）
+  const cam = tools.find((t) => t.name === "move_camera")!;
+  assert.ok(cam.inputSchema.properties?.zoom !== undefined, "camera 工具含 zoom");
+  assert.ok(cam.inputSchema.properties?.pan !== undefined, "camera 工具含 pan");
   for (const t of tools) {
     assert.ok(typeof t.description === "string" && t.description.length > 0, t.name + " 有描述");
     assert.ok(t.inputSchema !== undefined, t.name + " 有 inputSchema");

@@ -399,6 +399,82 @@
     "coveragePctMin": 38,
     "motions": 4
    }
+  },
+  {
+   "id": "cc4-clothing",
+   "name": "服装层语义（outfit_underwear/outfit_dress）· 全链（切图→标注→自修复→rig+动作）",
+   "labelBy": "color",
+   "canvas": {
+    "width": 320,
+    "height": 400
+   },
+   "shapes": [
+    {
+     "color": [60, 55, 90],
+     "semantic": "hair_back",
+     "x": 20, "y": 20, "w": 280, "h": 110
+    },
+    {
+     "color": [70, 60, 95],
+     "semantic": "hair_front",
+     "x": 150, "y": 90, "w": 110, "h": 36
+    },
+    {
+     "color": [210, 185, 160],
+     "semantic": "face",
+     "x": 50, "y": 110, "w": 110, "h": 130
+    },
+    {
+     "color": [250, 250, 255],
+     "semantic": "eyeball",
+     "side": "left",
+     "x": 78, "y": 140, "w": 26, "h": 20
+    },
+    {
+     "color": [150, 180, 220],
+     "semantic": "eyeball",
+     "side": "right",
+     "x": 140, "y": 140, "w": 26, "h": 24
+    },
+    {
+     "color": [70, 65, 90],
+     "semantic": "brow",
+     "side": "left",
+     "x": 70, "y": 126, "w": 36, "h": 8
+    },
+    {
+     "color": [80, 75, 100],
+     "semantic": "brow",
+     "side": "right",
+     "x": 142, "y": 126, "w": 36, "h": 8
+    },
+    {
+     "color": [190, 60, 70],
+     "semantic": "mouth",
+     "x": 105, "y": 196, "w": 60, "h": 26
+    },
+    {
+     "color": [130, 160, 210],
+     "semantic": "body_upper",
+     "x": 48, "y": 252, "w": 200, "h": 54
+    },
+    {
+     "color": [200, 120, 160],
+     "semantic": "outfit_underwear",
+     "x": 60, "y": 300, "w": 140, "h": 34
+    },
+    {
+     "color": [140, 160, 110],
+     "semantic": "outfit_dress",
+     "x": 52, "y": 330, "w": 220, "h": 40
+    }
+   ],
+   "expect": {
+    "ok": true,
+    "partCountMin": 7,
+    "coveragePctMin": 55,
+    "motions": 4
+   }
   }
  ]
 }

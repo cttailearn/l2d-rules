@@ -57,6 +57,8 @@ const PAYLOAD_SCHEMA: Readonly<Record<string, JsonSchema>> = {
   },
   voice:      { type: "string" },
   blend:      { type: "string", enum: ["Add", "Multiply", "Overwrite"] },
+  zoom:       { type: "number", exclusiveMinimum: 0 },
+  pan:        { type: "array", items: { type: "number" }, minItems: 2, maxItems: 2 },
 } as const;
 
 const COMMON_SCHEMA: Readonly<Record<string, JsonSchema>> = {

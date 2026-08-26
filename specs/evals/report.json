@@ -1,8 +1,8 @@
 {
   "version": 1,
   "clock": "fixed",
-  "total": 6,
-  "passed": 6,
+  "total": 9,
+  "passed": 9,
   "failed": 0,
   "results": [
     {
@@ -34,17 +34,37 @@
       "behaviorId": "emote_follow"
     },
     {
-      "id": "voice-listen",
-      "pass": true,
-      "failures": [],
-      "hop": 1,
-      "behaviorId": "listen"
-    },
-    {
       "id": "llm-fallback",
       "pass": true,
       "failures": [],
       "hop": 2
+    },
+    {
+      "id": "idle-driven",
+      "pass": true,
+      "failures": [],
+      "hop": 1,
+      "behaviorId": "idle"
+    },
+    {
+      "id": "native-structured",
+      "pass": true,
+      "failures": [],
+      "hop": 2
+    },
+    {
+      "id": "camera-pan",
+      "pass": true,
+      "failures": [],
+      "hop": 1,
+      "behaviorId": "camera_pan"
+    },
+    {
+      "id": "outfit-switch",
+      "pass": true,
+      "failures": [],
+      "hop": 1,
+      "behaviorId": "outfit_switch"
     }
   ]
 }

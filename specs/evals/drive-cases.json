@@ -41,16 +41,42 @@
       ]
     },
     {
-      "id": "voice-listen",
-      "scenario": { "event": "user_voice", "userText": "（用户在说话）", "seed": 5 },
-      "expectedSemEffect": []
-    },
-    {
       "id": "llm-fallback",
       "scenario": { "event": "user_text", "userText": "随便聊聊今天天气怎么样", "seed": 42 },
       "expectedSemEffect": [
         { "windowMs": [0, 5000], "sem": "微笑", "min": 0.3 },
         { "windowMs": [-1, 5000], "op": "play", "kinds": ["greeting"] }
+      ]
+    },
+    {
+      "id": "idle-driven",
+      "scenario": { "event": "idle", "seed": 5 },
+      "expectedSemEffect": [
+        { "windowMs": [0, 3000], "sem": "微笑", "min": 0.5 },
+        { "windowMs": [-1, 3000], "op": "play", "kinds": ["idle"] }
+      ]
+    },
+    {
+      "id": "native-structured",
+      "scenario": { "event": "user_text", "userText": "结构化输出测试", "seed": 17, "structured": true },
+      "expectedSemEffect": [
+        { "windowMs": [0, 3000], "sem": "微笑", "min": 0.5 },
+        { "windowMs": [0, 3000], "sem": "尾巴摆", "min": 0.5 },
+        { "windowMs": [-1, 3000], "op": "play", "kinds": ["greeting"] }
+      ]
+    },
+    {
+      "id": "camera-pan",
+      "scenario": { "event": "user_text", "userText": "推近镜头看看", "seed": 9 },
+      "expectedSemEffect": [
+        { "windowMs": [-1, 3000], "op": "camera", "zoom": 1.2 }
+      ]
+    },
+    {
+      "id": "outfit-switch",
+      "scenario": { "event": "user_text", "userText": "帮我换装衣装", "seed": 9 },
+      "expectedSemEffect": [
+        { "windowMs": [-1, 3000], "op": "outfit" }
       ]
     }
   ]

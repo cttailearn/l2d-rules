@@ -4,6 +4,7 @@
 // 时长估计：CJK ~6 字/秒、拉丁按字母簇；同 (text, voice, lang) → 同输出（可回归）。
 
 import type { SpeechTimeline, VisemeId } from "./types.ts";
+import { phonemeToViseme } from "./phonemes.ts";
 
 const CHARS_PER_SECOND = 6;
 const SYLLABLE_MS = Math.round(1000 / CHARS_PER_SECOND); // ~167ms
@@ -11,6 +12,16 @@ const SYLLABLE_MS = Math.round(1000 / CHARS_PER_SECOND); // ~167ms
 // CJK 音节字符（不含全角标点 U+FF00–FFEF：让 ？！，。 落到标点分支做韵律修饰）
 const CJK_RE = /[\u3000-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uac00-\ud7af]/;
 const LETTER_RE = /[a-zäöüß]/i;
+
+/** 拼音声母簇（依次最长匹配；无匹配 = 零声母音节，整个音节为韵母） */
+const PINYIN_INITIAL = /^(zh|ch|sh|[bpmfdtnlgkhjqxzcsryw])/;
+
+/** 拼音音节 → 韵母（去声调数字、v→ü、去声母），供 ZH_FINAL_VISEME 映射。 */
+export function pinyinFinal(syl: string): string {
+  const s = syl.trim().toLowerCase().replace(/[0-9]/g, "").replace(/v/g, "ü");
+  const m = PINYIN_INITIAL.exec(s);
+  return m ? s.slice(m[0].length) : s;
+}
 
 /** 拉丁元音 → 视素（扁唇 E/I、圆唇 O/U、开口 A）。 */
 function vowelViseme(ch: string): VisemeId {
@@ -118,11 +129,31 @@ export function estimateProsody(
 }
 
 /**
- * 降级时间轴：无 TTS 时估计口型与时长（音节级视素 + 语调韵律）。
- * 宿主有真 TTS 时用 TtsProvider.synthesize（可复用 phonemes.ts/viseme.ts 做真实音素口型）。
+ * 降级时间轴：无 TTS 时估计口型与时长。
+ * - 缺省：音节级视素（拉丁按元音、CJK 恒 A）+ 语调韵律；
+ * - 可选 `phonemes`：拼音/音素分段（宿主 TTS 若给出音素级时间戳），走 ZH_FINAL_VISEME/ARPABET
+ *   映射产出真实视素（P1-4），不再恒 A。向后兼容：不传时行为不变。
  */
-export function estimateSpeechTimeline(text: string, opts: { voice?: string; lang?: string } = {}): SpeechTimeline {
+export function estimateSpeechTimeline(
+  text: string,
+  opts: { voice?: string; lang?: string; phonemes?: { syl: string; tMs: number }[] } = {},
+): SpeechTimeline {
   const lang = opts.lang ?? "zh";
+  const ph = opts.phonemes;
+
+  // P1-4：拼音/音素级口型（若有分段输入）
+  if (ph !== undefined && ph.length > 0) {
+    const visemes: { tMs: number; viseme: VisemeId; weight?: number }[] = [];
+    for (const { syl, tMs } of ph) {
+      const finals = pinyinFinal(syl);
+      const viseme = finals !== "" ? phonemeToViseme(finals) : phonemeToViseme(syl);
+      visemes.push({ tMs, viseme, weight: 0.85 });
+    }
+    visemes.push({ tMs: visemes[visemes.length - 1]!.tMs + 200, viseme: "silence", weight: 1 });
+    const durationMs = visemes[visemes.length - 1]!.tMs;
+    return { text, lang, durationMs, visemes, prosody: estimateProsody(text, { lang }) };
+  }
+
   const units = syllablesOf(text);
   const totalMs = units.reduce((a, u2) => a + u2.ms, 0) + (units.length > 0 ? 120 : 0);
 

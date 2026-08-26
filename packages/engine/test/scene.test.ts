@@ -66,3 +66,36 @@ test("P6: SceneStage——子级增删与列表", () => {
   assert.deepEqual(stage.childIds(), ["B"]);
   assert.equal(stage.removeChild("missing"), false);
 });
+
+test("P0-2: SceneStage——panTo/zoomTo 缓动确定性插值", () => {
+  const stage = new SceneStage({ width: 30, height: 30 });
+  stage.panTo(20, 0, 100);
+  stage.tick(50);
+  const half = stage.currentCamera();
+  assert.ok(Math.abs(half.x - 10) < 1e-6, `50ms 半程 x≈10, got ${half.x}`);
+  stage.tick(50);
+  assert.deepEqual(stage.currentCamera(), { x: 20, y: 0, zoom: 1 }, "100ms 到位");
+  stage.zoomTo(2, 200);
+  stage.tick(100);
+  const z = stage.currentCamera();
+  assert.ok(z.zoom > 1 && z.zoom < 2, `zoom 半程, got ${z.zoom}`);
+  stage.tick(100);
+  assert.deepEqual(stage.currentCamera(), { x: 20, y: 0, zoom: 2 }, "zoom 200ms 到位");
+  // setCamera 立即落位并中止动画
+  stage.setCamera({ x: 0, y: 0, zoom: 1 });
+  assert.deepEqual(stage.currentCamera(), { x: 0, y: 0, zoom: 1 });
+});
+
+test("P0-2: SceneStage——相机平移缓动驱动渲染落位", () => {
+  const stage = new SceneStage({ width: 30, height: 20 });
+  stage.setChild(child("A", 0)); // face 红 @ 模型(15,13)
+  const r1 = new SoftwareRenderer();
+  stage.render(r1);
+  assert.deepEqual(r1.pixel(15, 13), [255, 0, 0, 255], "初始 camera=0,0,1 face@15,13");
+  // 相机平移到 x=15 → face 世界 15-15=0 → 舞台 (0,13)
+  stage.panTo(15, 0, 120);
+  stage.tick(120);
+  const r2 = new SoftwareRenderer();
+  stage.render(r2);
+  assert.deepEqual(r2.pixel(0, 13), [255, 0, 0, 255], "相机右移 15 → face 左移到 x=0");
+});

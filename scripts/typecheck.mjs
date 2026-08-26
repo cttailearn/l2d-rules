@@ -7,6 +7,7 @@ const tsc = join(root, "node_modules/typescript/bin/tsc");
 const cfgs = [
   ...["l2dp", "engine", "driver", "convert", "rig", "cutout", "create", "host"].map(p => join(root, "packages", p, "tsconfig.json")),
   join(root, "examples", "demo-web", "tsconfig.json"),
+  join(root, "examples", "demo-app", "tsconfig.json"),
 ];
 for (const cfg of cfgs) {
   console.log("检查", cfg);

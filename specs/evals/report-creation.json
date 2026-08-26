@@ -1,6 +1,6 @@
 {
- "total": 3,
- "passed": 3,
+ "total": 4,
+ "passed": 4,
  "results": [
   {
    "id": "cc1-flat-color",
@@ -130,6 +130,50 @@
     "切图器: color-key / 标注器: colormap",
     "候选选区: 3 个",
     "标注产出: 3 件；覆盖率 99.6% / 重叠 0%",
+    "第 1 轮执行：rig 通过",
+    "审核(rules): 通过"
+   ]
+  },
+  {
+   "id": "cc4-clothing",
+   "name": "服装层语义（outfit_underwear/outfit_dress）· 全链（切图→标注→自修复→rig+动作）",
+   "rounds": 1,
+   "labelBy": "color",
+   "partCount": 10,
+   "coveragePct": 98.7,
+   "motions": 4,
+   "passed": true,
+   "checks": [
+    {
+     "name": "ok",
+     "ok": true,
+     "detail": "outcome.ok=true"
+    },
+    {
+     "name": "partCount",
+     "ok": true,
+     "detail": "parts=10 (min 7)"
+    },
+    {
+     "name": "coverage",
+     "ok": true,
+     "detail": "coverage=98.7% (min 55)"
+    },
+    {
+     "name": "motions",
+     "ok": true,
+     "detail": "motions=4"
+    },
+    {
+     "name": "rigValid",
+     "ok": true,
+     "detail": "rig=true"
+    }
+   ],
+   "log": [
+    "切图器: color-key / 标注器: colormap",
+    "候选选区: 10 个",
+    "标注产出: 10 件；覆盖率 98.7% / 重叠 0%",
     "第 1 轮执行：rig 通过",
     "审核(rules): 通过"
    ]

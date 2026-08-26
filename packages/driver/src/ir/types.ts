@@ -12,6 +12,7 @@ export const PAYLOAD_FIELDS = [
   "asset", "expression", "outfit", "text", "sem", "value",
   "speed", "strength", "mix", "weight", "interval", "amplitude", "period",
   "gaze", "ms", "loop", "cover", "emote", "voice", "blend",
+  "zoom", "pan",
 ] as const;
 export type PayloadField = (typeof PAYLOAD_FIELDS)[number];
 
@@ -49,6 +50,10 @@ export interface Directive {
   interrupt?: "target" | "supersede" | "queue";
   /** TTS voice 提示 */
   voice?: string;
+  /** camera：缩放（>0），宿主/SceneStage 消费 */
+  zoom?: number;
+  /** camera：平移目标 [x,y]，宿主/SceneStage 消费 */
+  pan?: [number, number];
 }
 
 /** 内部解析产物字段（ingestor 注入，非 IR 线字段，不进 schema） */

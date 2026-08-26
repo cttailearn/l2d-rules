@@ -36,6 +36,18 @@ export interface SceneStageOptions {
 
 const DEFAULT_CAMERA: StageCamera = { x: 0, y: 0, zoom: 1 };
 
+interface CameraAnim {
+  from: StageCamera;
+  to: StageCamera;
+  startMs: number;
+  durMs: number;
+}
+
+/** 平滑步进缓动（确定性，无外部随机）。 */
+function ease01(t: number): number {
+  return t * t * (3 - 2 * t); // smoothstep
+}
+
 /** 场景舞台：多角色编排合成器（SDK 侧最小实现；宿主 UI/多角色布局仍属宿主前端）。 */
 export class SceneStage {
   private readonly children = new Map<string, StageChild>();
@@ -44,11 +56,66 @@ export class SceneStage {
   camera: StageCamera;
   background: [number, number, number, number];
 
+  /** 内部时钟（供 panTo/zoomTo 缓动；宿主每帧调 tick(dt) 推进；确定性受 dt 序列约束） */
+  private clockMs = 0;
+  private anim: CameraAnim | null = null;
+
   constructor(canvas: { width: number; height: number }, opts: SceneStageOptions = {}) {
     this.width = canvas.width;
     this.height = canvas.height;
     this.camera = opts.camera ?? { ...DEFAULT_CAMERA };
     this.background = opts.background ?? [0, 0, 0, 0];
+  }
+
+  /** 推进内部时钟并插值相机动画（宿主每帧调用；不调 = 相机静止/无动画推进）。 */
+  tick(dtMs: number): void {
+    this.clockMs += Math.max(0, dtMs);
+    if (this.anim === null) return;
+    const a = this.anim;
+    const t = Math.min(1, Math.max(0, (this.clockMs - a.startMs) / Math.max(1, a.durMs)));
+    const k = ease01(t);
+    this.camera = {
+      x: a.from.x + (a.to.x - a.from.x) * k,
+      y: a.from.y + (a.to.y - a.from.y) * k,
+      zoom: a.from.zoom + (a.to.zoom - a.from.zoom) * k,
+    };
+    if (t >= 1) {
+      this.camera = { ...a.to };
+      this.anim = null;
+    }
+  }
+
+  /** 立即设置相机（中止动画）。 */
+  setCamera(cam: StageCamera): void {
+    this.camera = { ...cam };
+    this.anim = null;
+  }
+
+  /** 相机缓动到目标位置（世界坐标视心）。durMs<=0 立即落位。 */
+  panTo(x: number, y: number, durMs = 300): void {
+    const to: StageCamera = { x, y, zoom: this.camera.zoom };
+    if (durMs <= 0) {
+      this.camera = to;
+      this.anim = null;
+      return;
+    }
+    this.anim = { from: { ...this.camera }, to, startMs: this.clockMs, durMs };
+  }
+
+  /** 相机缓动缩放（zoom>0）。durMs<=0 立即落位。 */
+  zoomTo(z: number, durMs = 300): void {
+    const to: StageCamera = { x: this.camera.x, y: this.camera.y, zoom: z > 0 ? z : 1 };
+    if (durMs <= 0) {
+      this.camera = to;
+      this.anim = null;
+      return;
+    }
+    this.anim = { from: { ...this.camera }, to, startMs: this.clockMs, durMs };
+  }
+
+  /** 当前相机（测试/宿主读取用）。 */
+  currentCamera(): StageCamera {
+    return { ...this.camera };
   }
 
   /** 设置/替换子级（同 id 覆盖）。 */

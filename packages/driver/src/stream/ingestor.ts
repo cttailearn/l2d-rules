@@ -119,7 +119,7 @@ export class StreamIngestor {
     if (!v.ok) {
       return { applied: [], skipped: v.issues.map((i) => ({ line: i.line, reason: i.rule })) };
     }
-    const sched = resolveSchedule(stream, tMs);
+    const sched = resolveSchedule(stream, tMs, this.ruleCtx.assets?.motions);
     if (!sched.ok) {
       return { applied: [], skipped: [{ line: sched.line, reason: sched.reason }] };
     }

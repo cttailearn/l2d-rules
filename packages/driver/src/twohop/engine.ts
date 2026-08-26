@@ -10,9 +10,57 @@
 
 import type { StreamIngestor } from "../stream/ingestor.ts";
 import type { RuntimeProvider } from "../provider/types.ts";
+import type { ChatResult } from "../provider/types.ts";
 import { extractJsonLines } from "../provider/fallback.ts";
 import type { DriverClock } from "../clock.ts";
 import { BehaviorIndex, type BehaviorItem, type Context, type DriverEvent } from "./types.ts";
+import { IR_VERSION, type Directive, type DirectiveStream } from "../ir/types.ts";
+
+function isObj(v: unknown): v is Record<string, unknown> {
+  return typeof v === "object" && v !== null && !Array.isArray(v);
+}
+
+/**
+ * P0-1：把第二跳 LLM 结果转成「逐行投喂计划」。
+ * native 档 `result.structured`（DirectiveStream / 单条指令 / 指令数组）优先：
+ *   - 整条 DirectiveStream（offlines:true）→ 离线整批（feedBatch，原子）；
+ *   - 其余 → 拆成逐行 JSONL（流式 feedLine），流级 target 注入缺 target 的指令；
+ * text 档 `result.structured` 缺失 → extractJsonLines 降级（保留原 text/grammar 路径）。
+ */
+export function planFromResult(result: ChatResult): { lines: string[]; offline?: DirectiveStream } {
+  const s = result.structured;
+  if (s === undefined) return { lines: extractJsonLines(result.text) };
+  if (Array.isArray(s)) {
+    return { lines: s.filter(isObj).map((d) => JSON.stringify(d as object)) };
+  }
+  if (isObj(s)) {
+    if (Array.isArray(s.directives)) {
+      const target = typeof s.target === "string" ? s.target : undefined;
+      const lines = s.directives.filter(isObj).map((raw) => {
+        const d = { ...(raw as object) };
+        if (target !== undefined && (d as Record<string, unknown>).target === undefined) {
+          (d as Record<string, unknown>).target = target;
+        }
+        return JSON.stringify(d);
+      });
+      if (s.offlines === true) {
+        return {
+          lines,
+          offline: {
+            v: IR_VERSION,
+            ...(target !== undefined ? { target } : {}),
+            directives: lines.map((l) => JSON.parse(l) as Directive),
+            offlines: true,
+          } as DirectiveStream,
+        };
+      }
+      return { lines };
+    }
+    if (typeof s.op === "string") return { lines: [JSON.stringify(s)] };
+  }
+  // structured 形状不识别 → 退 text 提取
+  return { lines: extractJsonLines(result.text) };
+}
 
 export interface DriverEngineOpts {
   index: BehaviorIndex;
@@ -84,7 +132,11 @@ export class DriverEngine {
       { system: this.systemPrompt, messages: [{ role: "user", content: this.eventToPrompt(event, ctx) }] },
     );
     this.llmCalls += 1;
-    let lines = extractJsonLines(result.text);
+
+    // P0-1：优先 native structured 输出；text 提取仅为 text/grammar 档降级。
+    const plan = planFromResult(result);
+    let lines = plan.lines;
+    let offline = plan.offline;
 
     // 危险动作 → 语义抽查慢路径（R-P1-2｜§11.2）：只喂通过复核的行
     let blocked = false;
@@ -93,8 +145,16 @@ export class DriverEngine {
       this.spotBlocked += lines.length - approved.length;
       if (approved.length === 0) blocked = true;
       lines = approved;
+      offline = undefined; // 慢路径逐行复核后不再整批原子
     }
-    if (!blocked) this.feed(lines);
+    if (!blocked) {
+      // 离线整批（offlines:true）优先；慢路径已把 offline 清空 → 逐行投喂复核后的行
+      if (offline !== undefined) {
+        this.feedBatch(offline);
+      } else if (lines.length > 0) {
+        this.feed(lines);
+      }
+    }
     return { hop: 2, lines, blocked, spotChecked: true };
   }
 
@@ -119,6 +179,13 @@ export class DriverEngine {
       this.audit.push({ tMs: ts, line });
       this.ing.feedLine(line, ts);
     }
+  }
+
+  /** P0-1：离线整批投喂（native DirectiveStream offlines:true）——整批原子 + 审计。 */
+  private feedBatch(stream: DirectiveStream): void {
+    const ts = this.now();
+    const r = this.ing.feedBatch(stream, ts);
+    for (const d of r.applied) this.audit.push({ tMs: ts, line: JSON.stringify(d) });
   }
 
   private eventToPrompt(event: DriverEvent, ctx: Context): string {

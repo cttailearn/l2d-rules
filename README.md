@@ -26,6 +26,7 @@ l2d-rules/
 │  ├─ create/       P4b 创作编排：创作 IR v1 + 同源 JSON Schema + 校验 + 执行(rig+动作生成) + 规则/多模态审核 + 自修复循环
 │  └─ host/         P4c 宿主桥接骨架：HttpClient + ComfyUI REST 桥 + HTTP 分割服务 Segmenter + LLM Labeler/Reviewer（provider/服务可注入）
 ├─ examples/
+│  ├─ demo-app/    ★ 小型使用应用 demo：Live2D 聊天助手——聊天输入 → 两跳决策 + 确定性应答 → JSONL 驱动说话/动作/换装/口型 + SceneStage 场景 + 语音（浏览器 Vite + 无头同核）
 │  ├─ demo-web/    浏览器 demo（JSONL 流式 → 引擎实时动作；?model=haru-full.l2dm 真实纹理渲染；软件+WebGL2 逐像素一致 e2e）
 │  ├─ demo-real/   ✦ 真实官方 Haru 模型端到端：转换 → 驱动 → 自包含 .l2dm 产物 + 二次修改/从零构建示例
 │  └─ demo-p4b/    原图 → 拆解 → 绑定 → 驱动 全链路：内存立绘 → 半自动切图 → 自修复绑定 → 动作/JSONL 驱动 → 预览出图
@@ -77,7 +78,7 @@ npm run start   # 转换 Haru → JSONL 驱动 → out/: haru-full.l2dm(自包�
 ~~~bash
 npm install
 npm run typecheck   # 8 包 + demo-web 类型检查
-npm test            # 8 包 + demo 全量 254 例全绿（含 moc3 语料解析/真实几何回归）
+npm test            # 8 包 + demo 全量 274 例全绿（含 moc3 语料解析/真实几何回归/demo-app 同核）
 npm run eval        # 评估集门禁：specs/evals/drive-cases.json → 报告（任一 case 失败退出码 1；6/6）
 ~~~
 
@@ -95,6 +96,26 @@ npm run dev         # 打开 http://localhost:5173
 - M3 DoD——真实浏览器 WebGL2 逐像素一致性 + 真实纹理浏览器渲染：`npm run test:e2e`（Playwright + Chromium；parity 软件 vs WebGL2 容差 ±1，real-texture 加载 `?model=haru-full.l2dm` 断言语义 2 张纹理解码 + 画布 80×64 + 真实纹素）
 
 **上传即时对比页（`/compare.html`）**：上传一个 Live2D 模型目录（或拖 .zip/文件夹）→ **左侧**自研引擎把该模型实时转为 `.l2dm` 并软件光栅渲染，**右侧**官方 Cubism SDK（CDN runtime）渲染真实 `.moc3`——同一官方 motion 同步驱动两侧并排对比。全程浏览器内存（blob URL + 内存 FileLoader），零服务器；右侧需联网加载 CDN runtime。见 [examples/demo-web/README.md](examples/demo-web/README.md)。
+
+## 小型使用应用 demo（demo-app）
+
+**打开就能用**的应用级演示：聊天框打字 → 角色说话（台词 + 语音）、做动作、张嘴对口型、换装——实时渲染（[examples/demo-app/README.md](examples/demo-app/README.md)）。与 demo-web（验证控制台）互补，展示「用这套 SDK 能搭出一个什么样的应用」：
+
+```bash
+cd examples/demo-app
+npm run dev          # 浏览器应用 → http://localhost:5173
+npm start            # 无头 CLI：脚本化聊天 + 上传构建示例 → 出帧 out/*.png + report.txt（确定性）
+CHAR=all npm start   # 三角色全跑（haru 官方 / 小骨架语义 / 衣装酱换装）
+npm test             # 同核 7 例：两跳决策/说话口型/换装/确定性/多角色场景/上传构建全链
+```
+
+- 一条消息链路：`两跳决策（DriverEngine 第一跳本地规则 → 第二跳 Provider）→ 确定性台词 → estimateSpeechTimeline+blendVisemes 口型 → StreamIngestor 逐行 JSONL（坏行隔离）→ LayerStack+EnvironmentLayer+Evaluator → L2dmPlayer → SceneStage（背景/相机/多角色）→ WebGL2/软光栅`
+- 三形态角色同一个 AppCore：**官方 Haru**（真实纹理 + 语音 + 环境层映射）、**小骨架**（play/face warp 形变）、**衣装酱**（rig 换装 outfit）。
+  注意：Haru 当前 `.l2dm` 为官方基准姿态烘焙（warp 形变是 convert 下一里程碑）——参数驱动/台词/语音正常，几何形变请切小骨架/衣装酱体验。
+- **上传图像 → 构建 Live2D**：左侧面板选择/拖入 PNG（或内置示例）→ 浏览器内 `cutout → create(自修复) → rig + 动作生成 → 内嵌纹理 .l2dm` → 注册为第 4 个角色「我的创作」直接聊天。
+  内置确定性链面向平坦色画风；复杂图可注入真实 Segmenter/Labeler（`@l2dp/host`：HttpSegmenter/视觉 LLM），核心零改动。
+- 真实 LLM：`LLM_API_KEY=… npm start`（第二跳走 OpenAI 兼容端点；缺省确定性 mock，离线/CI 可跑）。
+- 浏览器与无头/测试共用 `src/core.ts` + `src/creator.ts`（无 DOM 核心），同一条链三处验证。
 
 ## 现状（对齐 SPEC-DSL-v1.0 第 13 章路线图）
 

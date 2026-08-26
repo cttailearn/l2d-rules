@@ -13,6 +13,7 @@ import {
   BehaviorIndex,
   DriverEngine,
   MockProvider,
+  type RuntimeProvider,
   type ManifestLike,
   type AssetIndex,
   type AssetStore,
@@ -33,6 +34,8 @@ export interface EvalCase {
     mood?: { valence: number; arousal: number };
     context?: Context;
     seed?: number;
+    /** P1-2：true = 用 native 结构化输出 provider（走 P0-1 修复后的 structured 链路） */
+    structured?: boolean;
   };
   expectedSemEffect: {
     windowMs: [number, number];
@@ -41,6 +44,8 @@ export interface EvalCase {
     max?: number;
     op?: string;
     kinds?: string[];
+    /** op 断言的可选载荷值（如 camera 的 zoom） */
+    zoom?: number;
   }[];
 }
 
@@ -89,14 +94,44 @@ export function demoBehaviorIndex(): BehaviorIndex {
     ],
   });
   reg({ id: "idle", events: ["idle"], kinds: ["idle"], priority: 1, lines: ['{"op":"play","asset":"微笑点头"}'] });
+  // P1-2：camera / outfit 宿主 op 行为（评估集覆盖——校验可表达且审计可见）
+  reg({
+    id: "camera_pan", events: ["user_text"], kinds: ["camera"], priority: 9,
+    lines: ['{"op":"camera","zoom":1.2,"pan":[10,0]}'],
+    match: (e) => e.type === "user_text" && /镜头|camera|推近|拉近/i.test(e.text),
+  });
+  reg({
+    id: "outfit_switch", events: ["user_text"], kinds: ["outfit"], priority: 9,
+    lines: ['{"op":"outfit","outfit":"衣装组2"}'],
+    match: (e) => e.type === "user_text" && /换装|outfit|衣装/i.test(e.text),
+  });
   return index;
+}
+
+/** P1-2：native 结构化输出 provider（P0-1 修复后的 structured 链路评估覆盖）。 */
+class StructuredEvalProvider implements RuntimeProvider {
+  capabilities(): { structured: "native" } {
+    return { structured: "native" };
+  }
+  async createCompletion(): Promise<{ text: string; structured: unknown }> {
+    return {
+      text: "",
+      structured: {
+        v: 2,
+        directives: [
+          { op: "play", asset: "微笑点头" },
+          { op: "play", asset: "尾巴摇" },
+        ],
+      },
+    };
+  }
 }
 
 export interface EvalHarness {
   stack: LayerStack;
   env: EnvironmentLayer;
   index: BehaviorIndex;
-  provider: MockProvider;
+  provider: RuntimeProvider;
   engine: DriverEngine;
   ev: Evaluator;
   /** 参数采样（每帧） */
@@ -104,7 +139,7 @@ export interface EvalHarness {
   paramAt(t: number): Record<string, number>;
 }
 
-export function createEvalHarness(modelJson: string, seed = 42): EvalHarness {
+export function createEvalHarness(modelJson: string, seed = 42, opts: { structured?: boolean } = {}): EvalHarness {
   const loaded = loadL2dm(modelJson);
   if (!loaded.ok) throw new Error(`demo.l2dm 加载失败: ${loaded.error}`);
   const model: L2dmModel = loaded.model;
@@ -124,7 +159,7 @@ export function createEvalHarness(modelJson: string, seed = 42): EvalHarness {
   const env = new EnvironmentLayer(defs, { seed });
   const ing = new StreamIngestor({ manifest, library, assets, stack, env, seed });
   const index = demoBehaviorIndex();
-  const provider = new MockProvider();
+  const provider: RuntimeProvider = opts.structured === true ? new StructuredEvalProvider() : new MockProvider();
   const engine = new DriverEngine({ index, provider, ing });
 
   const frames: EvalHarness["frames"] = [];
@@ -168,22 +203,29 @@ export async function runCase(harness: EvalHarness, c: EvalCase): Promise<EvalRe
         failures.push(`窗口 [${t0},${t1}] sem '${a.sem}' 峰值 ${fmt(maxV)} 超过 max ${a.max}`);
       }
     }
-    if (a.op === "play" && a.kinds !== undefined) {
-      const playsInWindow = harness.engine.audit.filter((e) => {
-        if (e.tMs < t0 || e.tMs > t1) return false;
+    if (a.op !== undefined) {
+      const inWindow = harness.engine.audit.filter((e) => e.tMs >= t0 && e.tMs <= t1);
+      let hit = false;
+      for (const e of inWindow) {
         try {
-          const d = JSON.parse(e.line) as { op?: string; asset?: string };
-          return d.op === "play" && d.asset !== undefined;
+          const d = JSON.parse(e.line) as { op?: string; asset?: string; zoom?: number; outfit?: string };
+          if (d.op !== a.op) continue;
+          if (a.op === "play" && a.kinds !== undefined) {
+            const kinds = harness.index.kindsOfAsset(d.asset ?? "");
+            if (!a.kinds.some((k) => kinds.includes(k))) continue;
+          } else if (a.op === "camera" && a.zoom !== undefined) {
+            if (Number(d.zoom) !== a.zoom) continue;
+          }
+          hit = true;
+          break;
         } catch {
-          return false;
+          // 非 JSON / 解析失败行忽略
         }
-      });
-      const hit = playsInWindow.some((e) => {
-        const d = JSON.parse(e.line) as { asset: string };
-        const kinds = harness.index.kindsOfAsset(d.asset);
-        return a.kinds!.some((k) => kinds.includes(k));
-      });
-      if (!hit) failures.push(`窗口 [${t0},${t1}] 无 play（kinds ${a.kinds.join("/")}）`);
+      }
+      if (!hit) {
+        const extra = a.op === "camera" && a.zoom !== undefined ? ` zoom=${a.zoom}` : a.kinds ? ` kinds=${a.kinds.join("/")}` : "";
+        failures.push(`窗口 [${t0},${t1}] 无 op '${a.op}'${extra}`);
+      }
     }
   }
   return { id: c.id, pass: failures.length === 0, failures, hop: disp.hop, behaviorId: disp.behaviorId };
@@ -193,7 +235,7 @@ export async function runCase(harness: EvalHarness, c: EvalCase): Promise<EvalRe
 export async function runAllCases(modelJson: string, cases: EvalCase[]): Promise<EvalReport> {
   const results: EvalResult[] = [];
   for (const c of cases) {
-    const harness = createEvalHarness(modelJson, c.scenario.seed ?? 42);
+    const harness = createEvalHarness(modelJson, c.scenario.seed ?? 42, { structured: c.scenario.structured });
     results.push(await runCase(harness, c));
   }
   const passed = results.filter((r) => r.pass).length;

@@ -69,9 +69,19 @@ export class OpenAIProvider implements RuntimeProvider {
       usage?: { prompt_tokens?: number; completion_tokens?: number };
     };
     const choice = data.choices[0];
+    // P0-1：native 档 content 应为 JSON（strict structured outputs），但模型可能不按 schema 输出。
+    // JSON.parse 失败 → 降级返回 { text: content }（由 text/fallback 提取器兜底），不向上抛。
+    let structured: unknown;
+    if (choice) {
+      try {
+        structured = JSON.parse(choice.message.content);
+      } catch {
+        structured = undefined;
+      }
+    }
     return {
       text: choice?.message.content ?? "",
-      structured: choice ? JSON.parse(choice.message.content) : undefined,
+      structured,
       finishReason: choice?.finish_reason,
       usage: {
         promptTokens: data.usage?.prompt_tokens,

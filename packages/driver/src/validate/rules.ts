@@ -111,7 +111,7 @@ export const OP_RULES: Record<Directive["op"], { required: readonly string[]; al
   blink:  { required: [], allowed: ["interval"] },
   drift:  { required: ["sem", "amplitude", "period"], allowed: ["sem", "amplitude", "period"] },
   look:   { required: ["gaze"], allowed: ["gaze"] },
-  camera: { required: [], allowed: [] },
+  camera: { required: [], allowed: ["zoom", "pan"] },
   action: { required: ["asset"], allowed: ["asset", "interrupt"] },
   emote:  { required: ["emote"], allowed: ["emote"] },
   wait:   { required: ["ms"], allowed: ["ms"] },
@@ -135,6 +135,16 @@ function fieldRangeIssue(d: Directive, field: string, v: unknown, lineNo: number
     case "amplitude": case "period": case "interval": case "ms": case "dur": {
       const n = num();
       return Number.isNaN(n) || n < 0 ? issue("RANGE", lineNo, `${field} 必须 ≥ 0`, field) : null;
+    }
+    case "zoom": {
+      const n = num();
+      return Number.isNaN(n) || n <= 0 ? issue("RANGE", lineNo, "zoom 必须 > 0", field) : null;
+    }
+    case "pan": {
+      if (!Array.isArray(v) || v.length !== 2 || !v.every((x) => typeof x === "number" && Number.isFinite(x))) {
+        return issue("RANGE", lineNo, "pan 必须为 [x,y] 两个有限数字", field);
+      }
+      return null;
     }
     case "gaze": {
       if (!Array.isArray(v) || v.length !== 2 || !v.every((x) => typeof x === "number" && Number.isFinite(x))) {

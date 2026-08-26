@@ -1,8 +1,8 @@
 // demo-capabilities —— P6 driver + scene 能力演示
 import { mkdir, writeFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
-import { dirname, fileURLToPath } from "node:url";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import {
   buildBehaviorIndex,
   driverToolCatalog,

@@ -146,6 +146,37 @@ test("P4b: RuleReviewer——合法模型通过，空白模型拒绝", async () 
   assert.equal(empty.ok, false);
 });
 
+test("P1-1: RuleReviewer 三态——blink 态把部件拖出画布可检出；threeStates:false 不检", async () => {
+  // 三色方块，均带 眼闭(EyeBlink) warp：value=1 时整体右移 40px 出画布
+  const verts = [0, 0, 10, 0, 10, 10, 0, 10];
+  const uvs = [0, 0, 1, 0, 1, 1, 0, 1];
+  const indices = [0, 1, 2, 0, 2, 3];
+  const warp = {
+    parameter: "眼闭",
+    keyforms: [
+      { value: 0, offsets: [0, 0, 0, 0, 0, 0, 0, 0] },
+      { value: 1, offsets: [40, 0, 40, 0, 40, 0, 40, 0] },
+    ],
+  };
+  const part = (id: string, color: [number, number, number, number]) => ({
+    id, order: 0, color, mesh: { vertices: verts, uvs, indices, warps: [warp] } as never,
+  });
+  const model = {
+    formatVersion: 1, id: "t", canvas: { width: 20, height: 20 },
+    parameters: [{ id: "眼闭", min: 0, max: 1, def: 0, group: "EyeBlink" }],
+    parts: [part("r", [1, 0, 0, 1]), part("g", [0, 1, 0, 1]), part("b", [0, 0, 1, 1])],
+  } as never;
+
+  const three = new RuleReviewer({ minColors: 1 });
+  const v = await three.review(model);
+  assert.equal(v.ok, false, "blink 态三部件整体出画布（覆盖率≈0）应被检出: " + v.issues.join(";"));
+  assert.ok(v.issues.some((i) => i.includes("blink")), "问题应标注 blink 态");
+
+  const single = new RuleReviewer({ threeStates: false, minColors: 1 });
+  const v2 = await single.review(model);
+  assert.equal(v2.ok, true, "rest 单态三色块覆盖正常应通过");
+});
+
 test("P4b: creationDirectiveSchema 基本形状", () => {
   const s = creationDirectiveSchema() as { required: string[]; properties: Record<string, unknown> };
   assert.ok(s.required.includes("parts"));

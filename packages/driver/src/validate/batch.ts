@@ -2,7 +2,7 @@
 // 任一规则失败 → 整批拒绝（applied 空），返回 {issues}（带行号，回传 LLM 自修复）。
 // 干跑：在 scratch LayerStack/EnvironmentLayer 上求值 N 帧，任何 NaN/Inf 即拒绝。
 
-import type { Directive, DirectiveStream, ResolvedDirective } from "../ir/types.ts";
+import type { Directive, DirectiveStream, ResolvedDirective, MotionLike } from "../ir/types.ts";
 import { EnvironmentLayer, type EnvParamDef } from "../layers/environment.ts";
 import { LayerStack } from "../layers/layer-stack.ts";
 import { routeDirective } from "../layers/route.ts";
@@ -66,10 +66,11 @@ export function batchValidate(
   return dry.ok ? { ok: true, issues: [] } : { ok: false, issues: dry.issues };
 }
 
-/** at 排程（feedBatch 与干跑共享）：绝对 ms 相对流起点 / +N 相对上一条 / +id 依赖前序行开始（dur 指定则依赖其结束）。 */
+/** at 排程（feedBatch 与干跑共享）：绝对 ms 相对流起点 / +N 相对上一条 / +id 依赖前序行（dur 指定则依赖其结束）。 */
 export function resolveSchedule(
   stream: DirectiveStream,
   tMs: number,
+  motions?: Map<string, MotionLike>,
 ): { ok: true; schedule: { d: ResolvedDirective; startMs: number }[] } | { ok: false; line: number; reason: string } {
   const schedule: { d: ResolvedDirective; startMs: number }[] = [];
   const idTimes = new Map<string, { start: number; end: number }>();
@@ -86,14 +87,28 @@ export function resolveSchedule(
       else {
         const base = idTimes.get(at.slice(1));
         if (base === undefined) return { ok: false, line: i, reason: "AT_DEP_MISSING" };
-        start = d.dur !== undefined ? base.start + d.dur : base.start;
+        // P1-5：dur 指定 → 依赖被引用行"结束"（真实时长）；否则依赖其"开始"
+        start = d.dur !== undefined ? base.end : base.start;
       }
     }
     schedule.push({ d, startMs: start });
-    if (d.id) idTimes.set(d.id, { start, end: start + (d.dur ?? 0) });
+    if (d.id) {
+      const durMs = effectiveDurationMs(d, motions);
+      idTimes.set(d.id, { start, end: start + durMs });
+    }
     prev = start;
   }
   return { ok: true, schedule };
+}
+
+/** 指令的实际时长：play 用动作资产 durationMs（loop 封顶 2000ms 防无限），其余用 dur。 */
+function effectiveDurationMs(d: ResolvedDirective, motions?: Map<string, MotionLike>): number {
+  if (d.op === "play") {
+    const m = d._motion ?? motions?.get(d.asset ?? "");
+    const dur = m ? m.durationMs : (d.dur ?? 0);
+    return m?.loop ? Math.min(dur, 2000) : dur;
+  }
+  return d.dur ?? 0;
 }
 
 // ---------------- 干跑（DRY_RUN） ----------------
@@ -107,7 +122,7 @@ function dryRunIssues(
   ctx: BatchValidateCtx,
   lineOffset: number,
 ): { ok: boolean; issues: ValidationIssue[] } {
-  const sched = resolveSchedule(stream, 0);
+  const sched = resolveSchedule(stream, 0, ctx.assets?.motions);
   if (!sched.ok) {
     return { ok: false, issues: [{ path: "", line: lineOffset + sched.line, col: -1, rule: sched.reason, message: `at 排程失败: ${sched.reason}` }] };
   }

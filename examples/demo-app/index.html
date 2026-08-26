@@ -1,0 +1,278 @@
+<!doctype html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Live2D 聊天助手 · demo-app（小型使用应用）</title>
+  <style>
+    :root {
+      --bg: #0e1116;
+      --panel: #171b22;
+      --panel2: #1f2430;
+      --line: #2a313e;
+      --text: #e9e9e9;
+      --muted: #8b98a9;
+      --accent: #4d9fff;
+      --accent2: #b18cff;
+      --ok: #7ee787;
+      --bad: #f85149;
+      --board-a: #20242d;
+      --board-b: #2a303c;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: radial-gradient(1200px 600px at 60% -10%, #1a2031 0%, var(--bg) 62%);
+      color: var(--text);
+      min-height: 100vh;
+    }
+    /* ---------- 顶栏 ---------- */
+    .appbar {
+      max-width: 1180px; margin: 0 auto; padding: 14px 20px 4px;
+      display: flex; flex-wrap: wrap; align-items: center; gap: 10px;
+    }
+    .brand { font-size: 1.15rem; font-weight: 650; }
+    .brand .sub { color: var(--muted); font-size: 0.78rem; margin-left: 8px; font-weight: 400; }
+    .badges { margin-left: auto; display: flex; flex-wrap: wrap; gap: 6px; }
+    .badge {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 0.7rem; padding: 3px 9px; border-radius: 999px;
+      background: #20262f; border: 1px solid var(--line); color: var(--muted);
+    }
+    .badge.ok { color: var(--ok); border-color: #2f6b45; }
+
+    main.layout {
+      max-width: 1180px; margin: 0 auto; padding: 14px 20px 34px;
+      display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(320px, 1fr);
+      gap: 16px; align-items: start;
+    }
+    @media (max-width: 900px) { main.layout { grid-template-columns: 1fr; } }
+
+    .panel {
+      background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px;
+    }
+    .panel h3 { margin: 0 0 8px; font-size: 0.74rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+
+    button, select {
+      background: var(--panel2); color: var(--text); border: 1px solid var(--line);
+      border-radius: 8px; padding: 6px 12px; font-size: 0.84rem; cursor: pointer;
+      transition: border-color .15s, background .15s;
+    }
+    button:hover { border-color: var(--accent); }
+    button.primary { background: #1c3b66; border-color: #2a5b99; }
+    button.active { border-color: var(--ok); color: var(--ok); }
+    .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+    .hint { color: var(--muted); font-size: 0.75rem; }
+
+    /* ---------- 舞台 ---------- */
+    .toolbar { margin-bottom: 12px; }
+    .toolbar .tl { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 8px; }
+    .toolbar .tl .lbl { font-size: 0.74rem; color: var(--muted); min-width: 46px; }
+
+    .stage-wrap {
+      position: relative; display: flex; justify-content: center; align-items: center;
+      background:
+        conic-gradient(var(--board-a) 25%, var(--board-b) 0 50%, var(--board-a) 0 75%, var(--board-b) 0)
+        0 0 / 24px 24px;
+      border: 1px solid var(--line); border-radius: 12px; min-height: 452px; overflow: hidden;
+    }
+    canvas { width: 100%; max-width: 520px; max-height: 640px; image-rendering: auto; border-radius: 8px; }
+
+    .bubble {
+      position: absolute; top: 12px; left: 50%; transform: translateX(-50%); max-width: 88%;
+      background: rgba(24, 30, 40, 0.92); border: 1px solid #3a4556; border-radius: 12px;
+      padding: 7px 12px; font-size: 0.86rem; color: #e8f1ff;
+      box-shadow: 0 8px 24px rgba(0,0,0,.4);
+    }
+    .bubble::after {
+      content: ""; position: absolute; bottom: -6px; left: 20px;
+      border: 6px solid transparent; border-top-color: rgba(24, 30, 40, 0.92); border-bottom: 0;
+    }
+
+    .presets, .outfits { margin-top: 10px; }
+    .outfits button.wear.active { border-color: var(--accent2); color: var(--accent2); }
+
+    /* ---------- 上传建 Live2D ---------- */
+    .create { margin-top: 10px; }
+    .create-body { display: flex; flex-direction: column; gap: 10px; }
+    .drop {
+      border: 1.5px dashed #3a4556; border-radius: 12px; padding: 22px 12px;
+      text-align: center; color: var(--muted); cursor: pointer; font-size: 0.9rem;
+      background: #12161d; transition: border-color .15s, background .15s;
+    }
+    .drop:hover, .drop.dragover { border-color: var(--accent); background: #171d28; color: var(--text); }
+    .drop-inner .hint { display: block; margin-top: 6px; }
+    .create-opts { gap: 14px; }
+    .create-opts .opt { display: inline-flex; align-items: center; gap: 6px; font-size: 0.78rem; color: var(--muted); }
+    .create-opts .opt input[type="range"] { width: 110px; accent-color: var(--accent); }
+    .create-opts .opt b { color: var(--text); font-family: ui-monospace, monospace; min-width: 20px; }
+    .create-stage { display: flex; flex-wrap: wrap; gap: 10px; }
+    .create-stage figure { margin: 0; flex: 1 1 150px; }
+    .create-stage figcaption { font-size: 0.72rem; color: var(--muted); margin-bottom: 4px; }
+    .create-stage canvas {
+      width: 100%; height: auto; border: 1px solid var(--line); border-radius: 8px;
+      background: conic-gradient(var(--board-a) 25%, var(--board-b) 0 50%, var(--board-a) 0 75%, var(--board-b) 0) 0 0 / 20px 20px;
+    }
+    .create-log {
+      background: #0d1015; border: 1px solid var(--line); border-radius: 10px;
+      max-height: 150px; overflow-y: auto; padding: 8px 10px;
+      font-family: ui-monospace, monospace; font-size: 0.72rem; color: #a7c6ee; line-height: 1.6;
+      white-space: pre-wrap;
+    }
+    .create-log.busy { color: #e3b341; }
+    .create-log.ok { color: var(--ok); }
+    .create-log.err { color: var(--bad); }
+    figure canvas.created-ok { border-color: var(--ok); box-shadow: 0 0 0 1px #2f6b45 inset; }
+
+    #metrics {
+      margin-top: 10px; font-family: ui-monospace, monospace; font-size: 0.72rem;
+      color: var(--muted); white-space: pre-wrap; line-height: 1.6;
+    }
+
+    /* ---------- 聊天 ---------- */
+    .chat-col { display: flex; flex-direction: column; gap: 10px; }
+    .chat-head {
+      display: flex; align-items: center; gap: 10px; font-size: 0.86rem;
+      padding: 10px 2px 0;
+    }
+    .chat-head .name { color: var(--accent2); font-weight: 600; }
+    .chip {
+      margin-left: auto; background: var(--panel2); border: 1px solid var(--line);
+      border-radius: 999px; padding: 3px 10px; font-size: 0.76rem; cursor: pointer;
+      color: var(--muted);
+    }
+    .chip.on { border-color: var(--ok); color: var(--ok); }
+
+    .log {
+      background: #0d1015; border: 1px solid var(--line); border-radius: 12px;
+      height: 420px; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 8px;
+    }
+    .msg { max-width: 86%; padding: 7px 11px; border-radius: 12px; font-size: 0.84rem; line-height: 1.5; white-space: pre-wrap; }
+    .msg.user { align-self: flex-end; background: #1c3b66; border-bottom-right-radius: 4px; }
+    .msg.char { align-self: flex-start; background: #222a37; border-bottom-left-radius: 4px; }
+    .msg .meta { display: block; font-size: 0.66rem; color: var(--muted); margin-top: 3px; font-family: ui-monospace, monospace; }
+    .msg.empty { color: var(--muted); font-size: 0.78rem; align-self: center; background: none; border: 1px dashed var(--line); }
+
+    .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+    .chips button { font-size: 0.76rem; padding: 4px 10px; }
+
+    .input-row { display: flex; gap: 8px; }
+    .input-row input {
+      flex: 1; background: #0d1015; color: var(--text); border: 1px solid var(--line);
+      border-radius: 8px; padding: 9px 12px; font-size: 0.86rem; outline: none;
+    }
+    .input-row input:focus { border-color: var(--accent); }
+
+    .chat-foot {
+      font-family: ui-monospace, monospace; font-size: 0.7rem; color: var(--muted); line-height: 1.5;
+      padding: 0 2px;
+    }
+    footer { max-width: 1180px; margin: 0 auto; padding: 2px 20px 26px; color: var(--muted); font-size: 0.76rem; line-height: 1.7; }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <header class="appbar">
+    <div class="brand">🎤 Live2D 聊天助手 <span class="sub">demo-app · @l2dp/rules —— 聊天输入 → 两跳决策 → JSONL 流式驱动 → 场景渲染</span></div>
+    <div class="badges" id="badges"></div>
+  </header>
+
+  <main class="layout">
+    <!-- 左：舞台 -->
+    <section class="panel">
+      <div class="toolbar">
+        <div class="tl">
+          <span class="lbl">角色</span>
+          <div class="row" id="charBtns"></div>
+        </div>
+        <div class="tl">
+          <span class="lbl">背景</span>
+          <div class="row" id="bgBtns">
+            <button data-bg="clear">透明</button>
+            <button data-bg="night">夜空</button>
+            <button data-bg="sunset">暖阳</button>
+            <button data-bg="forest">森林</button>
+            <button data-bg="purple">晚霞</button>
+          </div>
+          <span class="chip on" id="companionToggle" title="在舞台右侧加入一只循环摇尾巴的小骨架（SceneStage 多角色）">👥 同伴</span>
+          <button id="zoomOut" title="相机拉远">−</button>
+          <button id="zoomIn" title="相机推进">＋</button>
+          <span class="hint" style="margin-left:auto;">rAF 实时渲染 · WebGL2 / 软光栅</span>
+        </div>
+      </div>
+
+      <div class="stage-wrap" id="stageWrap">
+        <div class="bubble" id="bubble" hidden></div>
+        <canvas id="canvas" width="560" height="720"></canvas>
+      </div>
+
+      <!-- 🎨 上传图像 → 构建 Live2D -->
+      <div class="panel create">
+        <h3>🎨 上传图像 → 构建 Live2D（cutout → create → rig → engine · 浏览器内 · 确定性）</h3>
+        <div class="create-body">
+          <div class="drop" id="drop" tabindex="0">
+            <div class="drop-inner">📥 点击选择 / 拖入 PNG 立绘<br />
+              <span class="hint">平坦色画风最佳（内置 ColorKey 切图）；复杂照片可注入真实 Segmenter/Labeler（@l2dp/host）</span>
+            </div>
+          </div>
+          <div class="row create-opts">
+            <label class="opt">容差 <input type="range" id="tol" min="0" max="40" value="6" /> <b id="tolV">6</b></label>
+            <label class="opt">最小面积 <input type="range" id="minArea" min="20" max="400" value="60" /> <b id="minAreaV">60</b></label>
+            <button id="btnSample">✨ 使用内置示例立绘</button>
+          </div>
+          <div class="create-stage">
+            <figure><figcaption>① 原图</figcaption><canvas id="cvSrc" width="240" height="320"></canvas></figure>
+            <figure><figcaption>② 切图 · 标注</figcaption><canvas id="cvCut" width="240" height="320"></canvas></figure>
+            <figure><figcaption>③ 绑定 · 动作</figcaption><canvas id="cvModel" width="240" height="320"></canvas></figure>
+          </div>
+          <div id="createLog" class="create-log"></div>
+          <div class="row">
+            <button id="btnBuild" class="primary" disabled>构建 Live2D</button>
+            <button id="btnChat" class="primary" hidden>用「我的创作」聊天 →</button>
+            <span class="hint" id="createStatus"></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="presets">
+        <h3>动作预置（JSONL → 校验 → 分层求值）</h3>
+        <div class="row" id="presets"></div>
+      </div>
+
+      <div class="outfits" id="outfitRow" hidden>
+        <h3>换装（outfit op → @l2dp/driver outfitLines）</h3>
+        <div class="row" id="outfitBtns"></div>
+      </div>
+
+      <div id="metrics"></div>
+    </section>
+
+    <!-- 右：聊天 -->
+    <aside class="chat-col">
+      <div class="chat-head">
+        与 <span class="name" id="chatName">—</span> 聊天
+        <span class="chip" id="soundToggle" title="角色说话时播放语音">🔊 语音：开</span>
+      </div>
+      <div class="log" id="log">
+        <div class="msg empty">打个招呼吧～ 试试「你好」「摇摇尾巴」「好可爱」。</div>
+      </div>
+      <div class="chips" id="chips"></div>
+      <div class="input-row">
+        <input id="input" placeholder="说点什么…（Enter 发送）" autocomplete="off" spellcheck="false" />
+        <button id="send" class="primary">发送</button>
+      </div>
+      <div class="chat-foot" id="chatStats"></div>
+    </aside>
+  </main>
+
+  <footer>
+    链路：<b>聊天文本 → @l2dp/driver（BehaviorIndex 第一跳本地规则 &lt;50ms → Provider 第二跳；StreamIngestor 逐行 JSONL + 校验 →
+    LayerStack + EnvironmentLayer + Evaluator 每帧参数）→ @l2dp/engine（L2dmPlayer 播放/形变/物理 + SceneStage 背景/相机/多角色 z-order）→ RenderSink</b>。
+    台词由确定性应答器产出（离线可用、可复现）；说话口型由 <code>estimateSpeechTimeline → blendVisemes</code> 驱动；真实 LLM 决策见 <code>npm run start</code>（设 LLM_API_KEY）。
+  </footer>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

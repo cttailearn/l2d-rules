@@ -7,6 +7,7 @@ import {
   MockProvider,
   WallClock,
   extractJsonLines,
+  planFromResult,
   OpenAIProvider,
   buildOpenAIBody,
   estimateSpeechTimeline,
@@ -14,6 +15,8 @@ import {
   LayerStack,
   EnvironmentLayer,
   Evaluator,
+  type RuntimeProvider,
+  type ChatResult,
   type ManifestLike,
   type AssetIndex,
   type AssetStore,
@@ -235,6 +238,88 @@ test("M7: OpenAI provider——请求成形 + stub fetch 响应解析", async ()
   assert.equal((r.structured as { op?: string }).op, "play");
   assert.equal(r.usage?.promptTokens, 3);
   assert.equal(calls[0]!.url, "https://api.openai.com/v1/chat/completions");
+});
+
+// ---------- P0-1 native 结构化输出链路 ----------
+
+/** 返回结构化输出的 provider（模拟 native 档）。 */
+class StructuredProvider implements RuntimeProvider {
+  calls = 0;
+  structured: unknown;
+  text = "";
+  capabilities(): { structured: "native" } {
+    return { structured: "native" };
+  }
+  async createCompletion(): Promise<ChatResult> {
+    this.calls += 1;
+    return { text: this.text, structured: this.structured };
+  }
+}
+
+test("P0-1: structured DirectiveStream（native 档）→ 逐行生效而非整批被 skip", async () => {
+  const { index, ing, ev, frames } = setup();
+  const provider = new StructuredProvider();
+  provider.structured = { v: 2, directives: [{ op: "play", asset: "微笑点头" }, { op: "play", asset: "尾巴摇" }] };
+  const engine = new DriverEngine({ index, provider, ing });
+
+  const r = await engine.dispatch({ type: "user_text", text: "随便聊聊天气" }, {});
+  assert.equal(r.hop, 2);
+  assert.equal(r.lines.length, 2, "两条结构化指令转成两行");
+  run(ev, frames, 40, 16);
+  assert.ok(frames[frames.length - 1]!.params["微笑"]! > 0.5, "结构化 play 生效（原 bug：整批 skipped）");
+  assert.ok(frames[frames.length - 1]!.params["尾巴摆"]! > 0.5, "第二条 play 生效");
+  assert.equal(engine.audit.length, 2, "审计含两条行");
+});
+
+test("P0-1: 流级 target 注入到缺 target 的指令行", async () => {
+  const { index, ing } = setup();
+  const provider = new StructuredProvider();
+  provider.structured = { v: 2, target: "alt", directives: [{ op: "set", sem: "微笑", value: 0.5 }] };
+  const engine = new DriverEngine({ index, provider, ing });
+  const r = await engine.dispatch({ type: "user_text", text: "随便聊聊" }, {});
+  assert.equal(r.hop, 2);
+  const d = JSON.parse(r.lines[0]!) as { target?: string };
+  assert.equal(d.target, "alt", "流级 target 注入");
+});
+
+test("P0-1: structured offlines:true → 离线整批（feedBatch 原子）", async () => {
+  const { index, ing, ev, frames } = setup();
+  const provider = new StructuredProvider();
+  provider.structured = { v: 2, directives: [{ op: "set", sem: "微笑", value: 1 }], offlines: true };
+  const engine = new DriverEngine({ index, provider, ing });
+  const r = await engine.dispatch({ type: "user_text", text: "随便聊聊" }, {});
+  assert.equal(r.hop, 2);
+  run(ev, frames, 1, 16);
+  assert.equal(frames[frames.length - 1]!.params["微笑"], 1, "离线整批 set 生效");
+  assert.equal(engine.audit.length, 1, "审计含批量行");
+});
+
+test("P0-1: structured 单条指令对象 → 单行", async () => {
+  const { index, ing, ev, frames } = setup();
+  const provider = new StructuredProvider();
+  provider.structured = { op: "set", sem: "微笑", value: 0.8 };
+  const engine = new DriverEngine({ index, provider, ing });
+  const r = await engine.dispatch({ type: "user_text", text: "随便聊聊" }, {});
+  assert.equal(r.hop, 2);
+  assert.equal(r.lines.length, 1);
+  run(ev, frames, 1, 16);
+  assert.equal(frames[frames.length - 1]!.params["微笑"], 0.8);
+});
+
+test("P0-1: planFromResult——undefined structured 走 text 提取降级", () => {
+  const { lines, offline } = planFromResult({ text: '{"op":"play","asset":"微笑点头"}\n{"op":"play","asset":"尾巴摇"}' });
+  assert.equal(offline, undefined);
+  assert.deepEqual(lines, ['{"op":"play","asset":"微笑点头"}', '{"op":"play","asset":"尾巴摇"}']);
+});
+
+test("P0-1: OpenAIProvider 非 JSON content → 返回 text 不抛（降级不崩溃）", async () => {
+  const stubFetch = async (): Promise<Response> => new Response(
+    JSON.stringify({ choices: [{ message: { content: "这不是 JSON（模型未按 schema 输出）" } }] }),
+    { status: 200, headers: { "content-type": "application/json" } });
+  const p = new OpenAIProvider({ model: "m", fetchImpl: stubFetch });
+  const r = await p.createCompletion({ messages: [] });
+  assert.equal(r.structured, undefined, "非 JSON content → structured undefined（不抛）");
+  assert.equal(r.text, "这不是 JSON（模型未按 schema 输出）");
 });
 
 // ---------- tts ----------

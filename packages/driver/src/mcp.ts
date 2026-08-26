@@ -18,8 +18,15 @@ const OP_TOOL_DESC: Readonly<Record<string, { name: string; description: string 
   play: { name: "play_motion", description: "播放一个入库动作资产（顺带 speed/strength/mix/cover 覆盖）" },
   face: { name: "set_expression", description: "设置表情资产，按 weight/blend 混合到表达层" },
   set: { name: "set_parameter", description: "写 override 层：把语义参数直接设为目标值（最高优先）" },
-  look: { name: "look_at", description: "设置视线目标 [x,y]（视线映射比例由宿主/引擎实现）" },
+  outfit: { name: "set_outfit", description: "切换服装组/套装（宿主或 OutfitResolver 解析语义服装名到可见性 set 行）" },
   speak: { name: "speak", description: "请求说话（文本 + 可选 voice 提示），口型由 TTS/降级管线驱动" },
+  blink: { name: "blink", description: "临时覆盖环境层眨眼（可选 interval 间隔），结束后交还控制器" },
+  drift: { name: "set_drift", description: "对语义参数施加持续正弦漂移（amplitude 归一化 0..1，period ms）" },
+  look: { name: "look_at", description: "设置视线目标 [x,y]（视线映射比例由宿主/引擎实现）" },
+  camera: { name: "move_camera", description: "相机指令（zoom>0 / pan [x,y]，由宿主或 SceneStage 消费）" },
+  action: { name: "run_action", description: "嵌套调用入库行为资产" },
+  emote: { name: "set_emote", description: "注入情绪信号 {valence∈[-1,1], arousal∈[0,1]} 调制环境层" },
+  wait: { name: "wait", description: "时间轴等待（ms），供顺序编排" },
 };
 
 /** get_state 工具（读当前参数状态：宿主实现，SDK 只给 schema）。 */

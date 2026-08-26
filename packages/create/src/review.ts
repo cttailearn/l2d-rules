@@ -31,6 +31,8 @@ export interface RuleReviewerOptions {
   minColors?: number;
   /** 头部应出现在画布上半部（不透明像素的最小 y < 0.6*H） */
   headTopRatio?: number;
+  /** 是否启用三态质检（rest/blink/smile；P1-1，缺省 true） */
+  threeStates?: boolean;
 }
 
 function renderFrame(model: L2dmModel, apply: (ps: { set(id: string, v: number): boolean }) => void): Uint8Array {
@@ -42,6 +44,54 @@ function renderFrame(model: L2dmModel, apply: (ps: { set(id: string, v: number):
   const px = sw.readPixels();
   if (!px) return new Uint8Array(0);
   return px;
+}
+
+/** 单帧静态检查：覆盖/颜色/头部位置。返回 issues/suggestions。 */
+function inspectFrame(px: Uint8Array, W: number, H: number, o: {
+  coverageMin: number; coverageMax: number; minColors: number; headTopRatio: number;
+  state: string;
+}): { issues: string[]; suggestions: string[] } {
+  const total = W * H;
+  let opaque = 0;
+  let minY = H;
+  const colors = new Set<number>();
+  for (let i = 0; i < total; i++) {
+    const a = px[i * 4 + 3]!;
+    if (a >= 128) {
+      opaque++;
+      const y = Math.floor(i / W);
+      if (y < minY) minY = y;
+      if (i % 37 === 0) {
+        colors.add(((px[i * 4]! & 0xf8) << 16) | ((px[i * 4 + 1]! & 0xf8) << 8) | (px[i * 4 + 2]! & 0xf8));
+      }
+    }
+  }
+  const coverage = opaque / total;
+  const c: string[] = [];
+  const s: string[] = [];
+  const tag = o.state === "rest" ? "" : `（${o.state} 态）`;
+  if (opaque === 0) {
+    c.push(`渲染为空（无可见像素）${tag}`);
+    s.push(`检查部件 bbox / 颜色是否落在画布内${tag}`);
+  } else {
+    if (coverage < o.coverageMin) {
+      c.push(`覆盖率过低 ${(coverage * 100).toFixed(1)}% < ${(o.coverageMin * 100)}%${tag}`);
+      s.push(`放大部件或扩大 bbox${tag}`);
+    }
+    if (coverage > o.coverageMax) {
+      c.push(`覆盖率过高 ${(coverage * 100).toFixed(1)}% > ${(o.coverageMax * 100)}%${tag}`);
+      s.push(`检查是否有部件糊满画布 / 背景未剔除${tag}`);
+    }
+    if (minY / H > o.headTopRatio) {
+      c.push(`角色整体偏下（无上部内容）${tag}`);
+      s.push(`调整 hinge/部件位置${tag}`);
+    }
+    if (colors.size < o.minColors) {
+      c.push(`颜色种类过少 ${colors.size} < ${o.minColors}${tag}`);
+      s.push(`检查是否只有单一色块${tag}`);
+    }
+  }
+  return { issues: c, suggestions: s };
 }
 
 /** 确定性规则审核（SDK 兜底；宿主可换视觉 LLM 审核器）。 */
@@ -56,50 +106,37 @@ export class RuleReviewer implements RigReviewer {
     const coverageMax = this.opts.coverageMax ?? 0.95;
     const minColors = this.opts.minColors ?? 3;
     const headTopRatio = this.opts.headTopRatio ?? 0.6;
-
-    const rest = renderFrame(model, () => {});
+    const threeStates = this.opts.threeStates ?? true;
     const W = model.canvas.width;
     const H = model.canvas.height;
-    const total = W * H;
-    let opaque = 0;
-    let minY = H;
-    let maxY = -1;
-    const colors = new Set<number>();
-    for (let i = 0; i < total; i++) {
-      const a = rest[i * 4 + 3]!;
-      if (a >= 128) {
-        opaque++;
-        const y = Math.floor(i / W);
-        if (y < minY) minY = y;
-        if (y > maxY) maxY = y;
-        if (i % 37 === 0) {
-          colors.add(((rest[i * 4]! & 0xf8) << 16) | ((rest[i * 4 + 1]! & 0xf8) << 8) | (rest[i * 4 + 2]! & 0xf8));
-        }
+
+    // P1-1 三态：rest（静止）/ blink（眨眼参数拉满）/ smile（口型参数拉满）——
+    // 任一态崩溃（空白/越界）都能被检出（确定性，无视觉模型）。
+    const byGroup = (re: RegExp): string[] =>
+      model.parameters.filter((p) => (p.group ?? "").match(re) || re.test(p.id)).map((p) => p.id);
+    const blinkIds = byGroup(/EyeBlink|眼|目|eye/i);
+    const smileIds = byGroup(/LipSync|口|嘴|mouth/i);
+
+    // 兜底：找不到归类参数时退化为 rest 单态（旧行为），避免误伤通用模型。
+    const states: { name: string; apply: (ps: { set(id: string, v: number): boolean }) => void }[] = [
+      { name: "rest", apply: () => {} },
+    ];
+    if (threeStates) {
+      if (blinkIds.length > 0) {
+        states.push({ name: "blink", apply: (ps) => { for (const id of blinkIds) ps.set(id, 1); } });
+      }
+      if (smileIds.length > 0) {
+        states.push({ name: "smile", apply: (ps) => { for (const id of smileIds) ps.set(id, 1); } });
       }
     }
-    const coverage = opaque / total;
+
     const issues: string[] = [];
     const suggestions: string[] = [];
-    if (opaque === 0) {
-      issues.push("渲染为空（无可见像素）");
-      suggestions.push("检查部件 bbox / 颜色是否落在画布内");
-    } else {
-      if (coverage < coverageMin) {
-        issues.push("覆盖率过低 " + (coverage * 100).toFixed(1) + "% < " + (coverageMin * 100) + "%");
-        suggestions.push("放大部件或扩大 bbox");
-      }
-      if (coverage > coverageMax) {
-        issues.push("覆盖率过高 " + (coverage * 100).toFixed(1) + "% > " + (coverageMax * 100) + "%");
-        suggestions.push("检查是否有部件糊满画布 / 背景未剔除");
-      }
-      if (minY / H > headTopRatio) {
-        issues.push("角色整体偏下（无上部内容）");
-        suggestions.push("调整 hinge/部件位置");
-      }
-      if (colors.size < minColors && opaque > 0) {
-        issues.push("颜色种类过少 " + colors.size + " < " + minColors);
-        suggestions.push("检查是否只有单一色块");
-      }
+    for (const st of states) {
+      const px = renderFrame(model, st.apply);
+      const r = inspectFrame(px, W, H, { coverageMin, coverageMax, minColors, headTopRatio, state: st.name });
+      issues.push(...r.issues);
+      suggestions.push(...r.suggestions);
     }
     const ok = issues.length === 0;
     return { ok, confidence: ok ? 0.9 : 0.5, issues, suggestions };
