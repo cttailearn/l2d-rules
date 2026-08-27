@@ -35,6 +35,14 @@ export interface Moc3ToL2dmOptions {
    * 逐模型验证——缺省 false，避免虚假旋转；与 M4 的 rotationBindings 同哲学）。
    */
   deformRotation?: boolean;
+  /**
+   * 运行时可见性过滤器（ArtMesh 索引 → 是否可见）。
+   * 静态 `art_mesh.visibles` 只覆盖 moc3 内被禁用的网格；**默认姿态下因参数 opacity=0
+   * 而隐藏的网格（如官方模型可切换的手臂/衣物层）静态不可知**，需宿主/烘焙端在运行时
+   * （CubismCore 默认姿态 opacity>阈值）评估后传入。给 false 的网格保持透明（不破坏绘制顺序）；
+   * 缺省 = 全部按静态 visibles。
+   */
+  visibleArtMeshFilter?: (mi: number) => boolean;
 }
 
 function num(s: Moc3Data["sections"], name: string): number[] {
@@ -102,7 +110,11 @@ export function moc3ToL2dm(moc: Moc3Data, opts: Moc3ToL2dmOptions): L2dmModel {
   }
 
   // ---- 第一遍：基础姿态包围盒（仅统计可见 mesh，排除 下絵/背景 引导层撑宽）----
-  const visibleMesh = amIds.map((_, mi) => (meshVisible[mi] ?? 1) !== 0 && (meshEnable[mi] ?? 1) !== 0);
+  const visibleMesh = amIds.map((_, mi) =>
+    (meshVisible[mi] ?? 1) !== 0 &&
+    (meshEnable[mi] ?? 1) !== 0 &&
+    (opts.visibleArtMeshFilter ? opts.visibleArtMeshFilter(mi) : true),
+  );
   let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
   for (let mi = 0; mi < amIds.length; mi++) {
     if (!visibleMesh[mi]) continue;

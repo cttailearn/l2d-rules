@@ -56,7 +56,7 @@ function sineKeys(durationS: number, offset: number, amp: number, freqHz: number
 const rng = (p: MotionParamDef): number => (p.max - p.min);
 
 /** 依据参数面生成基础动作集（只引用存在的参数）。 */
-export function generateStarterMotions(params: MotionParamDef[], kinds: MotionKind[] = ["idle", "blink", "talk", "surprise"]): NamedMotion[] {
+export function generateStarterMotions(params: MotionParamDef[], kinds: MotionKind[] = ["idle", "blink", "talk", "surprise", "walk"]): NamedMotion[] {
   const byId = new Map(params.map((p) => [p.id, p]));
   const has = (id: string): boolean => byId.has(id);
   const R = (id: string): number => {
@@ -100,6 +100,30 @@ export function generateStarterMotions(params: MotionParamDef[], kinds: MotionKi
     if (has("嘴开")) curves.push({ param: "嘴开", keys: [[0, 0], [0.18, 0.9], [0.9, 0.2]] });
     if (has("头转向")) curves.push({ param: "头转向", keys: [[0, 0], [0.5, 6], [0.9, 0]] });
     out.push({ name: "surprise", kind: "surprise", motion: motionFromCreation(curves, durationMs, false, "surprise", "surprise") });
+  }
+
+  if (kinds.includes("walk")) {
+    // 行走：节奏步态——腿摆(交替大步) + 臂摆(反相) + 身摆/身转 + 点头微动（只引用存在的参数）
+    const stepS = 0.42; // 单步秒
+    const cycle = stepS * 2; // 完整步态周期
+    const durationMs = Math.round(cycle * 1000) * 2; // 2 周期 loop，便于肉眼观察
+    const curves: CreationMotion["curves"] = [];
+    const stride = (id: string, amp: number, phase: number): void => {
+      if (has(id)) curves.push({ param: id, keys: sineKeys(durationMs / 1000, 0, amp, 1 / cycle, phase, 0, 1) });
+    };
+    // 腿摆：左右腿反相大步（0..1 摆动；若已有腿摆参数）
+    stride("腿摆", 0.5, 0);
+    stride("臂摆", 0.4, Math.PI); // 反相（对侧手臂/腿）
+    // 身摆/身转/点头微动（步态起伏 + 前进摆动）
+    stride("身摆", 0.25, Math.PI / 2);
+    stride("身转", 0.12, Math.PI / 2);
+    if (has("头转向")) {
+      curves.push({ param: "头转向", keys: sineKeys(durationMs / 1000, 0, 0.06, 1 / cycle, Math.PI / 2, 0, 1) });
+    }
+    if (has("头点头")) {
+      curves.push({ param: "头点头", keys: sineKeys(durationMs / 1000, 0.05, 0.08, 1 / cycle, 0, 0, 1) });
+    }
+    out.push({ name: "walk", kind: "walk", motion: motionFromCreation(curves, durationMs, true, "walk", "walk") });
   }
   return out;
 }

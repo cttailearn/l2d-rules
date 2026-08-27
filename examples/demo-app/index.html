@@ -208,12 +208,45 @@
         <canvas id="canvas" width="560" height="720"></canvas>
       </div>
 
+      <!-- 🎛 LLM 驱动全功能演示（行走/换衣/头部/脸部） -->
+      <div class="panel featfeed">
+        <h3>🎛 LLM 驱动全功能演示（JSONL → 两跳 → 引擎；按钮自动按当前角色生成动作）</h3>
+        <div class="row" id="featBtns">
+          <button data-feat="walk">🚶 行走</button>
+          <button data-feat="outfit1">👗 换装·组1</button>
+          <button data-feat="outfit2">🧥 换装·组2</button>
+          <button data-feat="nod">🙆 头部·点头</button>
+          <button data-feat="shake">🙅 头部·摇头</button>
+          <button data-feat="smile">😊 脸部·微笑</button>
+          <button data-feat="open">😮 脸部·张嘴</button>
+          <button data-feat="blink">😉 脸部·眨眼</button>
+          <button data-feat="surprised">😲 脸部·惊讶</button>
+          <button data-feat="reset">⟲ 复位</button>
+        </div>
+        <div class="hint" id="featHint"></div>
+      </div>
+
+      <!-- 🔄 真实模型 · 格式转换对比 -->
+      <div class="panel featcompare">
+        <h3>🔄 真实模型 · 格式转换对比（官方 Haru .moc3 → 自研 .l2dm → 引擎渲染 vs 官方原画）</h3>
+        <div class="row">
+          <button id="cmpBtn" class="primary">转换并渲染真实 Haru</button>
+          <span class="hint" id="cmpStatus"></span>
+          <a href="https://github.com/cttailearn/l2d-rules/blob/main/examples/demo-web/README.md#2-%E4%B8%8A%E4%BC%A0%E5%8D%B3%E6%97%B6%E5%AF%B9%E6%AF%94comparehtml" target="_blank" style="font-size:.8rem;">与官方 Cubism SDK 实时并排对比（demo-web）↗</a>
+        </div>
+        <div class="create-stage">
+          <figure><figcaption>左 · 自研引擎渲染（haru-full.l2dm 真实转换产物）</figcaption><canvas id="cvL2dm" width="300" height="400"></canvas></figure>
+          <figure><figcaption>右 · 官方原画（真实 Haru 纹理 → 画布）</figcaption><canvas id="cvArt" width="300" height="400"></canvas></figure>
+        </div>
+        <div id="cmpLog" class="create-log"></div>
+      </div>
+
       <!-- 🎨 上传图像 → 构建 Live2D -->
       <div class="panel create">
         <h3>🎨 上传图像 → 构建 Live2D（cutout → create → rig → engine · 浏览器内 · 确定性）</h3>
         <div class="create-body">
           <div class="drop" id="drop" tabindex="0">
-            <div class="drop-inner">📥 点击选择 / 拖入 PNG 立绘<br />
+            <div class="drop-inner">📥 点击选择 / 拖入 PNG 立绘（真实图像/立绘均可）<br />
               <span class="hint">平坦色画风最佳（内置 ColorKey 切图）；复杂照片可注入真实 Segmenter/Labeler（@l2dp/host）</span>
             </div>
           </div>

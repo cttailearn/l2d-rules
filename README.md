@@ -99,7 +99,7 @@ npm run dev         # 打开 http://localhost:5173
 
 ## 小型使用应用 demo（demo-app）
 
-**打开就能用**的应用级演示：聊天框打字 → 角色说话（台词 + 语音）、做动作、张嘴对口型、换装——实时渲染（[examples/demo-app/README.md](examples/demo-app/README.md)）。与 demo-web（验证控制台）互补，展示「用这套 SDK 能搭出一个什么样的应用」：
+**打开就能用**的应用级演示：聊天框打字 → 角色说话（台词 + 语音）、做动作、一对一嘴型、换装、行走——实时渲染（[examples/demo-app/README.md](examples/demo-app/README.md)）。与 demo-web（验证控制台）互补，展示「用这套 SDK 能搭出一个什么样的应用」，且**主角是真实模型/真实图像**：
 
 ```bash
 cd examples/demo-app
@@ -110,11 +110,12 @@ npm test             # 同核 7 例：两跳决策/说话口型/换装/确定性
 ```
 
 - 一条消息链路：`两跳决策（DriverEngine 第一跳本地规则 → 第二跳 Provider）→ 确定性台词 → estimateSpeechTimeline+blendVisemes 口型 → StreamIngestor 逐行 JSONL（坏行隔离）→ LayerStack+EnvironmentLayer+Evaluator → L2dmPlayer → SceneStage（背景/相机/多角色）→ WebGL2/软光栅`
-- 三形态角色同一个 AppCore：**官方 Haru**（真实纹理 + 语音 + 环境层映射）、**小骨架**（play/face warp 形变）、**衣装酱**（rig 换装 outfit）。
-  注意：Haru 当前 `.l2dm` 为官方基准姿态烘焙（warp 形变是 convert 下一里程碑）——参数驱动/台词/语音正常，几何形变请切小骨架/衣装酱体验。
-- **上传图像 → 构建 Live2D**：左侧面板选择/拖入 PNG（或内置示例）→ 浏览器内 `cutout → create(自修复) → rig + 动作生成 → 内嵌纹理 .l2dm` → 注册为第 4 个角色「我的创作」直接聊天。
-  内置确定性链面向平坦色画风；复杂图可注入真实 Segmenter/Labeler（`@l2dp/host`：HttpSegmenter/视觉 LLM），核心零改动。
-- 真实 LLM：`LLM_API_KEY=… npm start`（第二跳走 OpenAI 兼容端点；缺省确定性 mock，离线/CI 可跑）。
+- 四角色同一个 AppCore：**官方 Haru（真实模型 + 纹理 + 语音）**、**小骨架**（play/face warp 形变）、**衣装酱**（rig 换装 outfit）、**✨我的创作**（上传图构建）。Haru 为基准姿态烘焙，几何形变切小骨架/衣装酱体验。
+- **🎛 LLM 驱动全功能演示**：行走（`walk` 动作，`@l2dp/create` 新增）/ 换装组1·2 / 头部点头·摇头 / 脸部微笑·张嘴·眨眼·惊讶——按当前角色参数面自动生成 JSONL，不可用项自动提示。
+- **🔄 真实模型·格式转换对比**：官方 Haru .moc3 → `@l2dp/convert` 自研转换 → 引擎渲染（左） vs 官方原画 texture_00（右）；另有 demo-web `compare.html` 与官方 Cubism SDK 实时并排对比外链。
+- **上传图像 → 构建 Live2D**：上传/内置 PNG → 浏览器内 `cutout → create(自修复) → rig + 动作生成(含 walk) → 内嵌纹理 .l2dm` → 成为「我的创作」。复杂图可注入真实 Segmenter/Labeler（`@l2dp/host`）。
+- **✅ Haru 双臂重叠已修复**：官方 .moc3 含「可切换手臂层」，烘焙按 CubismCore 默认姿态 opacity 过滤（84→73 ArtMesh）；`moc3ToL2dm` 新增 `visibleArtMeshFilter` 供宿主注入运行时可见性。
+- 真实 LLM：`LLM_API_KEY=… npm start`（第二跳走 OpenAI 兼容端点；缺省确定性 mock）。
 - 浏览器与无头/测试共用 `src/core.ts` + `src/creator.ts`（无 DOM 核心），同一条链三处验证。
 
 ## 现状（对齐 SPEC-DSL-v1.0 第 13 章路线图）

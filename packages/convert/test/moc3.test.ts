@@ -94,6 +94,21 @@ test("moc3ToL2dm：真实几何 .l2dm 通过 engine 校验", () => {
   }
 });
 
+test("moc3ToL2dm：visibleArtMeshFilter 把隐藏网格置透明（官方 Haru『手臂切换』层的宿主过滤）", () => {
+  const r = readMoc3(new Uint8Array(readFileSync(HARU)));
+  if (!r.ok) return;
+  // 全量（不注入过滤器）→ 与静态 visibles 一致
+  const all = moc3ToL2dm(r.moc, { id: "Haru", groups: [], canvas: null });
+  const allVisible = all.parts.filter((p) => p.color && p.color[3] !== 0).length;
+  // 注入“偶数号网格不可见”的假过滤器 → 偶数号部件透明、部件数不变
+  const filtered = moc3ToL2dm(r.moc, { id: "Haru", groups: [], canvas: null, visibleArtMeshFilter: (mi) => mi % 2 === 0 });
+  assert.equal(filtered.parts.length, all.parts.length, "过滤不删除部件（只置透明，保住绘制顺序）");
+  const transparentCount = filtered.parts.filter((p) => p.color && p.color[3] === 0).length;
+  const expectTransparent = Math.ceil(filtered.parts.length / 2);
+  assert.ok(transparentCount >= expectTransparent - 1 && transparentCount <= expectTransparent + 1,
+    `偶号网格应约半数透明（实际 ${transparentCount} / 期望 ≈${expectTransparent}；全量可见 ${allVisible}）`);
+});
+
 test("M4：deformer 树 + 部件父级接线（真实 Haru）", () => {
   const r = readMoc3(new Uint8Array(readFileSync(HARU)));
   assert.equal(r.ok, true);

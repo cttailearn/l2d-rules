@@ -101,6 +101,32 @@ test("P4b: generateStarterMotions 参数容错 + keysToSegments 递增", () => {
   assert.deepEqual(keysToSegments([[0, 0], [0.5, 1], [0.2, 0.5]]), [0, 0, 0, 0.2, 0.5, 0, 0.5, 1]);
 });
 
+test("P4b: walk（行走）动作生成——步态只引用存在的参数，默认集含 walk", () => {
+  const params = [
+    { id: "腿摆", min: -1, max: 1, def: 0 },
+    { id: "臂摆", min: -1, max: 1, def: 0 },
+    { id: "身摆", min: -1, max: 1, def: 0 },
+    { id: "身转", min: -10, max: 10, def: 0 },
+    { id: "头转向", min: -30, max: 30, def: 0 },
+    { id: "头点头", min: -30, max: 30, def: 0 },
+  ];
+  // 默认集自动含 walk
+  const def = generateStarterMotions(params);
+  assert.ok(def.some((m) => m.name === "walk"), "默认动作集含 walk");
+  const walk = def.find((m) => m.name === "walk")!;
+  assert.equal(walk.kind, "walk");
+  assert.equal(walk.motion.loop, true);
+  const driven = walk.motion.curves.map((c) => c.id);
+  for (const id of ["腿摆", "臂摆", "身摆", "身转", "头转向", "头点头"]) {
+    assert.ok(driven.includes(id), "walk 驱动 " + id);
+  }
+  // 容错：缺手臂/腿参数时不引用不存在的参数
+  const minimal = generateStarterMotions([{ id: "头转向", min: -30, max: 30, def: 0 }], ["walk"]);
+  assert.ok(minimal.length === 1, "局部参数面仍产出 walk");
+  const ids = minimal[0]!.motion.curves.map((c) => c.id);
+  assert.ok(ids.every((id) => id === "头转向"), "只引用存在的参数（" + ids.join(",") + "）");
+});
+
 test("P4b: RuleRepairer——越界/重复 id/微部件 修复后通过校验", () => {
   const repairer = new RuleRepairer();
   const bad: CreationDirective = {

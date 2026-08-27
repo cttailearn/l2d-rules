@@ -57,6 +57,14 @@ const cvCut = need("cvCut") as HTMLCanvasElement;
 const cvModel = need("cvModel") as HTMLCanvasElement;
 const createLogEl = need("createLog");
 const createStatusEl = need("createStatus");
+// 全功能演示 + 真实模型转换对比
+const featBtns = need("featBtns");
+const featHintEl = need("featHint");
+const cmpBtn = need("cmpBtn") as HTMLButtonElement;
+const cmpStatusEl = need("cmpStatus");
+const cvL2dm = need("cvL2dm") as HTMLCanvasElement;
+const cvArt = need("cvArt") as HTMLCanvasElement;
+const cmpLogEl = need("cmpLog");
 
 const STAGE_W = 560;
 const STAGE_H = 720;
@@ -77,7 +85,7 @@ let softImage: ImageData | null = null;
 
 function initialCharFromUrl(): string {
   const c = new URLSearchParams(location.search).get("character");
-  return c && APP_CHARACTERS[c] ? c : "costume";
+  return c && APP_CHARACTERS[c] ? c : "haru";
 }
 
 // 模型缓存：文本 + 解码纹理，避免切角色反复拉取大文件
@@ -580,6 +588,140 @@ btnChat.addEventListener("click", () => {
 // 需要一个初始示例立绘（开箱即有内容；色板已知 → ColorMapLabeler 语义精确）
 setSourceImage(sampleImage(), sampleLabeler());
 void onBuild();
+
+// ---------------- 🎛 LLM 驱动全功能演示（行走/换衣/头部/脸部） ----------------
+// 按当前角色「参数面 + 动作资产 + 服装组」生成 JSONL；不可用按钮置灰并说明。
+function featParam(id: string): boolean {
+  return core ? id in core.params() : false;
+}
+function featMotion(name: string): boolean {
+  const m = core?.character.motions;
+  return m ? name in m : false;
+}
+function featJsonl(feat: string): { lines: string[]; label: string } | null {
+  if (!core) return null;
+  const setp = (sem: string, v: number, waitMs?: number): string[] =>
+    waitMs ? [JSON.stringify({ op: "set", sem, value: v }), JSON.stringify({ op: "wait", ms: waitMs }), JSON.stringify({ op: "set", sem, value: 0 })] : [JSON.stringify({ op: "set", sem, value: v })];
+  switch (feat) {
+    case "walk":
+      if (featMotion("walk")) return { label: "行走（walk 步态循环）", lines: ['{"op":"play","asset":"walk"}'] };
+      if (featParam("腿摆")) return { label: "行走（腿摆/身摆 步态）", lines: ['{"op":"play","asset":"walk"}', '{"op":"set","sem":"身摆","value":0.3}'] };
+      return { label: "无腿摆/臂摆 → 行走不可用", lines: [] };
+    case "outfit1":
+      return core.character.costumes ? { label: "换装·组1", lines: core.setOutfit(1) } : null;
+    case "outfit2":
+      return core.character.costumes ? { label: "换装·组2", lines: core.setOutfit(2) } : null;
+    case "nod":
+      if (featParam("头点头")) return { label: "头部·点头", lines: setp("头点头", 18, 500) };
+      if (featParam("ParamAngleY")) return { label: "头部·点头", lines: setp("ParamAngleY", 12, 600) };
+      return null;
+    case "shake":
+      if (featParam("头转向")) return { label: "头部·摇头", lines: setp("头转向", 18, 260) };
+      if (featParam("ParamAngleX")) return { label: "头部·摇头", lines: setp("ParamAngleX", 14, 260) };
+      return null;
+    case "smile":
+      if (core.character.expressions && "开心" in core.character.expressions) return { label: "脸部·微笑（face 开心）", lines: ['{"op":"face","expression":"开心","weight":0.6}'] };
+      if (featParam("ParamMouthForm")) return { label: "脸部·微笑", lines: setp("ParamMouthForm", 1) };
+      if (featParam("嘴笑")) return { label: "脸部·微笑", lines: setp("嘴笑", 1) };
+      return null;
+    case "open":
+      if (featParam("嘴开")) return { label: "脸部·张嘴", lines: setp("嘴开", 0.9, 500) };
+      if (featParam("ParamMouthOpenY")) return { label: "脸部·张嘴", lines: setp("ParamMouthOpenY", 0.9, 500) };
+      return null;
+    case "blink":
+      if (featMotion("blink")) return { label: "脸部·眨眼（blink）", lines: ['{"op":"play","asset":"blink"}'] };
+      if (featParam("眼闭左") && featParam("眼闭右")) return { label: "脸部·眨眼", lines: [JSON.stringify({ op: "set", sem: "眼闭左", value: 1 }), JSON.stringify({ op: "set", sem: "眼闭右", value: 1 }), JSON.stringify({ op: "wait", ms: 160 }), JSON.stringify({ op: "set", sem: "眼闭左", value: 0 }), JSON.stringify({ op: "set", sem: "眼闭右", value: 0 })] };
+      if (featParam("ParamEyeLOpen") && featParam("ParamEyeROpen")) return { label: "脸部·眨眼", lines: setp("ParamEyeLOpen", 0.1, 160).concat(setp("ParamEyeROpen", 0.1, 160).slice(1)) };
+      return null;
+    case "surprised":
+      if (featMotion("surprise")) return { label: "脸部·惊讶（surprise）", lines: ['{"op":"play","asset":"surprise"}'] };
+      if (featParam("嘴开") && featParam("眉左升")) return { label: "脸部·惊讶", lines: [JSON.stringify({ op: "set", sem: "嘴开", value: 0.8 }), JSON.stringify({ op: "set", sem: "眉左升", value: 1 }), JSON.stringify({ op: "set", sem: "眉右升", value: 1 })] };
+      return null;
+    case "reset":
+      return { label: "复位参数", lines: [] };
+    default:
+      return null;
+  }
+}
+
+const FEAT_LABELS: Record<string, string> = {
+  walk: "🚶 行走", outfit1: "👗 换装·组1", outfit2: "🧥 换装·组2", nod: "🙆 点头", shake: "🙅 摇头",
+  smile: "😊 微笑", open: "😮 张嘴", blink: "😉 眨眼", surprised: "😲 惊讶", reset: "⟲ 复位",
+};
+
+for (const b of featBtns.querySelectorAll("button")) {
+  b.addEventListener("click", () => {
+    const f = (b as HTMLButtonElement).dataset["feat"] ?? "";
+    const res = featJsonl(f);
+    if (!res) {
+      featHintEl.textContent = `「${FEAT_LABELS[f] ?? f}」：当前角色缺少对应部件/资产`;
+      return;
+    }
+    if (f === "reset") {
+      core?.reset();
+      featHintEl.textContent = "参数已复位";
+      return;
+    }
+    const r = core!.feedLines(res.lines);
+    featHintEl.textContent = `[${res.label}] · 生效 ${r.applied} · 隔离 ${r.skipped}` + (res.lines.length === 0 ? "（无可用参数）" : "");
+    refreshMetrics();
+  });
+}
+
+// ---------------- 🔄 真实模型 · 格式转换对比（Haru .moc3 → 自研 .l2dm 渲染 vs 官方原画） ----------------
+async function runCompare(): Promise<void> {
+  cmpBtn.disabled = true;
+  cmpStatusEl.textContent = "加载模型…";
+  try {
+    // 左：haru-full.l2dm（真实 Haru 转换产物，已剔除默认隐藏手臂层）→ 自研引擎渲染
+    const entry = await ensureModel("haru");
+    const loaded = loadL2dm(entry.text);
+    if (!loaded.ok || !loaded.model) throw new Error("布局失败");
+    const sw = new SoftwareRenderer();
+    const player = new L2dmPlayer(loaded.model, entry.atlas);
+    for (let f = 0; f < 24; f++) player.tick(16);
+    player.render(sw);
+    const px = sw.readPixels();
+    const m = loaded.model;
+    cvL2dm.width = m.canvas.width;
+    cvL2dm.height = m.canvas.height;
+    const c1 = cvL2dm.getContext("2d");
+    if (px && c1) {
+      const id0 = c1.createImageData(m.canvas.width, m.canvas.height);
+      id0.data.set(px);
+      c1.putImageData(id0, 0, 0);
+    }
+    // 右：官方原画（真实 Haru 纹理 texture_00 → 画布参照）
+    cvArt.width = 300;
+    cvArt.height = 400;
+    const c2 = cvArt.getContext("2d");
+    if (c2) {
+      const img = new Image();
+      await new Promise<void>((resolve, reject) => {
+        img.onload = () => resolve();
+        img.onerror = () => reject(new Error("纹理加载失败"));
+        img.src = "/official-haru/Haru.2048/texture_00.png";
+      });
+      const k = Math.min(300 / img.width, 400 / img.height);
+      const dw = img.width * k, dh = img.height * k;
+      c2.drawImage(img, (300 - dw) / 2, (400 - dh) / 2, dw, dh);
+    }
+    cmpLogEl.className = "create-log ok";
+    cmpLogEl.textContent =
+      `转换：官方 Haru.moc3 → @l2dp/convert → 自包含 .l2dm（ArtMesh ${m.parts.length} / 参数 ${m.parameters.length} / 内嵌纹理 ${Object.keys(m.atlas ?? {}).length}）\n` +
+      "左 = 自研引擎渲染（透明背景、线性过滤）；右 = 官方原画 texture_00 参照（Live2D 官方 Haru 素材）。" +
+      (rendererKind === "webgl2" ? "" : "  当前主舞台为软件光栅。");
+    cmpStatusEl.textContent = "完成：左=自研转换渲染，右=官方原画（同一真实模型）";
+  } catch (e) {
+    cmpLogEl.className = "create-log err";
+    cmpLogEl.textContent = "转换对比失败：" + (e as Error).message;
+    cmpStatusEl.textContent = "失败";
+  } finally {
+    cmpBtn.disabled = false;
+  }
+}
+cmpBtn.addEventListener("click", () => void runCompare());
+void runCompare(); // 开箱即渲染一次对比
 
 function draw(now: number): void {
   requestAnimationFrame(draw);

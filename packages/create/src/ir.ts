@@ -15,7 +15,7 @@ export interface CreationPart {
   customParams?: Record<string, { min?: number; max?: number; def?: number; group?: L2dmParamGroup }>;
 }
 
-export type MotionKind = "idle" | "blink" | "talk" | "surprise";
+export type MotionKind = "idle" | "blink" | "talk" | "surprise" | "walk";
 
 export interface MotionParamCurve {
   /** 参数 id */

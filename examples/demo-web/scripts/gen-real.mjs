@@ -48,6 +48,14 @@ async function main() {
   const texIdx = Array.from(D.textureIndices ?? []);
   // 绘制顺序：官方 renderOrder（若 Core 提供）优先，否则用 drawable 索引
   const renderOrders = Array.from(D.renderOrders ?? []);
+  // 默认姿态可见性：官方模型常把「可切换的手臂/衣物层」默认隐藏（参数 opacity=0），
+  // 烘焙若全部导出会出现“多双手重叠/多套衣身”。只保留默认姿态 opacity>阈值的网格。
+  const opacities = D.opacities != null ? Array.from(D.opacities) : null;
+  const opacityAt = (i) => {
+    if (!opacities) return 1; // Core 未暴露 → 全部保留（兼容旧环境）
+    const v = opacities[i];
+    return typeof v === "number" ? v : 1;
+  };
 
   // ---- 可见网格的基准姿态包围盒（目标高度 TARGET_HEIGHT 缩放）----
   let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
@@ -55,6 +63,7 @@ async function main() {
   for (let i = 0; i < ids.length; i++) {
     const arr = vp[i];
     if (!arr || arr.length < 6) continue;
+    if (!(opacityAt(i) > 0.5)) continue; // 隐藏层（默认姿态不可见）不导出 → 修复“多手臂重叠”
     for (let k = 0; k < arr.length; k += 2) {
       const x = arr[k], y = arr[k + 1];
       if (!Number.isFinite(x) || !Number.isFinite(y)) continue;

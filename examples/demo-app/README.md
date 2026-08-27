@@ -1,10 +1,11 @@
-# demo-app —— 小型使用应用 demo：Live2D 聊天助手（看板娘/VTuber 小应用）
+# demo-app —— 小型使用应用 demo：Live2D 聊天助手 + 核心功能演示（真实模型/真实图像）
 
-这不是「跑一个脚本出几张图」的简单 demo，而是一个**打开就能用的小型应用**：你在聊天框里打字，角色就会
-**说话（台词 + 语音）**、**做动作（点头/摇身/害羞/换装）**、**张嘴对口型**，整个渲染实时进行。
+这不是「跑一个脚本出几张图」的简单 demo，而是一个**打开就能用的小型应用**：聊天框打字 → 角色说话（台词+语音）、
+做动作（点头/摇身/害羞/换装/行走）、对口型，实时渲染；并内置**几大核心功能**的演示面板：
+**上传原图创建角色 · 真实 Live2D 格式转换对比 · LLM 驱动全功能（行走/换衣/头部/脸部）**。
 
 > 定位：与 demo-web（工程验证控制台）互补 —— demo-web 给开发者看「引擎怎么验证」，
-> demo-app 给使用者看「这个 SDK 能搭出一个什么样的应用」。
+> demo-app 给使用者看「用这套 SDK 能搭出一个什么样的应用」，且**主角是真实模型/真实图像**。
 
 ## 一条消息走完的链路（全部是 @l2dp/* 的真实能力）
 
@@ -21,18 +22,34 @@
   └─ run.mjs/浏览器 → 出帧 / 实时渲染 + 播语音（Haru 4 句官方语音）
 ```
 
-## 三个角色（演示「模型无关」：同一套规则驱动三种形态）
+## 四个角色（演示「模型无关」：同一套规则驱动四种形态）
 
 | 角色 | 形态 | 你能看到 |
 |---|---|---|
-| **衣装酱**（默认） | `@l2dp/rig` 半自动绑定（10 部件 / 8 参数 + 2 组服装） | 点头/摇身/害羞（warp 形变）+ **换装**（outfit op → `outfitLines`）；说话点头 |
+| **Haru**（默认） | **官方真实模型** .moc3 真实几何 + 内嵌 2 张纹理 + 4 句语音 | 官方同观感呈现；环境层映射呼吸/眨眼/视线；语音即时变化 |
+| **衣装酱** | `@l2dp/rig` 半自动绑定（10 部件 / 8 参数 + 2 组服装） | 点头/摇身/害羞（warp 形变）+ **换装**（outfit op）+ 行走（腿摆/身摆步态） |
 | **小骨架** | 语义骨架（3 部件 + 3 warp + 物理 + deformer） | `play` 微笑点头/尾巴摇/害羞低头 + `face` 开心——网格真实形变 |
-| **Haru** | 官方 .moc3 真实几何 + 内嵌 2 张纹理 + 4 句语音 | 官方同观感呈现；环境层映射呼吸/眨眼/视线；参数读数与语音即时变化 |
-| **✨ 我的创作** | **上传图像浏览器内构建**（第 4 个角色，见下节） | 切图→绑定→动作→内嵌纹理，然后直接与「自己的立绘」聊天 |
+| **✨ 我的创作** | 上传图像浏览器内构建（创建面板产物） | 切图→绑定→动作（idle/blink/talk/surprise/**walk**）→ 与自己的立绘聊天 |
 
-> ⚠️ 说明：Haru 当前 `.l2dm` 是官方**基准姿态烘焙**（`@l2dp/convert` 的 warp 形变动画管线在
-> 下一里程碑，见 `docs/MOC3-PHASE2-PLAN.md`），所以 Haru 参数改变**不驱动几何形变**（动作语义请切
-> 衣装酱/小骨架看到「真的在动」）。你的动作指令在 Haru 上依然被 Driver 逐行校验、求值并写进参数面。
+> ⚠️ 说明：
+> - **Haru 双臂修复**：官方 Haru 在 .moc3 里含「可切换的手臂层」，默认姿态下原本会看到两套手臂重叠。
+>   已修复：gen-real 烘焙时按 **官方 CubismCore 默认姿态 opacity 过滤**（仅保留可见 ArtMesh，84→73），
+>   `@l2dp/convert` 的 `moc3ToL2dm` 相应新增 `visibleArtMeshFilter` 供宿主注入运行时可见性。
+> - Haru 当前 `.l2dm` 为官方**基准姿态烘焙**（warp 形变动画管线在下一里程碑），参数驱动/台词/语音正常，
+>   **几何形变请切衣装酱/小骨架/我的创作**看到「真的在动」。
+
+## 核心功能演示面板（四个面板，全部可一键演示）
+
+| 面板 | 演示什么 | 数据 |
+|---|---|---|
+| **🎛 LLM 驱动全功能** | 行走 / 换装·组1·组2 / 头部·点头·摇头 / 脸部·微笑·张嘴·眨眼·惊讶 | 按当前角色「参数面+资产+服装组」自动生成 JSONL（不可用项自动提示）；walk 动作由 `@l2dp/create` 生成器新增 |
+| **🔄 真实模型 · 格式转换对比** | 官方 Haru .moc3 → `@l2dp/convert` 自研转换 → 引擎渲染（左） vs 官方原画 texture_00（右） | 真实 Haru（public/official-haru） |
+| **🎨 上传图像 → 构建 Live2D** | 上传/内置 PNG → cutout→create→rig→动作→内嵌纹理 .l2dm → 成为「我的创作」 | 真实图像上传 + 确定性示例 |
+| **💬 聊天助手** | 聊天 → 两跳决策 + 台词 + 语音 + 口型 + 换装 | 上表四角色 |
+
+- 行走：`generateStarterMotions` 新增 `walk`（腿摆/臂摆反相 + 身摆/身转 + 头部微动），`MotionKind` 扩展为
+  `idle/blink/talk/surprise/walk`；只有存在对应部件参数的角色（衣装酱/我的创作）才会真正走起来。
+- 「与官方 Cubism SDK 实时并排对比」提供 demo-web `compare.html` 外链（需联网加载 CDN runtime）。
 
 ## 上传图像 → 构建 Live2D（浏览器内 · 纯确定性全链）
 
@@ -43,8 +60,8 @@ SDK 在浏览器里完成整条创作链（全部 @l2dp/*，无服务器）：
 上传 PNG → @l2dp/cutout（ColorKeySegmenter 平坦色候选选区 + 语义标注）
         → @l2dp/create（createWithSelfRepair：同源 JSON Schema 校验 / RuleRepairer 自修复 ≤3 轮）
         → @l2dp/rig（半自动绑定：参数挂接 + warp 形变 + 绘制顺序 + 呼吸 deformer + 基础动作生成）
-        → 自包含可驱动 .l2dm（部件纹理已内嵌 atlas）+ idle/blink/talk/surprise 动作
-        → 注册为第 4 个角色「我的创作」→ 可直接聊天/说话/对口型（behavior 由两跳决策驱动）
+        → 自包含可驱动 .l2dm（部件纹理已内嵌 atlas）+ idle/blink/talk/surprise/walk 动作
+        → 注册为第 4 个角色「我的创作」→ 可直接聊天/走路/说话/对口型（behavior 由两跳决策驱动）
 ```
 
 - 面板实时显示 ① 原图 / ② 切图·标注（色块 bbox）/ ③ 绑定·动作 三帧预览，以及切图覆盖率/自修复轮数等日志。
@@ -72,15 +89,15 @@ npm test             # 同核无头测试（7 例：决策/口型/换装/确定�
 ## 目录
 
 ```
-index.html          应用壳（顶栏/舞台/聊天面板/控制条/气泡/上传构建面板）
+index.html          应用壳（顶栏/舞台/聊天/全功能/转换对比/上传构建面板）
 src/chars.ts        角色规格：模型文件、环境层映射覆盖、反应 JSONL、应答文本、Provider
 src/core.ts         应用核心（无 DOM）：两跳决策 + 台词 + 口型 + SceneStage —— 浏览器/无头/测试共用
 src/creator.ts      上传图 → 构建（cutout→create→rig 全链）+ 创作角色装配 + 示例立绘/SAMPLE 色板
 src/texture.ts      PNG 解码（atlas data URI → Tex2D，fflate；与 demo-web 同源）
-src/main.ts         浏览器入口（DOM 胶水 + 渲染主循环 + 语音 + 上传构建面板接线）
+src/main.ts         浏览器入口（DOM 胶水 + 渲染主循环 + 语音 + 全功能/转换对比/上传面板接线）
 scripts/run.mjs     无头运行器（同核；含上传构建示例；可选真实 LLM）
 test/app.test.ts    同核无头测试（node --test，7 例）
-public/             模型（haru-full/demo/costume .l2dm）与 Haru 语音 wav
+public/             模型（haru-full/demo/costume .l2dm）+ 真实官方 Haru（official-haru/*）+ Haru 语音 wav
 ```
 
 ## 链接
@@ -90,7 +107,8 @@ public/             模型（haru-full/demo/costume .l2dm）与 Haru 语音 wav
 - 口型/韵律：`packages/driver/src/tts/{estimate,viseme,phonemes}.ts`
 - 换装契约：`packages/driver/src/layers/host-ops.ts`（`outfitLines`）
 - 场景舞台：`packages/engine/src/scene/stage.ts`；播放器 `packages/engine/src/player/player.ts`
-- 上传构建：`packages/cutout`（ColorKeySegmenter/PositionLabeler/ColorMapLabeler/Segmenter·Labeler 注入钩子）、
-  `packages/create`（createWithSelfRepair/schema/执行/动作生成）、`packages/host`（HttpSegmenter/LlmDesigner 任选注入）
-- 画面浏览页（demo-web）：`examples/demo-web/compare.html`
+- 上传构建：`packages/cutout`（ColorKey/Position/ColorMap Labeler + Segmenter/Labeler 注入钩子）、
+  `packages/create`（createWithSelfRepair + walk 动作生成）、`packages/host`（HttpSegmenter/LlmDesigner 注入）
+- 真实模型转换：`packages/convert`（convertLive2dModel + moc3ToL2dm `visibleArtMeshFilter`）；
+  烘焙脚本 `examples/demo-web/scripts/gen-real.mjs`（CubismCore 默认姿态可见性过滤）
 - 规范：`docs/SPEC-DSL-v1.0.md`；`docs/GUIDE-FROM-IMAGE-TO-LIVE2D.md`
