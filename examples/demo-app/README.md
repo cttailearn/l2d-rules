@@ -10,12 +10,12 @@
 
 | 界面 | 页面 | 演示什么 |
 |---|---|---|
-| 💬 **聊天助手** | `/` | 聊天输入 → 两跳决策 → 台词+语音+口型+动作；角色：官方真实 Haru（默认）/ 衣装酱 / 小骨架 / 我的创作 |
-| 🎨 **人物创建** | `/create.html` | **上传自己的真实 PNG 立绘** → cutout→create→rig→动作 →「我的创作」（未上传前无法构建） |
-| 🎛 **全功能演示** | `/features.html` | 行走 / 换装·组1·组2 / 头部·点头·摇头 / 脸部·微笑·张嘴·眨眼·惊讶——按角色参数面自动生成 JSONL |
-| 🔄 **转换对比** | `/compare.html` | 上传任意 Live2D 模型 → 自研引擎渲染 vs 官方 Cubism SDK（CDN）并排对比 |
+| 💬 **聊天助手** | `/` | 聊天输入 → 两跳决策 → 台词+语音+口型+动作；角色：官方真实 Haru（默认）/ 衣装酱 / 小骨架 / 我的创作 / **导入的 .l2dm** |
+| 🎨 **人物创建** | `/create.html` | **上传自己的真实 PNG 立绘**（含质量预检）→ 内置链或**真实服务**（HttpSegmenter+LLM）→ 可下载成品 .l2dm →「我的创作」 |
+| 🎛 **全功能演示** | `/features.html` | 行走 / 换装·组1·组2 / 头部·点头·摇头 / 脸部·微笑·张嘴·眨眼·惊讶 + 本页聊一句（同一两跳决策） |
+| 🔄 **转换对比** | `/compare.html` | **内置真实 Haru 一键现场对比**（官方 .moc3 → 自研转 .l2dm vs 官方 Cubism SDK）；也可上传任意模型 |
 
-「我的创作」经 `sessionStorage` 在四个页面间共享：在「人物创建」构建成功后，去「聊天助手 / 全功能演示」即可选用「✨ 我的创作」。
+「我的创作」经 `sessionStorage` 在四个页面间共享 + 可**下载为 .l2dm / 在聊天页导入**。
 
 ## 一条消息走完的链路（全部是 @l2dp/* 的真实能力）
 
@@ -55,6 +55,17 @@
 - 换装：`outfit op → outfitLines` 切换服装组可见性（衣装酱两套服装）。
 - 头部：点头/摇头由 头点头/头转向（或 ParamAngleX/Y）驱动；脸部：微笑/张嘴/眨眼/惊讶走
   `play`（动作资产）或 `face`（表情）或直接 set 语义参数；不可用项自动提示。
+- 按钮的 JSONL 生成已抽成**纯函数 `src/drive.ts`**（可单测，7→11 例新增 4 例判定矩阵）。
+- 页面另有「本页聊一句」轻量输入框（同一 `stage.reply` 两跳决策）。
+
+## 优化项（本轮）
+
+- **人物创建（create.html）**：上传后即时**质量预检**（候选区数量/覆盖率，提示是否适合内置链）；失败日志**友好化**（原因+建议）；可展开「🛠 真实服务接入」用 `@l2dp/host` 的 HttpSegmenter + LLM 标注/审核（`buildP4cBridges`）处理复杂图；成功后**下载成品 .l2dm**。
+- **导入 .l2dm（聊天页）**：📥 按钮导入任意 .l2dm/.json 作为「📥 导入」角色（mouthParam/参数字段自动识别），并持久化到 sessionStorage 供其他页使用。
+- **基准烘焙提示**：官方 Haru（无几何 warp）在聊天/全功能页显示“几何不形变”提示；全功能页对几何类按钮补充同样的提示。
+- **compare 内置真实 Haru**：加载即用 /official-haru 现场装配官方素材，一键「自研转换 vs 官方 SDK」对比；右侧运行时需联网 CDN，断网时左侧照常。
+- **性能**：浏览器纹理解码走 `createImageBitmap` 快路径（`texture.ts decodePngBitmap`），失败回退软解码。
+- **样式**：统一 compare 主题、favicon、页面淡入、更大画布、状态栏/错误可见区。
 
 ## 上传图像 → 构建 Live2D（create.html · 必须上传真实立绘）
 
@@ -85,11 +96,11 @@ npm run dev          # 浏览器应用 → http://localhost:5173（四个功能�
 npm start            # 无头 CLI：脚本化对话 + 上传构建示例 → 出帧 out/*.png + created-preview.png + report.txt
 CHAR=demo npm start  # 指定角色（haru / demo / costume / all）
 LLM_API_KEY=… npm start   # 第二跳走真实 OpenAI 兼容端点（LLM_BASE_URL / LLM_MODEL 可选）
-npm test             # 同核无头测试（7 例：决策/口型/换装/确定性/场景/上传构建全链）
+npm test             # 同核无头测试（11 例：决策/口型/换装/确定性/场景/上传构建全链 + drive 判定矩阵 4 例）
 ```
 
 浏览器页面：`/`（聊天助手）、`/create.html`（人物创建 · 必须上传真实立绘）、`/features.html`（全功能演示）、
-`/compare.html`（转换对比）。直达参数：`?character=demo`、`?character=costume` 等；右上可开「👥 同伴」
+`/compare.html`（转换对比 · 内置真实 Haru）。直达参数：`?character=demo`、`?character=costume` 等；右上可开「👥 同伴」
 （SceneStage 多角色：舞台右侧多一只循环摇尾巴的小骨架，自带环境层）。
 
 ## 目录
@@ -106,11 +117,14 @@ src/pages/create.ts 界面②入口：上传→构建→保存“我的创作”
 src/pages/features.ts 界面③入口：按角色生成 JSONL 的功能按钮
 src/chars.ts        角色规格：模型文件、环境层映射覆盖、反应 JSONL、应答文本、Provider
 src/core.ts         应用核心（无 DOM）：两跳决策 + 台词 + 口型 + SceneStage —— 浏览器/无头/测试共用
-src/creator.ts      上传图 → 构建（cutout→create→rig 全链）+ 创作角色装配 + SAMPLE 色板（测试用）
+src/creator.ts      上传图 → 构建（cutout→create→rig 全链，可注入 segmenter/labeler/reviewer）+ SAMPLE 色板（测试用）
+src/drive.ts        「全功能演示」纯函数：按角色生成 JSONL（判定矩阵，可单测）
+src/texture.ts      PNG 解码（atlas data URI → Tex2D；浏览器 createImageBitmap 快路径 + 软解码兜底）
 src/dom.ts          DOM 取元素助手
-scripts/run.mjs     无头运行器（同核；含上传构建示例；可选真实 LLM）
+scripts/run.mjs     无头运行器（同核；FROM_IMAGE 可走磁盘真实图；可选真实 LLM）
 scripts/gen-haru.mjs 真实 Haru 烘焙（CubismCore 默认姿态可见性过滤 → haru-full.l2dm）
 test/app.test.ts    同核无头测试（node --test，7 例）
+test/drive.test.ts  全功能 JSONL 判定矩阵测试（4 例）
 ```
 
 ## 链接

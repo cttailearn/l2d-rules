@@ -1,6 +1,7 @@
 // pages/features.ts —— 界面③「全功能演示」浏览器入口
-// 舞台 + 按角色参数面自动生成 JSONL 的按钮：行走 / 换衣 / 头部 / 脸部。
+// 舞台 + 按角色参数面自动生成 JSONL 的功能按钮（drive.ts 纯函数）+ 轻量聊天输入。
 import { Stage } from "../stage.ts";
+import { driveFeature, FEATURE_LABELS } from "../drive.ts";
 import { need, needInput, needBtn } from "../dom.ts";
 
 const stage = new Stage({
@@ -13,93 +14,49 @@ const stage = new Stage({
   zoomIn: needBtn("zoomIn"),
   zoomOut: needBtn("zoomOut"),
   companionToggle: need("companionToggle"),
+  statusEl: need("stageStatus"),
 });
 
 const featBtns = need("featBtns");
 const featHintEl = need("featHint");
+const chatInput = needInput("featInput");
+const chatSend = needBtn("featSend");
+const featChatEl = need("featChat");
 
-// ---------------- 按角色生成 JSONL ----------------
-function featParam(id: string): boolean {
-  return stage.core ? id in stage.core.params() : false;
-}
-function featMotion(name: string): boolean {
-  const m = stage.core?.character.motions;
-  return m ? name in m : false;
-}
-function setp(sem: string, v: number, waitMs?: number): string[] {
-  return waitMs
-    ? [JSON.stringify({ op: "set", sem, value: v }), JSON.stringify({ op: "wait", ms: waitMs }), JSON.stringify({ op: "set", sem, value: 0 })]
-    : [JSON.stringify({ op: "set", sem, value: v })];
-}
-function featJsonl(feat: string): { lines: string[]; label: string } | null {
-  if (!stage.core) return null;
-  const core = stage.core;
-  switch (feat) {
-    case "walk":
-      if (featMotion("walk")) return { label: "行走（walk 步态循环）", lines: ['{"op":"play","asset":"walk"}'] };
-      if (featParam("腿摆")) return { label: "行走（腿摆/身摆 步态）", lines: ['{"op":"play","asset":"walk"}', '{"op":"set","sem":"身摆","value":0.3}'] };
-      return { label: "无腿摆/臂摆 → 行走不可用", lines: [] };
-    case "outfit1":
-      return core.character.costumes ? { label: "换装·组1", lines: core.setOutfit(1) } : null;
-    case "outfit2":
-      return core.character.costumes ? { label: "换装·组2", lines: core.setOutfit(2) } : null;
-    case "nod":
-      if (featParam("头点头")) return { label: "头部·点头", lines: setp("头点头", 12, 600) };
-      if (featParam("ParamAngleY")) return { label: "头部·点头", lines: setp("ParamAngleY", 12, 600) };
-      return null;
-    case "shake":
-      if (featParam("头转向")) return { label: "头部·摇头", lines: setp("头转向", 16, 300) };
-      if (featParam("ParamAngleX")) return { label: "头部·摇头", lines: setp("ParamAngleX", 14, 300) };
-      return null;
-    case "smile":
-      if (core.character.expressions && "开心" in core.character.expressions) return { label: "脸部·微笑（face 开心）", lines: ['{"op":"face","expression":"开心","weight":0.6}'] };
-      if (featParam("ParamMouthForm")) return { label: "脸部·微笑", lines: setp("ParamMouthForm", 1) };
-      if (featParam("嘴笑")) return { label: "脸部·微笑", lines: setp("嘴笑", 1) };
-      return null;
-    case "open":
-      if (featParam("嘴开")) return { label: "脸部·张嘴", lines: setp("嘴开", 0.8, 500) };
-      if (featParam("ParamMouthOpenY")) return { label: "脸部·张嘴", lines: setp("ParamMouthOpenY", 0.8, 500) };
-      return null;
-    case "blink":
-      if (featMotion("blink")) return { label: "脸部·眨眼（blink）", lines: ['{"op":"play","asset":"blink"}'] };
-      if (featParam("眼闭左") && featParam("眼闭右")) {
-        return { label: "脸部·眨眼", lines: [
-          JSON.stringify({ op: "set", sem: "眼闭左", value: 1 }),
-          JSON.stringify({ op: "set", sem: "眼闭右", value: 1 }),
-          JSON.stringify({ op: "wait", ms: 160 }),
-          JSON.stringify({ op: "set", sem: "眼闭左", value: 0 }),
-          JSON.stringify({ op: "set", sem: "眼闭右", value: 0 }),
-        ] };
-      }
-      return null;
-    case "surprised":
-      if (featMotion("surprise")) return { label: "脸部·惊讶（surprise）", lines: ['{"op":"play","asset":"surprise"}'] };
-      if (featParam("嘴开") && featParam("眉左升")) {
-        return { label: "脸部·惊讶", lines: [
-          JSON.stringify({ op: "set", sem: "嘴开", value: 0.8 }),
-          JSON.stringify({ op: "set", sem: "眉左升", value: 1 }),
-          JSON.stringify({ op: "set", sem: "眉右升", value: 1 }),
-        ] };
-      }
-      return null;
-    case "reset":
-      return { label: "复位参数", lines: [] };
-    default:
-      return null;
-  }
+function appendChat(user: string, reply: string): void {
+  const t = document.createElement("div");
+  t.className = "feat-chat-line";
+  const u = document.createElement("span");
+  u.className = "u";
+  u.textContent = user;
+  const r = document.createElement("span");
+  r.className = "r";
+  r.textContent = reply;
+  t.append(u, " → ", r);
+  featChatEl.prepend(t);
+  while (featChatEl.children.length > 30) featChatEl.lastChild?.remove();
 }
 
-const FEAT_LABELS: Record<string, string> = {
-  walk: "🚶 行走", outfit1: "👗 换装·组1", outfit2: "🧥 换装·组2", nod: "🙆 点头", shake: "🙅 摇头",
-  smile: "😊 微笑", open: "😮 张嘴", blink: "😉 眨眼", surprised: "😲 惊讶", reset: "⟲ 复位",
-};
+async function sendChat(raw: string): Promise<void> {
+  const text = raw.trim();
+  if (!text) return;
+  chatInput.value = "";
+  const o = await stage.reply(text);
+  if (o) appendChat(text, o.replyText + (o.usedSound ? " 🔊" : ""));
+}
 
+// ---------------- 功能按钮（drive.ts 纯函数） ----------------
 for (const b of featBtns.querySelectorAll("button")) {
   b.addEventListener("click", () => {
     const f = (b as HTMLButtonElement).dataset["feat"] ?? "";
-    const res = featJsonl(f);
+    const core = stage.core;
+    if (!core) {
+      featHintEl.textContent = "角色尚未就绪";
+      return;
+    }
+    const res = driveFeature(core, f);
     if (!res) {
-      featHintEl.textContent = `「${FEAT_LABELS[f] ?? f}」：当前角色缺少对应部件/资产`;
+      featHintEl.textContent = `「${FEATURE_LABELS[f] ?? f}」：当前角色缺少对应部件/资产`;
       return;
     }
     if (f === "reset") {
@@ -107,12 +64,21 @@ for (const b of featBtns.querySelectorAll("button")) {
       featHintEl.textContent = "参数已复位";
       return;
     }
+    const geometryFeat = ["walk", "nod", "shake", "smile", "open", "blink", "surprised"].includes(f);
     const r = stage.feed(res.lines);
+    const noWarp = geometryFeat && !stage.hasWarpMotion
+      ? "（注意：当前角色为基准姿态烘焙，几何不形变 —— 想看动作请切衣装酱/小骨架/我的创作）"
+      : "";
     featHintEl.textContent =
       `[${res.label}] · 生效 ${r.applied} · 隔离 ${r.skipped}` +
-      (res.lines.length === 0 ? "（无可用参数）" : "");
+      (res.lines.length === 0 ? "（无可用参数）" : "") + " " + noWarp;
   });
 }
+
+chatSend.addEventListener("click", () => void sendChat(chatInput.value));
+chatInput.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") void sendChat(chatInput.value);
+});
 
 // ---------------- 启动 ----------------
 stage.start();

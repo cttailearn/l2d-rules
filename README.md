@@ -74,7 +74,7 @@ npm test           # 同核无头测试 7 例
 ~~~bash
 npm install
 npm run typecheck   # 8 包 + demo-app 类型检查
-npm test            # 8 包 + demo-app 全量测试全绿（含 moc3 语料解析/真实几何回归/上传构建全链）
+npm test            # 8 包 + demo-app 全量测试全绿（含 246 例；moc3 语料/真实几何回归/上传构建全链/全功能判定矩阵）
 npm run eval        # 评估集门禁：specs/evals/drive-cases.json → 报告（任一 case 失败退出码 1；6/6）
 ~~~
 
@@ -90,7 +90,7 @@ CHAR=all npm start   # 三角色全跑（haru 官方 / 小骨架语义 / 衣装�
 npm test             # 同核 7 例：两跳决策/说话口型/换装/确定性/多角色场景/上传构建全链
 ```
 
-- **四个功能界面**：`/`（💬 聊天助手）、`/create.html`（🎨 人物创建 · 必须上传真实 PNG）、`/features.html`（🎛 全功能演示）、`/compare.html`（🔄 转换对比）。「我的创作」经 sessionStorage 跨页共享。
+- **四个功能界面**：`/`（💬 聊天助手，可导入 .l2dm）、`/create.html`（🎨 人物创建 · 必须上传真实 PNG，含质量预检 / 真实服务接入 / 下载成品）、`/features.html`（🎛 全功能演示 + 本页聊天）、`/compare.html`（🔄 转换对比 · 内置真实 Haru 一键现场对比）。「我的创作」/「导入」经 sessionStorage 跨页共享。
 - 一条消息链路：`两跳决策（DriverEngine 第一跳本地规则 → 第二跳 Provider）→ 确定性台词 → estimateSpeechTimeline+blendVisemes 口型 → StreamIngestor 逐行 JSONL（坏行隔离）→ LayerStack+EnvironmentLayer+Evaluator → L2dmPlayer → SceneStage（背景/相机/多角色）→ WebGL2/软光栅`
 - 四角色同一个 AppCore（`src/stage.ts` 舞台壳共用）：**官方 Haru（真实模型 + 纹理 + 语音）**、**小骨架**（play/face warp 形变）、**衣装酱**（rig 换装 outfit）、**✨我的创作**（上传图构建）。Haru 为基准姿态烘焙，几何形变切小骨架/衣装酱体验。
 - **🎛 全功能演示（features.html）**：行走（`walk` 动作，`@l2dp/create` 新增）/ 换装组1·2 / 头部点头·摇头 / 脸部微笑·张嘴·眨眼·惊讶——按当前角色参数面自动生成 JSONL，不可用项自动提示。

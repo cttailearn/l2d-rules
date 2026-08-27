@@ -2,6 +2,7 @@
 <html lang="zh">
 <head>
   <meta charset="UTF-8" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎤</text></svg>" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>全功能演示 · demo-app</title>
   <link rel="stylesheet" href="/style.css" />
@@ -52,6 +53,8 @@
         <canvas id="canvas" width="560" height="720"></canvas>
       </div>
 
+      <div id="stageStatus" class="stage-status" hidden></div>
+
       <div id="metrics"></div>
     </section>
 
@@ -75,12 +78,22 @@
       </div>
 
       <div class="panel">
+        <h3>💬 本页聊一句（同一两跳决策）</h3>
+        <div class="input-row">
+          <input id="featInput" placeholder="对角色说点什么…（Enter）" autocomplete="off" spellcheck="false" />
+          <button id="featSend" class="primary">发送</button>
+        </div>
+        <div id="featChat" class="feat-chat"></div>
+      </div>
+
+      <div class="panel">
         <h3>Explore</h3>
         <ul style="margin:0;padding-left:18px;color:var(--muted);font-size:.8rem;line-height:1.7;">
           <li>行走：仅在存在 腿摆/臂摆 或 <code>walk</code> 动作资产时可用（衣装酱 / 我的创作）。</li>
           <li>换装：通过 <code>outfit op → outfitLines</code> 切换服装组可见性（衣装酱有两套服装）。</li>
           <li>头部：点头 / 摇头 由 头点头 / 头转向（或 ParamAngleX/Y）驱动。</li>
           <li>脸部：微笑 / 张嘴 / 眨眼 / 惊讶 走 <code>play</code>（动作资产）或 <code>face</code>（表情）或直接 set 语义参数。</li>
+          <li>⚠️ 官方 Haru 为基准姿态烘焙（几何不形变）：动作只改参数读数；想看真动作请切衣装酱/小骨架/我的创作。</li>
           <li>在「人物创建」构建后可在角色栏看到「✨ 我的创作」。</li>
         </ul>
       </div>

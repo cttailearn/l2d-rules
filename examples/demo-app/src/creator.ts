@@ -9,11 +9,13 @@ import {
   ColorMapLabeler,
   type Labeler,
   type RgbaImage,
+  type Segmenter,
 } from "@l2dp/cutout";
 import {
   createWithSelfRepair,
   RuleReviewer,
   type CreateOutcome,
+  type RigReviewer,
 } from "@l2dp/create";
 import type { MotionLike } from "@l2dp/driver";
 import type { AppCharacter, Emotion } from "./chars.ts";
@@ -62,17 +64,21 @@ export interface BuildOptions {
   /** 标注器：内置示例用 ColorMapLabeler(SAMPLE_MAPPING)（色板已知 → 语义精确）；
    *  任意上传缺省 → create 内置 PositionLabeler(defaultSlots)（位置槽，粗略但可运行）。 */
   labeler?: Labeler;
+  /** 分割器：缺省 ColorKeySegmenter（平坦色画风）；真实照片可注入 @l2dp/host HttpSegmenter 等。 */
+  segmenter?: Segmenter;
+  /** 审核器：缺省 RuleReviewer；host 桥可注入 LlmReviewer（null = 跳过审核）。 */
+  reviewer?: RigReviewer | null;
 }
 
-/** 上传图 → 构建可驱动模型（确定性全链）。 */
+/** 上传图 → 构建可驱动模型（确定性全链；可注入真实 Segmenter/Labeler/Reviewer）。 */
 export async function buildFromImage(image: RgbaImage, opts: BuildOptions = {}): Promise<CreateOutcome> {
   return createWithSelfRepair({
     character: opts.character ?? "created-app",
     image,
     canvas: { width: image.width, height: image.height },
-    segmenter: new ColorKeySegmenter({ tol: opts.tol ?? 12, minArea: opts.minArea ?? 60 }),
+    segmenter: opts.segmenter ?? new ColorKeySegmenter({ tol: opts.tol ?? 12, minArea: opts.minArea ?? 60 }),
     labeler: opts.labeler,
-    reviewer: new RuleReviewer(),
+    reviewer: opts.reviewer ?? new RuleReviewer(),
     maxRounds: opts.maxRounds ?? 3,
   });
 }

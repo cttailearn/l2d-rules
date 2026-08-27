@@ -18,8 +18,9 @@ export default defineConfig({
   },
   server: {
     fs: { allow: [fileURLToPath(new URL("../../", import.meta.url))] },
-    // Windows 下忽略编辑器原子写产生的临时目录（.xxx.tmpdir/...），避免文件监听 EBUSY 崩溃
-    watch: { ignored: [/[\\/]\.tmpdir[\\/]/, /[\\/]\.(README|index|create|features|compare)[^\\/]*\.tmpdir[\\/]/] },
+    // Windows 下忽略编辑器原子写产生的临时目录（任意以 .tmpdir 结尾的路径段，如 .name.pid.uuid.tmpdir/...），
+    // 避免文件监听 EBUSY 崩溃。
+    watch: { ignored: [/[\\/][^\\/]*\.tmpdir[\\/]/] },
   },
   build: {
     outDir: "dist",

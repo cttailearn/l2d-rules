@@ -179,3 +179,41 @@ figure canvas.created-ok { border-color: var(--ok); box-shadow: 0 0 0 1px #2f6b4
 footer { max-width: 1180px; margin: 0 auto; padding: 2px 20px 26px; color: var(--muted); font-size: 0.76rem; line-height: 1.7; }
 a { color: var(--accent); text-decoration: none; }
 a:hover { text-decoration: underline; }
+
+/* ---------- 页面状态栏 / 全功能聊天 / 真实服务接入（P0/P1 优化） ---------- */
+.stage-status {
+  margin-top: 8px; padding: 8px 12px; border-radius: 10px; font-size: 0.78rem; line-height: 1.6;
+  background: #1b2029; border: 1px solid var(--line); color: var(--text);
+}
+.stage-status.warn { color: #e3b341; border-color: #6b5a22; background: #1e1b12; }
+.stage-status.err { color: var(--bad); border-color: #6b2a2a; background: #1e1215; }
+.stage-status.ok { color: var(--ok); border-color: #2f6b45; background: #122018; }
+
+.feat-chat {
+  margin-top: 8px; max-height: 180px; overflow-y: auto;
+  background: #0d1015; border: 1px solid var(--line); border-radius: 10px;
+  padding: 8px 10px; font-size: 0.78rem; line-height: 1.7; color: var(--muted);
+  display: flex; flex-direction: column; gap: 4px;
+}
+.feat-chat-line .u { color: var(--accent); }
+.feat-chat-line .r { color: var(--text); }
+
+.host-bridge { margin-top: 4px; font-size: 0.8rem; }
+.host-bridge summary { cursor: pointer; color: var(--accent); user-select: none; }
+.host-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px; margin-top: 8px; }
+.host-fields label { display: flex; flex-direction: column; gap: 4px; font-size: 0.76rem; color: var(--muted); }
+.host-fields input {
+  background: #0d1015; color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px; font-size: 0.8rem; outline: none;
+}
+.host-fields input:focus { border-color: var(--accent); }
+.host-fields input:disabled { opacity: .5; }
+.host-toggle { flex-direction: row !important; align-items: center; gap: 8px !important; color: var(--text) !important; }
+
+/* ---------- 页面过渡动效 + 更大舞台画布（P2） ---------- */
+main.layout, main.one-col, main-compare { animation: fadeIn .18s ease; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+.stage-wrap { min-height: 520px; }
+canvas { max-width: 560px; max-height: 680px; }
+.nav a { transition: border-color .15s, color .15s, background .15s; }
+button, .chip { transition: border-color .15s, background .15s, transform .1s; }
+button:active, .chip:active { transform: translateY(1px); }

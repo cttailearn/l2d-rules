@@ -2,6 +2,7 @@
 <html lang="zh">
 <head>
   <meta charset="UTF-8" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎤</text></svg>" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>人物创建 · demo-app</title>
   <link rel="stylesheet" href="/style.css" />
@@ -29,13 +30,25 @@
       <div class="create-body">
         <div class="drop" id="drop" tabindex="0">
           <div class="drop-inner">📥 点击选择 / 拖入 <b>真实 PNG 立绘</b><br />
-            <span class="hint">未上传前无法构建 —— 不使用任何内置合成示例</span>
+            <span class="hint">平坦色二次元立绘最佳（内置 ColorKey 确定性链）；照片/复杂图请开启下方「真实服务接入」</span>
           </div>
         </div>
         <div class="row create-opts">
           <label class="opt">容差 <input type="range" id="tol" min="0" max="40" value="6" /> <b id="tolV">6</b></label>
           <label class="opt">最小面积 <input type="range" id="minArea" min="20" max="400" value="60" /> <b id="minAreaV">60</b></label>
         </div>
+
+        <details class="host-bridge">
+          <summary>🛠 真实服务接入（@l2dp/host：HTTP 分割 + LLM 标注/审核，复杂图用）</summary>
+          <div class="host-fields">
+            <label>分割服务 URL <input id="segUrl" placeholder="https://seg.example/v1/cut" disabled /></label>
+            <label>LLM Base <input id="llmBase" placeholder="https://api.openai.com/v1（留空=默认）" disabled /></label>
+            <label>LLM API Key <input id="llmKey" type="password" placeholder="sk-…" disabled /></label>
+            <label>LLM Model <input id="llmModel" value="gpt-4o-mini" disabled /></label>
+            <label class="host-toggle"><input type="checkbox" id="hostEnable" /> 构建时使用真实服务（需 URL + Key；服务需允许浏览器 CORS）</label>
+          </div>
+        </details>
+
         <div class="create-stage">
           <figure><figcaption>① 原图</figcaption><canvas id="cvSrc" width="240" height="320"></canvas></figure>
           <figure><figcaption>② 切图 · 标注</figcaption><canvas id="cvCut" width="240" height="320"></canvas></figure>
@@ -44,6 +57,7 @@
         <div id="createLog" class="create-log"></div>
         <div class="row">
           <button id="btnBuild" class="primary" disabled>构建 Live2D</button>
+          <a id="btnDownload" class="primary" hidden>⬇ 下载成品 .l2dm</a>
           <a id="chatLink" class="primary" href="/" hidden>去聊天助手用「我的创作」→</a>
           <a id="featLink" href="/features.html" hidden>去全功能演示 →</a>
           <span class="hint" id="createStatus"></span>

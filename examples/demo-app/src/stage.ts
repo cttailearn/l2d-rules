@@ -13,13 +13,14 @@ import {
 } from "@l2dp/engine";
 import { AppCore, type ReplyOutcome, type SpeakNotice } from "./core.ts";
 import { APP_CHARACTERS, CHARACTER_LIST, type AppCharacter, type Emotion } from "./chars.ts";
-import { decodeModelAtlas } from "./texture.ts";
+import { decodeModelAtlas, decodeModelAtlasBitmap } from "./texture.ts";
 
 export const STAGE_W = 560;
 export const STAGE_H = 720;
 const FRAME_INTERVAL_MS = 33;
 
 export const CREATED_KEY = "l2dp:created";
+export const IMPORTED_KEY = "l2dp:imported";
 
 export interface StageOpts {
   stageWrap: HTMLElement;
@@ -38,6 +39,10 @@ export interface StageOpts {
   soundToggle?: HTMLElement;
   chatName?: HTMLElement;
   input?: HTMLInputElement;
+  /** 页面状态/错误栏（如 #stageStatus） */
+  statusEl?: HTMLElement;
+  /** 角色 boot 完成后回调（页面可据此显示“基准烘焙/无几何形变”提示） */
+  onBoot?: (stage: Stage) => void;
   /** 默认角色 id（未指定时按 URL ?character=，缺省 haru） */
   defaultCharId?: string;
 }
@@ -50,7 +55,7 @@ export interface CreatedBundle {
 
 function defaultCharFromUrl(): string {
   const c = new URLSearchParams(location.search).get("character");
-  return c && (APP_CHARACTERS[c] || c === "created") ? c : "haru";
+  return c && (APP_CHARACTERS[c] || c === "created" || c === "imported") ? c : "haru";
 }
 
 // 模块级缓存（单页单实例；session 内复用）
@@ -72,7 +77,7 @@ async function ensureModel(
   const text = await res.text();
   const loaded = loadL2dm(text);
   if (!loaded.ok || !loaded.model) throw new Error("模型加载失败: " + (loaded.ok ? "?" : loaded.error));
-  const atlas = decodeModelAtlas(loaded.model.atlas);
+  const atlas = await decodeModelAtlasBitmap(loaded.model.atlas);
   const entry = { text, atlas };
   modelCache.set(charId, entry);
   return entry;
@@ -90,6 +95,24 @@ export function saveCreated(bundle: CreatedBundle): void {
 export function loadCreated(): CreatedBundle | null {
   try {
     const raw = sessionStorage.getItem(CREATED_KEY);
+    return raw ? (JSON.parse(raw) as CreatedBundle) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** 保存导入的 .l2dm 角色（聊天/全功能页可恢复） */
+export function saveImported(bundle: CreatedBundle): void {
+  try {
+    sessionStorage.setItem(IMPORTED_KEY, JSON.stringify(bundle));
+  } catch (e) {
+    console.warn("保存导入模型失败: ", e);
+  }
+}
+
+export function loadImported(): CreatedBundle | null {
+  try {
+    const raw = sessionStorage.getItem(IMPORTED_KEY);
     return raw ? (JSON.parse(raw) as CreatedBundle) : null;
   } catch {
     return null;
@@ -229,7 +252,9 @@ export class Stage {
     const charId = id ?? this.charId;
     const joined = withCompanion ?? this.companionOn;
     try {
-      if (charId === "created") this.restoreCreatedFromStorage();
+      // 运行时角色（我的创作 / 导入 .l2dm）先在本次会话注册（幂等）
+      this.restoreCreatedFromStorage();
+      this.restoreImportedFromStorage();
       const char = APP_CHARACTERS[charId];
       if (!char) throw new Error("未知角色: " + charId);
       const hero = await ensureModel(charId, char.file);
@@ -303,13 +328,31 @@ export class Stage {
       }
 
       this.refreshMetrics();
+      this.opts.onBoot?.(this);
     } catch (e) {
       console.error("boot 失败:", e);
       this.notifyError("（角色加载失败：" + (e as Error).message + "）");
     }
   }
 
+  /** 页面状态/错误栏（#stageStatus） */
+  status(msg: string, tone: "ok" | "warn" | "err" | "" = ""): void {
+    const el = this.opts.statusEl;
+    if (!el) return;
+    el.textContent = msg;
+    el.className = "stage-status" + (tone ? " " + tone : "");
+    el.hidden = msg.length === 0;
+  }
+
+  /** 角色是否有几何形变能力（网格 warp/warp2d）——基准姿态烘焙的官方模型为 false */
+  get hasWarpMotion(): boolean {
+    const model = this.core?.model;
+    if (!model) return false;
+    return model.parts.some((p) => (p.mesh?.warps?.length ?? 0) > 0 || (p.mesh?.warp2d?.length ?? 0) > 0);
+  }
+
   private notifyError(text: string): void {
+    this.status(text, "err");
     const logEl = document.getElementById("log");
     if (logEl) {
       const m = document.createElement("div");
@@ -358,27 +401,37 @@ export class Stage {
     this.core?.zoomTo(this.zoom);
   }
 
-  // ---------------- 「我的创作」注册 / 恢复 ----------------
-  registerCreated(char: AppCharacter, reactions: Record<Emotion, string[]>, model: L2dmModel, atlas: Map<string, Tex2D>): void {
-    APP_CHARACTERS[char.id] = char;
-    charReactions.set(char.id, reactions);
-    runtimeModels.set(char.id, { text: JSON.stringify(model), atlas });
-    this.addCreatedButton(char);
-  }
-
-  private addCreatedButton(char: AppCharacter): void {
+  // ---------------- 运行时角色注册 / 恢复（我的创作 / 导入 .l2dm） ----------------
+  private addRuntimeButton(char: AppCharacter, label: string): void {
     const btns = this.opts.charBtns;
     if (!btns) return;
     if (btns.querySelector('[data-char="' + char.id + '"]')) return;
     const b = document.createElement("button");
     b.dataset["char"] = char.id;
-    b.textContent = "✨ 我的创作";
+    b.textContent = label + "(" + char.label.split("（")[0] + ")";
     b.title = char.desc;
     b.addEventListener("click", () => {
       this.charId = char.id;
       void this.boot(char.id).then(() => void 0);
     });
     btns.appendChild(b);
+  }
+
+  registerCreated(char: AppCharacter, reactions: Record<Emotion, string[]>, model: L2dmModel, atlas: Map<string, Tex2D>): void {
+    APP_CHARACTERS[char.id] = char;
+    charReactions.set(char.id, reactions);
+    runtimeModels.set(char.id, { text: JSON.stringify(model), atlas });
+    this.addRuntimeButton(char, "✨");
+  }
+
+  /** 导入 .l2dm 文件 → 注册为运行时角色（会写入 charReactions=[] 语义映射占位，走 kind 默认反应）。 */
+  registerImported(char: AppCharacter, reactions: Record<Emotion, string[]> | null, modelText: string): void {
+    const model = JSON.parse(modelText) as L2dmModel;
+    const atlas = decodeModelAtlas(model.atlas);
+    APP_CHARACTERS[char.id] = char;
+    if (reactions) charReactions.set(char.id, reactions);
+    runtimeModels.set(char.id, { text: modelText, atlas });
+    this.addRuntimeButton(char, "📥");
   }
 
   restoreCreatedFromStorage(): boolean {
@@ -390,10 +443,27 @@ export class Stage {
       APP_CHARACTERS[bundle.character.id] = bundle.character;
       charReactions.set(bundle.character.id, bundle.reactions);
       runtimeModels.set(bundle.character.id, { text: bundle.modelText, atlas });
-      this.addCreatedButton(bundle.character);
+      this.addRuntimeButton(bundle.character, "✨");
       return true;
     } catch (e) {
       console.warn("恢复我的创作失败:", e);
+      return false;
+    }
+  }
+
+  restoreImportedFromStorage(): boolean {
+    const bundle = loadImported();
+    if (!bundle || APP_CHARACTERS[bundle.character.id]) return !!bundle;
+    try {
+      const model = JSON.parse(bundle.modelText) as L2dmModel;
+      const atlas = decodeModelAtlas(model.atlas);
+      APP_CHARACTERS[bundle.character.id] = bundle.character;
+      charReactions.set(bundle.character.id, bundle.reactions);
+      runtimeModels.set(bundle.character.id, { text: bundle.modelText, atlas });
+      this.addRuntimeButton(bundle.character, "📥");
+      return true;
+    } catch (e) {
+      console.warn("恢复导入模型失败:", e);
       return false;
     }
   }
@@ -438,6 +508,7 @@ export class Stage {
         o.charBtns.appendChild(b);
       }
       if (loadCreated()) this.restoreCreatedFromStorage();
+      if (loadImported()) this.restoreImportedFromStorage();
     }
 
     const draw = (now: number): void => {

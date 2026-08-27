@@ -2,6 +2,7 @@
 <html lang="zh">
 <head>
   <meta charset="UTF-8" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎤</text></svg>" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>聊天助手 · demo-app</title>
   <link rel="stylesheet" href="/style.css" />
@@ -30,6 +31,8 @@
         <div class="tl">
           <span class="lbl">角色</span>
           <div class="row" id="charBtns"></div>
+          <button id="importBtn" title="导入 .l2dm / .json 模型文件，作为「📥 导入」角色使用">📥 导入 .l2dm</button>
+          <input id="importFile" type="file" accept=".l2dm,.json,application/json" style="display:none;" />
         </div>
         <div class="tl">
           <span class="lbl">背景</span>
@@ -51,6 +54,8 @@
         <div class="bubble" id="bubble" hidden></div>
         <canvas id="canvas" width="560" height="720"></canvas>
       </div>
+
+      <div id="stageStatus" class="stage-status" hidden></div>
 
       <div class="presets">
         <h3>动作预置（JSONL → 校验 → 分层求值）</h3>

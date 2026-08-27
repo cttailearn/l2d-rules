@@ -1,10 +1,11 @@
 // run.mjs —— demo-app 无头运行器（同核）：脚本化对话 → 每帧驱动 → 出帧 + 报告
-// 与浏览器（main.ts）共用 AppCore：聊天文本 → 两跳决策 + 确定性应答 → JSONL 流式驱动 → 场景渲染。
+// 与浏览器（src/pages/*）共用 AppCore：聊天文本 → 两跳决策 + 确定性应答 → JSONL 流式驱动 → 场景渲染。
 //
 // 用法：
 //   npm start              # 默认 Haru 角色，确定性 mock 第二跳（离线可跑）
 //   CHAR=demo npm start    # 指定角色（haru / demo / costume / all）
 //   CHAR=all npm start     # 三个角色各跑一段脚本化聊天，各出一帧 + 报告
+//   FROM_IMAGE=path.png npm start   # 用磁盘上的真实 PNG 跑「上传图像→构建」（缺省用内置示例）
 //   LLM_API_KEY=… npm start  # 第二跳走真实 OpenAI 兼容端点（LLM_BASE_URL/LLM_MODEL 可选）
 //
 // 产物（out/）：{char}-{n}-{msg}.png 帧 + report.txt（合成 sha256、hop、台词、生效统计）。
@@ -13,7 +14,7 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { createHash } from "node:crypto";
 import { loadL2dm, SoftwareRenderer, L2dmPlayer } from "@l2dp/engine";
-import { encodePng } from "@l2dp/cutout";
+import { decodePng, encodePng } from "@l2dp/cutout";
 import { OpenAIProvider } from "@l2dp/driver";
 import { AppCore } from "../src/core.ts";
 import { APP_CHARACTERS, CHARACTER_LIST } from "../src/chars.ts";
@@ -54,7 +55,8 @@ async function loadCharacter(charId) {
 async function runCharacter(charId, seq) {
   const { char, text, atlas } = await loadCharacter(charId);
   const sink = new SoftwareRenderer({ filter: "linear" });
-  const buddy = charId === "demo" ? await loadCharacter("demo").catch(() => null) : null;
+  // 同伴 = 小骨架（demo 骨架）；demo 角色自己就是骨架，不再给自己套同伴
+  const buddy = charId === "demo" ? null : await loadCharacter("demo").catch(() => null);
   const core = new AppCore({
     modelJson: text,
     atlas,
@@ -114,9 +116,17 @@ if (target === "all") {
   await runCharacter(target, SCRIPT);
 }
 
-// —— 上传图像 → 构建 Live2D（无头版：内置示例 → 全链 → 出预览帧）——
+// —— 上传图像 → 构建 Live2D（无头版：FROM_IMAGE 走磁盘真实图，缺省内置示例 → 全链 → 出预览帧）——
 {
-  const outcome = await buildFromImage(sampleImage(), { tol: 6, minArea: 60, character: "headless-created", labeler: sampleLabeler() });
+  let srcImage = sampleImage();
+  let srcLabeler = sampleLabeler();
+  if (process.env.FROM_IMAGE) {
+    log(`\n◆ 使用磁盘真实图 ${process.env.FROM_IMAGE}`);
+    const buf = await readFile(process.env.FROM_IMAGE);
+    srcImage = decodePng(new Uint8Array(buf));
+    srcLabeler = undefined;
+  }
+  const outcome = await buildFromImage(srcImage, { tol: 6, minArea: 60, character: "headless-created", labeler: srcLabeler });
   log("\n◆ 上传图像 → 构建 Live2D（headless · 纯确定性）");
   log(`  ok=${outcome.ok} · 自修复 ${outcome.rounds}/3 轮 · 切图 ${outcome.cutout.parts.length} 件 · 覆盖率 ${outcome.cutout.coveragePct}%`);
   if (outcome.ok && outcome.result) {

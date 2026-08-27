@@ -164,3 +164,37 @@ export function decodeModelAtlas(atlas: Record<string, string> | undefined): Map
   }
   return out;
 }
+
+/**
+ * 浏览器加速解码：用 createImageBitmap + OffscreenCanvas 走原生解码（大幅快于软解码大 PNG）；
+ * 环境不支持时回退到软解码。Node（无 OffscreenCanvas/ImageBitmap）始终走 decodePng。
+ */
+export async function decodePngBitmap(bytes: Uint8Array): Promise<Tex2D> {
+  if (typeof createImageBitmap === "undefined") return decodePng(bytes);
+  try {
+    const bmp = await createImageBitmap(new Blob([bytes as BlobPart], { type: "image/png" }));
+    const oc = new OffscreenCanvas(bmp.width, bmp.height);
+    const ctx = oc.getContext("2d");
+    if (!ctx) throw new Error("OffscreenCanvas 2d 不可用");
+    ctx.drawImage(bmp, 0, 0);
+    const img = ctx.getImageData(0, 0, bmp.width, bmp.height);
+    bmp.close();
+    return { width: bmp.width, height: bmp.height, data: new Uint8Array(img.data.buffer) };
+  } catch (e) {
+    console.warn("createImageBitmap 解码失败，回退软解码:", (e as Error).message);
+    return decodePng(bytes);
+  }
+}
+
+/** 浏览器加速：atlas(data URI) → Tex2D 表（createImageBitmap），失败回退软解码。 */
+export async function decodeModelAtlasBitmap(atlas: Record<string, string> | undefined): Promise<Map<string, Tex2D>> {
+  const out = new Map<string, Tex2D>();
+  for (const [key, uri] of Object.entries(atlas ?? {})) {
+    try {
+      out.set(key, await decodePngBitmap(dataUriToBytes(uri)));
+    } catch (e) {
+      throw new Error(`atlas '${key}' 解码失败: ${(e as Error).message}`);
+    }
+  }
+  return out;
+}
