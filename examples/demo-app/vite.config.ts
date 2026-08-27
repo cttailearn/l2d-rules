@@ -18,6 +18,18 @@ export default defineConfig({
   },
   server: {
     fs: { allow: [fileURLToPath(new URL("../../", import.meta.url))] },
+    // Windows 下忽略编辑器原子写产生的临时目录（.xxx.tmpdir/...），避免文件监听 EBUSY 崩溃
+    watch: { ignored: [/[\\/]\.tmpdir[\\/]/, /[\\/]\.(README|index|create|features|compare)[^\\/]*\.tmpdir[\\/]/] },
   },
-  build: { outDir: "dist" },
+  build: {
+    outDir: "dist",
+    rollupOptions: {
+      input: {
+        index: fileURLToPath(new URL("index.html", import.meta.url)),
+        create: fileURLToPath(new URL("create.html", import.meta.url)),
+        features: fileURLToPath(new URL("features.html", import.meta.url)),
+        compare: fileURLToPath(new URL("compare.html", import.meta.url)),
+      },
+    },
+  },
 });

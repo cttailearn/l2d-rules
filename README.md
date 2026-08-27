@@ -80,21 +80,22 @@ npm run eval        # 评估集门禁：specs/evals/drive-cases.json → 报告�
 
 ## 小型使用应用 demo（demo-app）
 
-**打开就能用**的应用级演示：聊天框打字 → 角色说话（台词 + 语音）、做动作、一对一嘴型、换装、行走——实时渲染（[examples/demo-app/README.md](examples/demo-app/README.md)）。统一收敛后的**唯一 demo**，展示「用这套 SDK 能搭出一个什么样的应用」，且**主角是真实模型/真实图像**：
+**打开就能用**的应用级演示，且**按功能划分为四个独立界面**（顶栏导航切换，互不堆叠）：聊天框打字 → 角色说话（台词+语音）、做动作、一对一嘴型、换装、行走——实时渲染（[examples/demo-app/README.md](examples/demo-app/README.md)）。统一收敛后的**唯一 demo**，展示「用这套 SDK 能搭出一个什么样的应用」，**示例数据必须真实**：默认角色为官方真实 Haru；人物创建只接受用户上传的真实立绘：
 
 ```bash
 cd examples/demo-app
-npm run dev          # 浏览器应用 → http://localhost:5173
+npm run dev          # 浏览器应用 → http://localhost:5173（四个功能页面，顶栏导航）
 npm start            # 无头 CLI：脚本化聊天 + 上传构建示例 → 出帧 out/*.png + report.txt（确定性）
 CHAR=all npm start   # 三角色全跑（haru 官方 / 小骨架语义 / 衣装酱换装）
 npm test             # 同核 7 例：两跳决策/说话口型/换装/确定性/多角色场景/上传构建全链
 ```
 
+- **四个功能界面**：`/`（💬 聊天助手）、`/create.html`（🎨 人物创建 · 必须上传真实 PNG）、`/features.html`（🎛 全功能演示）、`/compare.html`（🔄 转换对比）。「我的创作」经 sessionStorage 跨页共享。
 - 一条消息链路：`两跳决策（DriverEngine 第一跳本地规则 → 第二跳 Provider）→ 确定性台词 → estimateSpeechTimeline+blendVisemes 口型 → StreamIngestor 逐行 JSONL（坏行隔离）→ LayerStack+EnvironmentLayer+Evaluator → L2dmPlayer → SceneStage（背景/相机/多角色）→ WebGL2/软光栅`
-- 四角色同一个 AppCore：**官方 Haru（真实模型 + 纹理 + 语音）**、**小骨架**（play/face warp 形变）、**衣装酱**（rig 换装 outfit）、**✨我的创作**（上传图构建）。Haru 为基准姿态烘焙，几何形变切小骨架/衣装酱体验。
-- **🎛 LLM 驱动全功能演示**：行走（`walk` 动作，`@l2dp/create` 新增）/ 换装组1·2 / 头部点头·摇头 / 脸部微笑·张嘴·眨眼·惊讶——按当前角色参数面自动生成 JSONL，不可用项自动提示。
-- **🔄 真实模型·格式转换对比**：官方 Haru .moc3 → `@l2dp/convert` 自研转换 → 引擎渲染（左） vs 官方原画 texture_00（右）；另有 `/compare.html` 与官方 Cubism SDK 实时并排对比页。
-- **上传图像 → 构建 Live2D**：上传/内置 PNG → 浏览器内 `cutout → create(自修复) → rig + 动作生成(含 walk) → 内嵌纹理 .l2dm` → 成为「我的创作」。复杂图可注入真实 Segmenter/Labeler（`@l2dp/host`）。
+- 四角色同一个 AppCore（`src/stage.ts` 舞台壳共用）：**官方 Haru（真实模型 + 纹理 + 语音）**、**小骨架**（play/face warp 形变）、**衣装酱**（rig 换装 outfit）、**✨我的创作**（上传图构建）。Haru 为基准姿态烘焙，几何形变切小骨架/衣装酱体验。
+- **🎛 全功能演示（features.html）**：行走（`walk` 动作，`@l2dp/create` 新增）/ 换装组1·2 / 头部点头·摇头 / 脸部微笑·张嘴·眨眼·惊讶——按当前角色参数面自动生成 JSONL，不可用项自动提示。
+- **🔄 转换对比（compare.html）**：官方 Haru .moc3 → `@l2dp/convert` 自研转换 → 引擎渲染 vs 官方原画；/compare.html 上传任意模型与官方 Cubism SDK（CDN）实时并排对比。
+- **🎨 人物创建（create.html）**：**必须上传真实 PNG 立绘**（不使用任何内置合成示例，未上传前不可构建）→ 浏览器内 `cutout → create(自修复) → rig + 动作生成(含 walk) → 内嵌纹理 .l2dm` → 成为「我的创作」。复杂图可注入真实 Segmenter/Labeler（`@l2dp/host`）。
 - **✅ Haru 双臂重叠已修复**：官方 .moc3 含「可切换手臂层」，烘焙按 CubismCore 默认姿态 opacity 过滤（84→73 ArtMesh）；`moc3ToL2dm` 新增 `visibleArtMeshFilter` 供宿主注入运行时可见性。
 - 真实 LLM：`LLM_API_KEY=… npm start`（第二跳走 OpenAI 兼容端点；缺省确定性 mock）。
 - 浏览器与无头/测试共用 `src/core.ts` + `src/creator.ts`（无 DOM 核心），同一条链三处验证。

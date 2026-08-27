@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>全功能演示 · demo-app</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <header class="appbar">
+    <div class="brand">🎤 demo-app <span class="sub">@l2dp/rules —— 统一演示：四个功能界面</span></div>
+    <nav class="nav">
+      <a href="/">💬 聊天助手</a>
+      <a href="/create.html">🎨 人物创建</a>
+      <a href="/features.html" class="active">🎛 全功能演示</a>
+      <a href="/compare.html">🔄 转换对比</a>
+    </nav>
+    <div class="badges" id="badges"></div>
+  </header>
+
+  <div class="page-head">
+    <h1>🎛 LLM 驱动全功能演示：行走 / 换衣 / 头部 / 脸部</h1>
+    <div class="hint">按钮按当前角色「参数面 + 动作资产 + 服装组」自动生成 JSONL（两跳链路：JSONL → 校验 → 分层求值 → 引擎）。不可用的功能会提示缺少对应部件/资产。可用角色：官方真实 Haru（抬头/表情/动作资产）+ 衣装酱（行走/换装）+ 小骨架 + 「我的创作」。</div>
+  </div>
+
+  <main class="layout">
+    <!-- 左：舞台 -->
+    <section class="panel">
+      <div class="toolbar">
+        <div class="tl">
+          <span class="lbl">角色</span>
+          <div class="row" id="charBtns"></div>
+        </div>
+        <div class="tl">
+          <span class="lbl">背景</span>
+          <div class="row" id="bgBtns">
+            <button data-bg="clear">透明</button>
+            <button data-bg="night">夜空</button>
+            <button data-bg="sunset">暖阳</button>
+            <button data-bg="forest">森林</button>
+            <button data-bg="purple">晚霞</button>
+          </div>
+          <span class="chip on" id="companionToggle" title="SceneStage 多角色">👥 同伴</span>
+          <button id="zoomOut" title="相机拉远">−</button>
+          <button id="zoomIn" title="相机推进">＋</button>
+          <span class="hint" style="margin-left:auto;">rAF 实时渲染 · WebGL2 / 软光栅</span>
+        </div>
+      </div>
+
+      <div class="stage-wrap" id="stageWrap">
+        <div class="bubble" id="bubble" hidden></div>
+        <canvas id="canvas" width="560" height="720"></canvas>
+      </div>
+
+      <div id="metrics"></div>
+    </section>
+
+    <!-- 右：功能面板 -->
+    <aside class="chat-col">
+      <div class="panel">
+        <h3>动作 / 换衣 / 头部 / 脸部（按角色自动生成 JSONL）</h3>
+        <div class="row" id="featBtns">
+          <button data-feat="walk">🚶 行走</button>
+          <button data-feat="outfit1">👗 换装·组1</button>
+          <button data-feat="outfit2">🧥 换装·组2</button>
+          <button data-feat="nod">🙆 头部·点头</button>
+          <button data-feat="shake">🙅 头部·摇头</button>
+          <button data-feat="smile">😊 脸部·微笑</button>
+          <button data-feat="open">😮 脸部·张嘴</button>
+          <button data-feat="blink">😉 脸部·眨眼</button>
+          <button data-feat="surprised">😲 脸部·惊讶</button>
+          <button data-feat="reset">⟲ 复位</button>
+        </div>
+        <div class="hint" id="featHint" style="margin-top:8px;"></div>
+      </div>
+
+      <div class="panel">
+        <h3>Explore</h3>
+        <ul style="margin:0;padding-left:18px;color:var(--muted);font-size:.8rem;line-height:1.7;">
+          <li>行走：仅在存在 腿摆/臂摆 或 <code>walk</code> 动作资产时可用（衣装酱 / 我的创作）。</li>
+          <li>换装：通过 <code>outfit op → outfitLines</code> 切换服装组可见性（衣装酱有两套服装）。</li>
+          <li>头部：点头 / 摇头 由 头点头 / 头转向（或 ParamAngleX/Y）驱动。</li>
+          <li>脸部：微笑 / 张嘴 / 眨眼 / 惊讶 走 <code>play</code>（动作资产）或 <code>face</code>（表情）或直接 set 语义参数。</li>
+          <li>在「人物创建」构建后可在角色栏看到「✨ 我的创作」。</li>
+        </ul>
+      </div>
+    </aside>
+  </main>
+
+  <footer>
+    链路：<b>按钮 → 按角色参数面生成 JSONL（{op:set/play/face/wait}）→ @l2dp/driver StreamIngestor 逐行校验（坏行隔离）→
+    LayerStack + EnvironmentLayer + Evaluator 每帧参数 → @l2dp/engine L2dmPlayer 播放/形变 → WebGL2/软光栅</b>。
+  </footer>
+
+  <script type="module" src="/src/pages/features.ts"></script>
+</body>
+</html>

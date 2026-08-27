@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>人物创建 · demo-app</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <header class="appbar">
+    <div class="brand">🎤 demo-app <span class="sub">@l2dp/rules —— 统一演示：四个功能界面</span></div>
+    <nav class="nav">
+      <a href="/">💬 聊天助手</a>
+      <a href="/create.html" class="active">🎨 人物创建</a>
+      <a href="/features.html">🎛 全功能演示</a>
+      <a href="/compare.html">🔄 转换对比</a>
+    </nav>
+    <div class="badges"></div>
+  </header>
+
+  <div class="page-head">
+    <h1>🎨 人物创建：上传原图 → 构建可驱动的 Live2D（cutout → create → rig → engine）</h1>
+    <div class="hint">从<b>你自己上传的真实立绘/图像</b>开始，浏览器内完成切图 → 语义标注 → 校验/自修复 → 半自动绑定 + 动作生成 → 内嵌纹理 .l2dm。完成后可在「聊天助手 / 全功能演示」中使用「✨ 我的创作」。</div>
+  </div>
+
+  <main class="one-col">
+    <section class="panel create">
+      <h3>① 上传原图（PNG 立绘；平坦色画风最佳，复杂照片可注入 @l2dp/host 的真实 Segmenter/Labeler）</h3>
+      <div class="create-body">
+        <div class="drop" id="drop" tabindex="0">
+          <div class="drop-inner">📥 点击选择 / 拖入 <b>真实 PNG 立绘</b><br />
+            <span class="hint">未上传前无法构建 —— 不使用任何内置合成示例</span>
+          </div>
+        </div>
+        <div class="row create-opts">
+          <label class="opt">容差 <input type="range" id="tol" min="0" max="40" value="6" /> <b id="tolV">6</b></label>
+          <label class="opt">最小面积 <input type="range" id="minArea" min="20" max="400" value="60" /> <b id="minAreaV">60</b></label>
+        </div>
+        <div class="create-stage">
+          <figure><figcaption>① 原图</figcaption><canvas id="cvSrc" width="240" height="320"></canvas></figure>
+          <figure><figcaption>② 切图 · 标注</figcaption><canvas id="cvCut" width="240" height="320"></canvas></figure>
+          <figure><figcaption>③ 绑定 · 动作</figcaption><canvas id="cvModel" width="240" height="320"></canvas></figure>
+        </div>
+        <div id="createLog" class="create-log"></div>
+        <div class="row">
+          <button id="btnBuild" class="primary" disabled>构建 Live2D</button>
+          <a id="chatLink" class="primary" href="/" hidden>去聊天助手用「我的创作」→</a>
+          <a id="featLink" href="/features.html" hidden>去全功能演示 →</a>
+          <span class="hint" id="createStatus"></span>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    全链：<b>上传图 → @l2dp/cutout（ColorKey 候选选区）→ @l2dp/create（createWithSelfRepair：Schema 校验 / RuleRepairer 自修复 ≤3 轮 / 审核）→
+    @l2dp/rig（半自动绑定：参数挂接 + warp 形变 + 动作生成 idle/blink/talk/surprise/walk）→ 内嵌纹理自包含 .l2dm</b>。
+    构建结果保存在本机 sessionStorage，供其他三个界面复用（真实 LLM 标注/审核：接入 @l2dp/host LlmDesigner/LlmReviewer）。
+  </footer>
+
+  <script type="module" src="/src/pages/create.ts"></script>
+</body>
+</html>

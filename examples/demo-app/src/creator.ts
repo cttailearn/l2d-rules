@@ -145,7 +145,7 @@ export function makeCreatedCharacter(
     };
   }
   const presets: { label: string; lines: string[] }[] = [];
-  for (const name of ["idle", "blink", "talk", "surprise"]) {
+  for (const name of ["idle", "blink", "talk", "surprise", "walk"]) {
     if (motionNames.includes(name)) {
       presets.push({ label: `▶ ${name}`, lines: [JSON.stringify({ op: "play", asset: name })] });
     }
