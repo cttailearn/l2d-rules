@@ -1,10 +1,10 @@
-// gen-real.mjs - 生成 demo-web 的自包含真实几何模型（public/haru-full.l2dm）
+// gen-haru.mjs - 生成 demo-app 的自包含真实几何模型（public/haru-full.l2dm）
 // 链路：Haru.moc3 二进制 + 官方 CubismCore 运行时（examples/live2d/live2d_3/js，Node 内 vm 加载）
 //      -> 提取每个 ArtMesh 的「默认姿态」真实几何（vertexPositions/indices/vertexUvs/drawOrder/纹理）
-//      -> 烘焙为自包含 .l2dm（几何与官方 Cubism 渲染基准一致）。
+//      -> 按默认姿态 opacity 过滤（剔除可切换的隐藏手臂/衣物层）→ 烘焙为自包含 .l2dm（与官方渲染基准一致）。
 // 说明：build-time 脚本用官方 Core 提取基准姿态；@l2dp/convert 的 moc3ToL2dm 保持零平台依赖，
 //      其「keyform 形变管线（warp 动画）」为下一里程碑（见 docs/MOC3-PHASE2-PLAN.md）。
-// 运行：node scripts/gen-real.mjs（or npm run gen:haru）
+// 运行：node scripts/gen-haru.mjs（or npm run gen:haru）
 
 import { mkdir, readFile, writeFile, stat } from "node:fs/promises";
 import { readFileSync } from "node:fs";
@@ -15,7 +15,7 @@ import { loadL2dmObject } from "@l2dp/engine";
 import { readMoc3 } from "@l2dp/convert";
 
 const here = dirname(fileURLToPath(import.meta.url));
-const HARU = join(here, "..", "..", "demo-real", "assets-src", "haru") + sep;
+const HARU = join(here, "..", "public", "official-haru") + sep;
 const CORE_JS = join(here, "..", "..", "..", "examples", "live2d", "live2d_3", "js", "live2dcubismcore.min.js");
 const OUT = join(here, "..", "public", "haru-full.l2dm");
 const TARGET_HEIGHT = 1100;

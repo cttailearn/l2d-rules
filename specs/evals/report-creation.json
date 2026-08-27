@@ -9,7 +9,7 @@
    "labelBy": "color",
    "partCount": 9,
    "coveragePct": 98.7,
-   "motions": 4,
+   "motions": 5,
    "passed": true,
    "checks": [
     {
@@ -30,7 +30,7 @@
     {
      "name": "motions",
      "ok": true,
-     "detail": "motions=4"
+     "detail": "motions=5"
     },
     {
      "name": "rigValid",
@@ -53,7 +53,7 @@
    "labelBy": "position",
    "partCount": 10,
    "coveragePct": 98.3,
-   "motions": 4,
+   "motions": 5,
    "passed": true,
    "checks": [
     {
@@ -74,7 +74,7 @@
     {
      "name": "motions",
      "ok": true,
-     "detail": "motions=4"
+     "detail": "motions=5"
     },
     {
      "name": "rigValid",
@@ -97,7 +97,7 @@
    "labelBy": "color",
    "partCount": 3,
    "coveragePct": 99.6,
-   "motions": 4,
+   "motions": 5,
    "passed": true,
    "checks": [
     {
@@ -118,7 +118,7 @@
     {
      "name": "motions",
      "ok": true,
-     "detail": "motions=4"
+     "detail": "motions=5"
     },
     {
      "name": "rigValid",
@@ -141,7 +141,7 @@
    "labelBy": "color",
    "partCount": 10,
    "coveragePct": 98.7,
-   "motions": 4,
+   "motions": 5,
    "passed": true,
    "checks": [
     {
@@ -162,7 +162,7 @@
     {
      "name": "motions",
      "ok": true,
-     "detail": "motions=4"
+     "detail": "motions=5"
     },
     {
      "name": "rigValid",

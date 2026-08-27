@@ -26,10 +26,8 @@ l2d-rules/
 │  ├─ create/       P4b 创作编排：创作 IR v1 + 同源 JSON Schema + 校验 + 执行(rig+动作生成) + 规则/多模态审核 + 自修复循环
 │  └─ host/         P4c 宿主桥接骨架：HttpClient + ComfyUI REST 桥 + HTTP 分割服务 Segmenter + LLM Labeler/Reviewer（provider/服务可注入）
 ├─ examples/
-│  ├─ demo-app/    ★ 小型使用应用 demo：Live2D 聊天助手——聊天输入 → 两跳决策 + 确定性应答 → JSONL 驱动说话/动作/换装/口型 + SceneStage 场景 + 语音（浏览器 Vite + 无头同核）
-│  ├─ demo-web/    浏览器 demo（JSONL 流式 → 引擎实时动作；?model=haru-full.l2dm 真实纹理渲染；软件+WebGL2 逐像素一致 e2e）
-│  ├─ demo-real/   ✦ 真实官方 Haru 模型端到端：转换 → 驱动 → 自包含 .l2dm 产物 + 二次修改/从零构建示例
-│  └─ demo-p4b/    原图 → 拆解 → 绑定 → 驱动 全链路：内存立绘 → 半自动切图 → 自修复绑定 → 动作/JSONL 驱动 → 预览出图
+│  ├─ demo-app/    ★ **统一小型使用应用 demo**（唯一 demo）：Live2D 聊天助手 + 上传原图创建角色 + 真实模型转换对比 + LLM 全功能（行走/换衣/头部/脸部）——浏览器（Vite）与无头（Node）同核
+│  └─ live2d/      本地官方样例运行时 + 真实模型语料（~1GB，gitignore；构建期/回归参考，不入库）
 ├─ specs/          机器可读词表：standard-params.json（32 官方参数基线）、parts-naming.json（部件命名单一来源）
 ├─ docs/
 │  ├─ SPEC-DSL-v1.0.md   唯一权威规范（确认版）：融合分工 + JSONL 流式驱动 + 扁平 IR + 环境层 + 决策记录 ★ 开发以此为准
@@ -44,32 +42,30 @@ l2d-rules/
 
 > 每个包自带独立 README（定位 / 依赖 / 安装 / 核心 API / 用法示例 / 边界 / 测试），见 `packages/<pkg>/README.md`，消费前先读对应包文档。
 
-## 从一张原图到能动的角色（P4 创作链，速成）
+## 统一 demo（`examples/demo-app`）：一个应用覆盖全部核心功能
 
-▶ 开发者向导：[docs/GUIDE-FROM-IMAGE-TO-LIVE2D.md](docs/GUIDE-FROM-IMAGE-TO-LIVE2D.md)（拆解 → 绑定 → 驱动，含真实服务/LLM 接线）。
+所有 demo 能力已统一进 **[examples/demo-app](examples/demo-app)**（唯一的 demo；浏览器 Vite + 无头 Node 同核 `src/core.ts`/`src/creator.ts`）：
 
-```bash
-cd examples/demo-p4b
-export LLM_API_KEY=...   # 可选：真实 LLM 标注/审核；缺省走确定性 mock
-node scripts/run.mjs        # 纯 SDK：原图→拆→绑→驱动 + 预览 PNG
-node scripts/bridge.mjs     # 真实 HTTP 分割服务 + provider 注入
-node scripts/bridge-llm.mjs # 真实/模拟 LLM 接线
-npm run eval                # specs/evals/creation-cases.json（3/3）+ drive（6/6）
-```
-
-## 把既有 Live2D 模型用起来（`@l2dp/convert`）
-
-官方 Live2D 模型（Cubism Editor 产物）**整体转换为自包含 `.l2dm`**，可二次修改、也可从零搭建——全程不用官方 Cubism Core（自研，见 [docs/MOC3-PHASE2-PLAN.md](docs/MOC3-PHASE2-PLAN.md)）。
+| 核心功能 | 入口 | 说明 |
+|---|---|---|
+| 💬 聊天助手 | 主面板 | 聊天输入 → 两跳决策 + 确定性台词 + 语音 + 口型 + 动作；四个角色（官方真实 Haru / 衣装酱 / 小骨架 / 我的创作） |
+| 🎨 **上传原图 → 构建 Live2D** | 创建面板 | 选择/拖入 PNG（真实图像或内置示例）→ `cutout → create(自修复) → rig + 动作(含 walk) → 内嵌纹理 .l2dm` → 成为「我的创作」直接聊天 |
+| 🔄 **真实模型 · 格式转换对比** | 转换对比面板 + `/compare.html` | 官方 Haru .moc3 → `@l2dp/convert` 自研转换 → 引擎渲染 vs 官方原画；`/compare.html` 上传任意模型与官方 Cubism SDK（CDN）实时并排对比 |
+| 🎛 **LLM 驱动全功能** | 全功能面板 | 行走 / 换装组1·2 / 头部点头·摇头 / 脸部微笑·张嘴·眨眼·惊讶——按当前角色参数面自动生成 JSONL |
+| 🏭 真实模型生成 | `npm run gen:haru` | 官方 CubismCore 提取 Haru 默认姿态几何（含可见性过滤）→ `haru-full.l2dm`（自包含、内嵌纹理） |
 
 ```bash
-cd examples/demo-real
-npm run start   # 转换 Haru → JSONL 驱动 → out/: haru-full.l2dm(自包含,内嵌纹理) / haru-edited / my-mascot(从零) / report.txt
+cd examples/demo-app
+npm run dev        # 浏览器应用 → http://localhost:5173（主面板 + /compare.html）
+npm start          # 无头：脚本化聊天 + 上传构建 → 出帧 out/*.png + report.txt（确定性）
+CHAR=all npm start # 全部角色（haru 官方 / demo 语义 / costume 换装）+ 上传构建
+npm run gen:haru   # 重新生成 public/haru-full.l2dm（真实 Haru 转换产物）
+npm test           # 同核无头测试 7 例
 ```
 
-- `.l2dm` **内嵌模型资源**（`atlas` data URI）——一个文件即完整模型（几何 + 参数面 + 纹理）
-- 官方 motion3/exp3 的 `ParamX` camelCase id 天然是语义名 → driver 直接可驱动（play/face/blink…）
-- `createL2dm` 从零构建 + 编辑 API（`addPart/addWarp/embedTexture/attachTexture/setParamRange/…`）支持二次修改
-- Phase 1 = JSON 全链路（model3/cdi3/physics3/pose3/userdata3/motion3/exp3 已打通）；`.moc3` 二进制的真实几何/参数范围为 Phase 2 里程碑
+- 官方 Haru 素材（`public/official-haru/*`）、语音（`public/sounds/*`）真实入库；`examples/live2d` 为本地官方 Core 运行时与模型语料（构建/回归用，不入库）。
+- `.l2dm` **内嵌模型资源**（atlas data URI）——一个文件即完整模型（几何 + 参数面 + 纹理）；`createL2dm` 从零构建 + 编辑 API 支持二次修改；官方 motion3/exp3 的 `ParamX` id 天然是语义名，driver 直接可驱动。
+- 开发者完整链路向导：[docs/GUIDE-FROM-IMAGE-TO-LIVE2D.md](docs/GUIDE-FROM-IMAGE-TO-LIVE2D.md)。
 
 ## 快速开始
 
@@ -77,29 +73,14 @@ npm run start   # 转换 Haru → JSONL 驱动 → out/: haru-full.l2dm(自包�
 
 ~~~bash
 npm install
-npm run typecheck   # 8 包 + demo-web 类型检查
-npm test            # 8 包 + demo 全量 274 例全绿（含 moc3 语料解析/真实几何回归/demo-app 同核）
+npm run typecheck   # 8 包 + demo-app 类型检查
+npm test            # 8 包 + demo-app 全量测试全绿（含 moc3 语料解析/真实几何回归/上传构建全链）
 npm run eval        # 评估集门禁：specs/evals/drive-cases.json → 报告（任一 case 失败退出码 1；6/6）
 ~~~
 
-## 浏览器 demo（M6 端到端 + 真实纹理）
-
-~~~bash
-cd examples/demo-web
-npm run gen:haru    # 生成 public/haru-full.l2dm：官方 Haru → 官方 CubismCore 基准姿态几何 + 内嵌双纹理（~3.7MB，呈现与官方一致）
-npm run dev         # 打开 http://localhost:5173
-~~~
-
-- 缺省 `demo.l2dm`（纯色骨架）；**真实纹理渲染**：`?model=haru-full.l2dm` 直达，或点 [haru-full.l2dm] 按钮——浏览器端把内嵌 atlas（data URI）PNG 解码成 `Tex2D` 交给引擎（`src/texture.ts`，fflate；Engine 只管采样，解码归宿主）
-- 无 GPU 依赖：软件光栅 → 2D canvas（`SoftwareRenderer.readPixels → putImageData`）
-- 无头验证（CI）：`examples/demo-web/test/demo.test.ts` 同一条链（JSONL → driver → engine → 像素），含 haru 内嵌纹理解码 + **像素级采样断言**（软件光栅逐位一致）
-- M3 DoD——真实浏览器 WebGL2 逐像素一致性 + 真实纹理浏览器渲染：`npm run test:e2e`（Playwright + Chromium；parity 软件 vs WebGL2 容差 ±1，real-texture 加载 `?model=haru-full.l2dm` 断言语义 2 张纹理解码 + 画布 80×64 + 真实纹素）
-
-**上传即时对比页（`/compare.html`）**：上传一个 Live2D 模型目录（或拖 .zip/文件夹）→ **左侧**自研引擎把该模型实时转为 `.l2dm` 并软件光栅渲染，**右侧**官方 Cubism SDK（CDN runtime）渲染真实 `.moc3`——同一官方 motion 同步驱动两侧并排对比。全程浏览器内存（blob URL + 内存 FileLoader），零服务器；右侧需联网加载 CDN runtime。见 [examples/demo-web/README.md](examples/demo-web/README.md)。
-
 ## 小型使用应用 demo（demo-app）
 
-**打开就能用**的应用级演示：聊天框打字 → 角色说话（台词 + 语音）、做动作、一对一嘴型、换装、行走——实时渲染（[examples/demo-app/README.md](examples/demo-app/README.md)）。与 demo-web（验证控制台）互补，展示「用这套 SDK 能搭出一个什么样的应用」，且**主角是真实模型/真实图像**：
+**打开就能用**的应用级演示：聊天框打字 → 角色说话（台词 + 语音）、做动作、一对一嘴型、换装、行走——实时渲染（[examples/demo-app/README.md](examples/demo-app/README.md)）。统一收敛后的**唯一 demo**，展示「用这套 SDK 能搭出一个什么样的应用」，且**主角是真实模型/真实图像**：
 
 ```bash
 cd examples/demo-app
@@ -112,13 +93,16 @@ npm test             # 同核 7 例：两跳决策/说话口型/换装/确定性
 - 一条消息链路：`两跳决策（DriverEngine 第一跳本地规则 → 第二跳 Provider）→ 确定性台词 → estimateSpeechTimeline+blendVisemes 口型 → StreamIngestor 逐行 JSONL（坏行隔离）→ LayerStack+EnvironmentLayer+Evaluator → L2dmPlayer → SceneStage（背景/相机/多角色）→ WebGL2/软光栅`
 - 四角色同一个 AppCore：**官方 Haru（真实模型 + 纹理 + 语音）**、**小骨架**（play/face warp 形变）、**衣装酱**（rig 换装 outfit）、**✨我的创作**（上传图构建）。Haru 为基准姿态烘焙，几何形变切小骨架/衣装酱体验。
 - **🎛 LLM 驱动全功能演示**：行走（`walk` 动作，`@l2dp/create` 新增）/ 换装组1·2 / 头部点头·摇头 / 脸部微笑·张嘴·眨眼·惊讶——按当前角色参数面自动生成 JSONL，不可用项自动提示。
-- **🔄 真实模型·格式转换对比**：官方 Haru .moc3 → `@l2dp/convert` 自研转换 → 引擎渲染（左） vs 官方原画 texture_00（右）；另有 demo-web `compare.html` 与官方 Cubism SDK 实时并排对比外链。
+- **🔄 真实模型·格式转换对比**：官方 Haru .moc3 → `@l2dp/convert` 自研转换 → 引擎渲染（左） vs 官方原画 texture_00（右）；另有 `/compare.html` 与官方 Cubism SDK 实时并排对比页。
 - **上传图像 → 构建 Live2D**：上传/内置 PNG → 浏览器内 `cutout → create(自修复) → rig + 动作生成(含 walk) → 内嵌纹理 .l2dm` → 成为「我的创作」。复杂图可注入真实 Segmenter/Labeler（`@l2dp/host`）。
 - **✅ Haru 双臂重叠已修复**：官方 .moc3 含「可切换手臂层」，烘焙按 CubismCore 默认姿态 opacity 过滤（84→73 ArtMesh）；`moc3ToL2dm` 新增 `visibleArtMeshFilter` 供宿主注入运行时可见性。
 - 真实 LLM：`LLM_API_KEY=… npm start`（第二跳走 OpenAI 兼容端点；缺省确定性 mock）。
 - 浏览器与无头/测试共用 `src/core.ts` + `src/creator.ts`（无 DOM 核心），同一条链三处验证。
 
 ## 现状（对齐 SPEC-DSL-v1.0 第 13 章路线图）
+
+> 里程碑验收曾分别以 `examples/demo-web` / `demo-real` / `demo-p4b` / `demo-capabilities` 等承载，
+> **现已统一收敛为唯一 demo `examples/demo-app`**（下表保留历史验收记录）。
 
 | 阶段 | 内容 | 状态 |
 | --- | --- | --- |

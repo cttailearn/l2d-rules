@@ -4,7 +4,7 @@
 
 - **确定性一等公民**：可注入 `SeededRandom`，同 (模型, 动作, dt 序列) 同输出，可无头 CI
 - **.l2dm 内嵌资源（`atlas`）**：可选顶层 `atlas: { 文件名 → data URI/base64 }`，自包含模型产物；部件 `texture` 引用在此键或显式 `atlasFiles` 内即通过校验（值校验：data URI / base64）
-- **与软件渲染逐像素一致**：WebGL2 与 SoftwareRenderer 同输入容差 ±1（`examples/demo-web` e2e 真实验证）
+- **与软件渲染逐像素一致**：WebGL2 与 SoftwareRenderer 同输入容差 ±1（统一 demo `examples/demo-app` 浏览器真实验证）
 
 ## 依赖与安装
 
@@ -33,7 +33,7 @@ npm i @l2dp/engine
 ```ts
 import { loadL2dm, L2dmPlayer, SoftwareRenderer } from "@l2dp/engine";
 
-const loaded = loadL2dm(modelJson);               // .l2dm 文本（语义格式，见 examples/demo-web/public/demo.l2dm）
+const loaded = loadL2dm(modelJson);               // .l2dm 文本（语义格式，见 examples/demo-app/public/demo.l2dm）
 if (!loaded.ok) throw new Error(loaded.error);
 const model  = loaded.model;
 const player = new L2dmPlayer(model, new Map());  // 第 2 参 = atlas: Map<string, Tex2D>
@@ -51,7 +51,7 @@ const sink = createWebGL2Renderer(gl);
 player.render(sink);
 ```
 
-> `samples: 0` 关闭 MSAA——软件光栅是像素中心二元判据，MSAA 亚覆盖无法逐位一致（详见 `examples/demo-web/e2e/parity.ts`）。
+> `samples: 0` 关闭 MSAA——软件光栅是像素中心二元判据，MSAA 亚覆盖无法逐位一致（浏览器对比与软件后端一致性见 `examples/demo-app`）。
 
 ### 外部写参数驱动形变
 
@@ -79,7 +79,7 @@ if (m.ok) player.play(m.value);
 
 ```bash
 npm test        # 64 例：format 校验/loader、Warp 数值断言、层级连乘、物理收敛、player golden 像素、compat、scene 舞台
-cd examples/demo-web && npm run test:e2e   # 真实 Chromium WebGL2 ↔ 软件渲染逐像素一致
+# 真实浏览器 WebGL2 ↔ 软件一致性：examples/demo-app `npm run dev`（主面板双后端即时切换）
 ```
 
 ## 版本与纪律

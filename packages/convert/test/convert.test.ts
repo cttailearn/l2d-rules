@@ -1,7 +1,7 @@
 // convert.test.ts —— 真实官方 Haru 模型 转换全链路（Phase 1）
 // 覆盖：model3/cdi3/physics3/pose3/userdata3 解析 → ConvertedBundle 结构
 //      → .l2dm 骨架发射 → engine validateL2dmModel 通过 → 参数组映射正确。
-// 素材：examples/demo-real/assets-src/haru（官方 Haru sample，只读消费）。
+// 素材：examples/demo-app/public/official-haru（官方 Haru sample，只读消费）。
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -12,7 +12,7 @@ import { loadL2dmObject } from "@l2dp/engine";
 import { convertLive2dModel, parseModel3, parseCdi3, toL2dmSkeleton } from "@l2dp/convert";
 
 const here = dirname(fileURLToPath(import.meta.url));
-const HARU = join(here, "..", "..", "..", "examples", "demo-real", "assets-src", "haru") + sep;
+const HARU = join(here, "..", "..", "..", "examples", "demo-app", "public", "official-haru") + sep;
 
 async function fsLoader(rel: string): Promise<{ text?: string; bytes?: Uint8Array }> {
   const buf = await readFile(join(HARU, rel));

@@ -3,12 +3,13 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "小型使用应用 demo：Live2D 聊天助手（看板娘/VTuber 小应用）——聊天输入 → 两跳决策 + 确定性应答 → JSONL 驱动角色说话/表情/动作，SceneStage 场景 + 换装 + 语音口型。浏览器（Vite）与无头（Node）同核。",
+  "description": "统一小型使用应用 demo：Live2D 聊天助手（聊天/真实模型转换对比/上传创建/LLM 全功能行走换衣头脸）——聊天输入 → 两跳决策 + 确定性应答 → JSONL 驱动角色说话/表情/动作，SceneStage 场景 + 换装 + 语音口型 + 真实模型。浏览器（Vite）与无头（Node）同核。",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
     "start": "node scripts/run.mjs",
+    "gen:haru": "node scripts/gen-haru.mjs",
     "test": "node --test --test-isolation=none \"test/**/*.test.ts\""
   },
   "dependencies": {

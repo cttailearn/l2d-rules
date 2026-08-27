@@ -4,8 +4,8 @@
 做动作（点头/摇身/害羞/换装/行走）、对口型，实时渲染；并内置**几大核心功能**的演示面板：
 **上传原图创建角色 · 真实 Live2D 格式转换对比 · LLM 驱动全功能（行走/换衣/头部/脸部）**。
 
-> 定位：与 demo-web（工程验证控制台）互补 —— demo-web 给开发者看「引擎怎么验证」，
-> demo-app 给使用者看「用这套 SDK 能搭出一个什么样的应用」，且**主角是真实模型/真实图像**。
+> 定位：**统一收敛后的唯一 demo**（其余 examples/demo-* 已并入删除）——既是「用这套 SDK 能搭出一个什么样的应用」，
+> 也是「引擎/转换/创作/驱动」全部核心能力的可运行演示，**主角是真实模型/真实图像**。
 
 ## 一条消息走完的链路（全部是 @l2dp/* 的真实能力）
 
@@ -33,7 +33,7 @@
 
 > ⚠️ 说明：
 > - **Haru 双臂修复**：官方 Haru 在 .moc3 里含「可切换的手臂层」，默认姿态下原本会看到两套手臂重叠。
->   已修复：gen-real 烘焙时按 **官方 CubismCore 默认姿态 opacity 过滤**（仅保留可见 ArtMesh，84→73），
+>   已修复：烘焙脚本（`npm run gen:haru`）按 **官方 CubismCore 默认姿态 opacity 过滤**（仅保留可见 ArtMesh，84→73），
 >   `@l2dp/convert` 的 `moc3ToL2dm` 相应新增 `visibleArtMeshFilter` 供宿主注入运行时可见性。
 > - Haru 当前 `.l2dm` 为官方**基准姿态烘焙**（warp 形变动画管线在下一里程碑），参数驱动/台词/语音正常，
 >   **几何形变请切衣装酱/小骨架/我的创作**看到「真的在动」。
@@ -49,7 +49,7 @@
 
 - 行走：`generateStarterMotions` 新增 `walk`（腿摆/臂摆反相 + 身摆/身转 + 头部微动），`MotionKind` 扩展为
   `idle/blink/talk/surprise/walk`；只有存在对应部件参数的角色（衣装酱/我的创作）才会真正走起来。
-- 「与官方 Cubism SDK 实时并排对比」提供 demo-web `compare.html` 外链（需联网加载 CDN runtime）。
+- 「与官方 Cubism SDK 实时并排对比」：`/compare.html`（上传任意模型，需联网加载 CDN runtime）。
 
 ## 上传图像 → 构建 Live2D（浏览器内 · 纯确定性全链）
 
@@ -93,7 +93,7 @@ index.html          应用壳（顶栏/舞台/聊天/全功能/转换对比/上�
 src/chars.ts        角色规格：模型文件、环境层映射覆盖、反应 JSONL、应答文本、Provider
 src/core.ts         应用核心（无 DOM）：两跳决策 + 台词 + 口型 + SceneStage —— 浏览器/无头/测试共用
 src/creator.ts      上传图 → 构建（cutout→create→rig 全链）+ 创作角色装配 + 示例立绘/SAMPLE 色板
-src/texture.ts      PNG 解码（atlas data URI → Tex2D，fflate；与 demo-web 同源）
+src/texture.ts      PNG 解码（atlas data URI → Tex2D，fflate）；src/compare*.ts + compare.html（官方 SDK 并排对比页）
 src/main.ts         浏览器入口（DOM 胶水 + 渲染主循环 + 语音 + 全功能/转换对比/上传面板接线）
 scripts/run.mjs     无头运行器（同核；含上传构建示例；可选真实 LLM）
 test/app.test.ts    同核无头测试（node --test，7 例）
@@ -110,5 +110,5 @@ public/             模型（haru-full/demo/costume .l2dm）+ 真实官方 Haru�
 - 上传构建：`packages/cutout`（ColorKey/Position/ColorMap Labeler + Segmenter/Labeler 注入钩子）、
   `packages/create`（createWithSelfRepair + walk 动作生成）、`packages/host`（HttpSegmenter/LlmDesigner 注入）
 - 真实模型转换：`packages/convert`（convertLive2dModel + moc3ToL2dm `visibleArtMeshFilter`）；
-  烘焙脚本 `examples/demo-web/scripts/gen-real.mjs`（CubismCore 默认姿态可见性过滤）
+  烘焙脚本 `scripts/gen-haru.mjs`（CubismCore 默认姿态可见性过滤）
 - 规范：`docs/SPEC-DSL-v1.0.md`；`docs/GUIDE-FROM-IMAGE-TO-LIVE2D.md`

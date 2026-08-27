@@ -24,7 +24,7 @@ import {
   type BehaviorItem,
 } from "@l2dp/driver";
 import { loadL2dm, type L2dmModel } from "@l2dp/engine";
-import { DEMO_MOTIONS, DEMO_EXPRESSIONS } from "./scene.ts";
+import { DEMO_MOTIONS, DEMO_EXPRESSIONS } from "./drive-scene.ts";
 
 export interface EvalCase {
   id: string;

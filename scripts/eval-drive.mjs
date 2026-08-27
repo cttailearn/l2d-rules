@@ -5,7 +5,7 @@
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
-import { runAllCases } from "../examples/demo-web/src/eval-harness.ts";
+import { runAllCases } from "./eval-harness.ts";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 const modelJson = readFileSync(join(root, "packages/engine/test/fixtures/demo.l2dm"), "utf8");

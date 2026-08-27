@@ -10,7 +10,7 @@ import { bandKeys, CountIdx, moc3ToL2dm, parseMoc3Header, readMoc3, resolveDefor
 import { loadL2dmObject } from "@l2dp/engine";
 
 const LIVE2D = join(import.meta.dirname, "..", "..", "..", "examples", "live2d");
-const HARU_DIR = join(import.meta.dirname, "..", "..", "..", "examples", "demo-real", "assets-src", "haru");
+const HARU_DIR = join(import.meta.dirname, "..", "..", "..", "examples", "demo-app", "public", "official-haru");
 const HARU = join(HARU_DIR, "Haru.moc3");
 
 function collectMoc3(root: string): string[] {

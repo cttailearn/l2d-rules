@@ -5,7 +5,7 @@ const root = process.cwd();
 const src = fs.readFileSync(path.join(root, "examples/live2d/live2d_3/js/live2dcubismcore.min.js"), "utf8");
 vm.runInThisContext(src);
 const L = globalThis.Live2DCubismCore;
-const buf = new Uint8Array(fs.readFileSync(path.join(root, "examples/demo-real/assets-src/haru/Haru.moc3")));
+const buf = new Uint8Array(fs.readFileSync(path.join(root, "examples/demo-app/public/official-haru/Haru.moc3")));
 const moc = L.Moc.fromArrayBuffer(buf.slice().buffer);
 const m = L.Model.fromMoc(mocAlgorithmic);
 const dt = m.drawables;

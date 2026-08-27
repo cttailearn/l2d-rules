@@ -1,4 +1,4 @@
-// 全仓库类型检查（4 包 + demo-web；renderer 已于 M6 退役，dsl 已移除）
+// 全仓库类型检查（8 包 + demo-app）
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
@@ -6,7 +6,6 @@ const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const tsc = join(root, "node_modules/typescript/bin/tsc");
 const cfgs = [
   ...["l2dp", "engine", "driver", "convert", "rig", "cutout", "create", "host"].map(p => join(root, "packages", p, "tsconfig.json")),
-  join(root, "examples", "demo-web", "tsconfig.json"),
   join(root, "examples", "demo-app", "tsconfig.json"),
 ];
 for (const cfg of cfgs) {

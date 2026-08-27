@@ -2,7 +2,8 @@
 
 > 目标：把一张角色立绘变成**能眨眼、会转头、可张嘴、能被 JSONL 驱动**的 Live2D 式模型。
 > 全链只用 `@l2dp/*`（零平台依赖、确定性、可无头渲染）。这是 **LLM 创作通道 P4** 的 SDK 侧速成指南，也是宿主接线段落（§7）。
-> 仓库内可运行示例：`examples/demo-p4b/scripts/run.mjs`（纯 SDK 链）、`bridge.mjs`（HTTP 服务 + provider 注入）、`bridge-llm.mjs`（真实/模拟 LLM 接线）。
+> 仓库内可运行示例（统一 demo）：`examples/demo-app` 的「上传图像 → 构建 Live2D」面板（浏览器内纯 SDK 链）
+> 与 `npm start` 无头（出图+report）；真实服务/LLM 接线走 `@l2dp/host`（HttpSegmenter/LlmDesigner → createWithSelfRepair）。
 
 ## 0. 三十秒总览
 
@@ -130,10 +131,11 @@ for (let i = 0; i < 80; i++) ev.onFrame(16);
 
 ## 6. 完整示例
 
-> 可直接跑：`node examples/demo-p4b/scripts/run.mjs`（预览 PNG + .l2dm + RigSpec + report.txt）。
+> 可直接跑（统一 demo）：`examples/demo-app` 的「🎨 上传图像 → 构建 Live2D」面板（浏览器内全链，含三帧预览）；或 `npm start` 无头（出 out/*.png + .l2dm + report）。
 ```bash
-cd examples/demo-p4b
-npm run start
+cd examples/demo-app
+npm run dev    # 选择/拖入 PNG 立绘 → 构建 → 「我的创作」直接聊天
+npm start      # 无头：内置示例 → 切图/标注/绑定/动作 → out/created-preview.png
 ```
 
 ## 7. 换真实服务 / 真实 LLM（P4 收尾接线）
@@ -149,7 +151,7 @@ const { segmenter, labeler, reviewer } = buildP4cBridges({ segment: { url: "http
 const outcome = await createWithSelfRepair({ character: "my-chan", image: img, segmenter, labeler, reviewer });
 ```
 
-- 无 key 可跑的真实接线演示：`node examples/demo-p4b/scripts/bridge-llm.mjs`（SET `LLM_API_KEY` 走真模型）。
+- 无 key 可跑的真实接线演示：统一 demo `examples/demo-app` 的 `@l2dp/host` 桥（LlmDesigner/LlmReviewer/HttpSegmenter）；设 `LLM_API_KEY` 走真模型（headless `npm start` 第二跳）。
 - 评估：`npm run eval`（确定性 3/3）；真实 LLM：设 `LLM_API_KEY` 后 `node scripts/eval-creation.mjs --llm`。
 
 ## 8. 调参与常见问题
@@ -195,15 +197,16 @@ const rig = rigCharacter({
 
 `customTemplates` 的 key 即语义 id；值：`{ zh, order, headCluster, color, grid, drive? }`。
 custom 优先于内置词表（可覆盖，如换 `face` 颜色）；`drive.id` 声明的参数在部件 `customParams` 里注册后自动挂摆动 warp。
-完整演示：`examples/demo-custom`（`npm start` 与 `npm test`）。
+完整演示：`examples/demo-app` 的「上传图像 → 构建 Live2D」面板（自定义语义经 create.creator → rig 全链可驱动）。
 
 
 ## 10. 仓库内怎么跑
 
 ```bash
 npm run typecheck && npm test && npm run eval
-cd examples/demo-p4b
-node scripts/run.mjs | node scripts/bridge.mjs | node scripts/bridge-llm.mjs
+cd examples/demo-app
+npm run dev        # 浏览器：聊天 / 上传创建 / 真实模型转换对比 / LLM 全功能
+npm start          # 无头：脚本化聊天 + 上传构建 → out/*.png + report
 ```
 
 ## 相关文档

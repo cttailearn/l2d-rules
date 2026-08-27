@@ -15,7 +15,7 @@
     "bench": "node scripts/bench-render.mjs",
     "lint": "node scripts/lint-rules.mjs",
     "verify": "npm run typecheck && npm run test && npm run eval && npm run lint",
-    "verify:e2e": "cd examples/demo-web && npm run test:e2e"
+    "demo": "npm start --workspace @l2dp/demo-app"
   },
   "engines": {
     "node": ">=23.6"

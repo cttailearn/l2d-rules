@@ -94,22 +94,18 @@ validate(m);                                             // engine 规则 1–7 
 
 编辑 API：`addPart / removePart / setPartOrder / setParamRange / setParamGroup / addParameter / embedTexture / attachTexture / ensureMesh / addWarp / addDeformer / addPendulum / validate`。
 
-## 端到端示例（真实 Haru）
+## 端到端示例（真实 Haru，统一 demo）
 
 ```bash
-cd examples/demo-real
-npm run start    # 转换 Haru → 内嵌纹理的自包含 .l2dm + 二次修改 + 从零构建 → 报告 + out/*.l2dm
-npm test         # 端到端断言：转换结构 / 骨架校验 / 自包含 atlas / 编辑 / 从零构建 / driver 确定性
+cd examples/demo-app
+npm run gen:haru   # 官方 CubismCore 提取 Haru 默认姿态几何（含可见性过滤）→ public/haru-full.l2dm（自包含、内嵌纹理，~3.7MB）
+npm start          # 无头：脚本化聊天 + 官方 .moc3 转换渲染对比 + 上传构建 → out/*.png + report.txt
+npm run dev        # 浏览器：真实模型·转换对比面板（左=自研 .l2dm 渲染，右=官方原画）；/compare.html 与官方 Cubism SDK 并排
 ```
 
-产物（`examples/demo-real/out/`）：
-
-| 文件 | 说明 |
-|---|---|
-| `haru-full.l2dm` | 官方 Haru 整体转换 → **自包含 .l2dm**（骨架 + 内嵌两张纹理，~3.5MB） |
-| `haru-edited.l2dm` | 官方转换产物二次修改示例（附加部件 / 纹理引用 / 参数范围） |
-| `my-mascot.l2dm` | 完全从零构建的迷你模型（含内嵌纹理） |
-| `haru-bundle.json` | 转换包（参数/动作/表情/物理/pose/userData 元数据） |
+- `public/haru-full.l2dm` = 官方 Haru 整体转换 → **自包含 .l2dm**（骨架 + 内嵌两张纹理）。
+- `moc3ToL2dm` 支持 `visibleArtMeshFilter`（宿主/烘焙注入运行时可见性，剔除默认隐藏的手臂/衣物层）；`buildLeftL2dm`（浏览器内实时 convertLive2dModel）见 `demo-app/src/compare-upload.ts`。
+- 二次修改（`addPart/setParamRange/embedTexture/…`）与从零构建（`createL2dm`）示例见 `packages/convert` 测试与 `docs/GUIDE-FROM-IMAGE-TO-LIVE2D.md`。
 
 ## 测试
 

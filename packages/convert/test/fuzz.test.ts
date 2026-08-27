@@ -8,7 +8,7 @@ import { readMoc3, readMoc, moc3ToL2dm, mocToL2dm } from "@l2dp/convert";
 import { loadL2dmObject } from "@l2dp/engine";
 
 const LIVE2D = join(import.meta.dirname, "..", "..", "..", "examples", "live2d");
-const HARU = join(import.meta.dirname, "..", "..", "..", "examples", "demo-real", "assets-src", "haru", "Haru.moc3");
+const HARU = join(import.meta.dirname, "..", "..", "..", "examples", "demo-app", "public", "official-haru", "Haru.moc3");
 
 function collect(root: string, ext: string): string[] {
   const out: string[] = [];

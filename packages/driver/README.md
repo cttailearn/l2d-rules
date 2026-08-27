@@ -35,7 +35,7 @@ npm i @l2dp/driver
 
 ## 用法
 
-### 最小闭环：JSONL → 每帧参数（照 `examples/demo-web/src/scene.ts`）
+### 最小闭环：JSONL → 每帧参数（照 `examples/demo-app/src/core.ts` 或 `scripts/drive-scene.ts`）
 
 ```ts
 import { StreamIngestor, LayerStack, EnvironmentLayer, Evaluator,

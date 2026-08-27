@@ -50,7 +50,7 @@ const { model, rig, motions } = outcome.result!;
 // model .l2dm → engine；motions → 可播放基础动作；rig.spec → 审计
 ```
 
-更贴近生产的接线（真实 LLM / HTTP 分割服务）：见 `examples/demo-p4b/scripts/bridge-llm.mjs` 与 @l2dp/host。
+更贴近生产的接线（真实 LLM / HTTP 分割服务）：见 `@l2dp/host`（LlmDesigner/LlmReviewer/HttpSegmenter）与统一 demo `examples/demo-app`（「上传图像 → 构建 Live2D」面板走同一 createWithSelfRepair 全链）。
 
 ## 边界
 
